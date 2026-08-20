@@ -69,9 +69,11 @@ release exists and its corresponding infrastructure WIF workflow identity has be
 `nix / verdict`. Pull requests without Nix-owned changes still reach that verdict, while
 merge queues, manual runs, and weekly schedules always execute qualification.
 
-The v4.0 contract establishes locked x86_64-linux flake and CI-shell validation. The v4.1
-contract adds native aarch64-linux and aarch64-darwin runners plus two independent
-x86_64-linux rebuilds whose derivations, store paths, and SRI output hashes must agree.
+The v4.0 `reusable-nix-flake.yml` contract establishes a locked, runner-selectable flake
+check. The v4.1 `reusable-nix-qualification.yml` contract adds internal change detection,
+isolated CI-shell validation, an always-present verdict, native aarch64-linux and
+aarch64-darwin runners, and two independent x86_64-linux rebuilds whose derivations, store
+paths, and SRI output hashes must agree.
 Consumers must move to `@v4.1.0` only after an operator publishes that immutable release;
 neither this documentation nor a branch commit creates or moves a release tag.
 

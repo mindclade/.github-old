@@ -21,6 +21,8 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ### Added
 
+- Added `reusable-nix-qualification.yml` with internal change detection, isolated CI-shell
+  validation, and an always-present verdict job.
 - Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
 - Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
 
@@ -28,8 +30,7 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ### Added
 
-- Added the reusable Nix qualification contract with locked x86_64-linux checks, internal
-  change detection, isolated CI-shell validation, and an always-present verdict job.
+- Added the `reusable-nix-flake.yml` baseline with a locked, runner-selectable flake check.
 - Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
   disaster-recovery evidence workflows with versioned machine contracts.
 - Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for
