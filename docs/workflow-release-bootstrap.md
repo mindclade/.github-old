@@ -37,7 +37,7 @@ git push origin v3.0.0
 Confirm `release.yml` publishes the draft and the organization immutable-release policy locks
 the release and tag.
 
-## Verify a consumer
+## Verify
 
 Open a reviewed pull request in one representative consumer using an exact release reference:
 
