@@ -11,11 +11,20 @@ import json
 import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:
+    print(
+        "tools/validate_repo.py requires Python 3.11 or newer; "
+        "run `nix develop .#ci --command make validate`.",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
 ROOT = Path(__file__).resolve().parents[1]
-ORG = "Mindclade"
+ORG = "mindclade"
 RELEASE = "v3.0.0"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SEMVER_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
@@ -49,11 +58,16 @@ REQUIRED = {
     ".github/workflows/reusable-terraform-validate.yml",
     ".github/workflows/reusable-terragrunt-plan.yml",
     ".github/workflows/reusable-artifact-verification.yml",
+    ".github/workflows/reusable-binauthz-sign.yml",
 }
 
 TEXT_SUFFIXES = {
     "", ".css", ".go", ".html", ".json", ".json5", ".lock", ".md", ".nix",
     ".py", ".rs", ".svg", ".toml", ".txt", ".yaml", ".yml",
+}
+TEMPLATE_RENDER_BASES = {
+    "docs/templates/documentation-home.md": ROOT / "docs",
+    "docs/templates/repository-home.md": ROOT,
 }
 
 
@@ -152,7 +166,7 @@ def main() -> int:
         text = template.read_text(encoding="utf-8")
         refs = [use for use in USES_RE.findall(text) if use.startswith(f"{ORG}/.github/")]
         if not refs:
-            fail(errors, f"workflow template does not call Mindclade/.github: {rel(template)}")
+            fail(errors, f"workflow template does not call mindclade/.github: {rel(template)}")
         for use in refs:
             target, _, version = use.rpartition("@")
             if version != RELEASE:
@@ -162,13 +176,55 @@ def main() -> int:
             if not (ROOT / local).is_file():
                 fail(errors, f"starter template references missing workflow: {local}")
 
+    build_workflow = (workflow_dir / "reusable-oci-build.yml").read_text(encoding="utf-8")
+    signer_workflow = (workflow_dir / "reusable-binauthz-sign.yml").read_text(encoding="utf-8")
+    if "binauthz attestations sign-and-create" in build_workflow:
+        fail(errors, "OCI builder must not create Binary Authorization deployment attestations")
+    for legacy_input in ("      attestor:\n", "      attestor-project:\n", "      attestor-key:\n"):
+        if legacy_input in build_workflow:
+            fail(errors, f"OCI builder retains forbidden signing input: {legacy_input.strip()}")
+    signer_requirements = {
+        "    environment: release": "protected release environment",
+        "vars.WIF_PROVIDER_SIGNER": "governed signer WIF provider",
+        "vars.SA_ARTIFACT_SIGNER": "dedicated signer service account",
+        "vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT": "Buildkite build/provenance project",
+        "vars.BINAUTHZ_BUILD_ATTESTOR": "Buildkite build/provenance attestor",
+        "vars.BINAUTHZ_QUALIFICATION_ATTESTOR_PROJECT": "independent qualification project",
+        "vars.BINAUTHZ_QUALIFICATION_ATTESTOR": "independent qualification attestor",
+        "vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT": "deployment attestor project",
+        "vars.BINAUTHZ_DEPLOYMENT_ATTESTOR": "deployment attestor",
+        "vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_KEY_VERSION": "immutable deployment signing key version",
+        "build, qualification, and deployment attestors must be distinct": "three distinct evidence roots",
+        'version: "580.0.0"': "exact Google Cloud CLI version",
+        "gcloud container binauthz attestations sign-and-create": "stable Binary Authorization signing operation",
+    }
+    for needle, control in signer_requirements.items():
+        if needle not in signer_workflow:
+            fail(errors, f"Binary Authorization signer lacks {control}")
+    for caller_selected_input in ("      service-account:\n", "      workload-identity-provider:\n"):
+        if caller_selected_input in signer_workflow:
+            fail(errors, f"Binary Authorization signer exposes forbidden caller input: {caller_selected_input.strip()}")
+    for forbidden_authority in (
+        "gh attestation",
+        "--signer-workflow",
+        "--bundle-from-oci",
+        "attestations: read",
+        "vars.BINAUTHZ_ATTESTOR_PROJECT",
+        "vars.BINAUTHZ_ATTESTOR_KEY_VERSION",
+    ):
+        if forbidden_authority in signer_workflow:
+            fail(errors, f"Binary Authorization signer retains forbidden/ambiguous trust authority: {forbidden_authority}")
+    if "gcloud beta container binauthz attestations sign-and-create" in signer_workflow:
+        fail(errors, "Binary Authorization signer must not depend on the beta gcloud command")
+
     for markdown in sorted(ROOT.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")
+        link_base = TEMPLATE_RENDER_BASES.get(rel(markdown), markdown.parent)
         for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
             destination = match.group(1).split("#", 1)[0]
             if not destination or "://" in destination or destination.startswith("mailto:"):
                 continue
-            target = (markdown.parent / destination).resolve()
+            target = (link_base / destination).resolve()
             try:
                 target.relative_to(ROOT)
             except ValueError:

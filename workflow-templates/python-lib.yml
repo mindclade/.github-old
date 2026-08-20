@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 name: Python library CI
 
 on:
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: Mindclade/.github/.github/workflows/reusable-uv-ci.yml@v3.0.0
+    uses: mindclade/.github/.github/workflows/reusable-uv-ci.yml@v3.0.0
     with:
       python-version: "3.11.15"
       packages: "--all-packages"

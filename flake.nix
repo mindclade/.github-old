@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 {
   description = "Toolchain for the mindclade .github repository";
 
@@ -18,7 +18,7 @@
         # nixos-25.05 is retained for a stable, already-locked base toolchain. Override only
         # actionlint so CI understands current GitHub Enterprise permission scopes such as
         # artifact-metadata without forcing an unrelated nixpkgs-wide upgrade.
-        actionlintLatest = pkgs.buildGoModule rec {
+        actionlintLatest = pkgs.buildGoModule.override { go = pkgs.go_1_25; } rec {
           pname = "actionlint";
           version = "1.7.12";
           src = pkgs.fetchFromGitHub {
@@ -53,6 +53,8 @@
         devShells.ci = pkgs.mkShell {
           packages = with pkgs; [
             actionlintLatest
+            gnumake
+            python3
             shellcheck # actionlint shells out to it for `run:` blocks; absent, those go unchecked
             yamllint
           ];
@@ -66,7 +68,9 @@
             yq-go
             jq
             gh
+            gnumake
             pre-commit
+            python3
 
             # bash 5. macOS ships 3.2, which lacks `declare -A` and `mapfile`.
             bashInteractive

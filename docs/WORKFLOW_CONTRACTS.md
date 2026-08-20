@@ -1,6 +1,6 @@
 # Reusable workflow contracts
 
-Reusable workflows in `Mindclade/.github` are organization APIs. Consumers pin immutable
+Reusable workflows in `mindclade/.github` are organization APIs. Consumers pin immutable
 full-semver releases, so changes are released deliberately rather than flowing from `main`.
 
 ## What is part of the contract

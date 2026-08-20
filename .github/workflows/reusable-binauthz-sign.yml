@@ -1,0 +1,223 @@
+---
+# Promote one independently qualified immutable image digest into the Binary Authorization
+# trust chain. All identity and attestor roots come from github-config-managed variables;
+# callers can select only the digest. The release environment and GCP WIF binding must both
+# restrict this job to the approved released workflow identity.
+name: Reusable — Binary Authorization signing
+
+on:
+  workflow_call:
+    inputs:
+      image-ref:
+        description: Full Artifact Registry reference pinned as image@sha256:<64 lowercase hex>.
+        required: true
+        type: string
+    outputs:
+      created:
+        description: Whether this run created a new deployment attestation.
+        value: ${{ jobs.sign.outputs.created }}
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    concurrency:
+      group: binauthz-sign-${{ inputs.image-ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      created: ${{ steps.existing.outputs.created }}
+    steps:
+      - name: Validate immutable image and governed trust inputs
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          WIF_PROVIDER: ${{ vars.WIF_PROVIDER_SIGNER }}
+          SIGNER_SERVICE_ACCOUNT: ${{ vars.SA_ARTIFACT_SIGNER }}
+          BUILD_PROJECT: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT }}
+          BUILD_ATTESTOR: ${{ vars.BINAUTHZ_BUILD_ATTESTOR }}
+          QUALIFICATION_PROJECT: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR_PROJECT }}
+          QUALIFICATION_ATTESTOR: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR }}
+          DEPLOYMENT_PROJECT: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT }}
+          DEPLOYMENT_ATTESTOR: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR }}
+          DEPLOYMENT_KEY_VERSION: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_KEY_VERSION }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$IMAGE_REF" =~ ^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::image-ref must be a digest-pinned Artifact Registry reference" >&2
+            exit 1
+          fi
+          if [[ ! "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/providers/[a-z0-9-]+$ ]]; then
+            echo "::error::WIF_PROVIDER_SIGNER is absent or malformed" >&2
+            exit 1
+          fi
+          if [[ ! "$SIGNER_SERVICE_ACCOUNT" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$ ]]; then
+            echo "::error::SA_ARTIFACT_SIGNER is absent or malformed" >&2
+            exit 1
+          fi
+          for project in "$BUILD_PROJECT" "$QUALIFICATION_PROJECT" "$DEPLOYMENT_PROJECT"; do
+            if [[ ! "$project" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]; then
+              echo "::error::Binary Authorization project variable is absent or malformed" >&2
+              exit 1
+            fi
+          done
+          for attestor in "$BUILD_ATTESTOR" "$QUALIFICATION_ATTESTOR" "$DEPLOYMENT_ATTESTOR"; do
+            if [[ ! "$attestor" =~ ^[a-z][a-z0-9-]{0,61}[a-z0-9]$ ]]; then
+              echo "::error::Binary Authorization attestor variable is absent or malformed" >&2
+              exit 1
+            fi
+          done
+          roots="$(printf '%s\n' \
+            "$BUILD_PROJECT/$BUILD_ATTESTOR" \
+            "$QUALIFICATION_PROJECT/$QUALIFICATION_ATTESTOR" \
+            "$DEPLOYMENT_PROJECT/$DEPLOYMENT_ATTESTOR" | sort -u | wc -l | tr -d ' ')"
+          if [ "$roots" -ne 3 ]; then
+            echo "::error::build, qualification, and deployment attestors must be distinct" >&2
+            exit 1
+          fi
+          if [[ ! "$DEPLOYMENT_KEY_VERSION" =~ ^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/[a-z0-9-]+/keyRings/[A-Za-z0-9_-]+/cryptoKeys/[A-Za-z0-9_-]+/cryptoKeyVersions/[1-9][0-9]*$ ]]; then
+            echo "::error::BINAUTHZ_DEPLOYMENT_ATTESTOR_KEY_VERSION must name an immutable KMS key version" >&2
+            exit 1
+          fi
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || {
+            echo "::error::the caller must grant permissions: id-token: write" >&2
+            exit 1
+          }
+
+      - id: gcp-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_SIGNER }}
+          service_account: ${{ vars.SA_ARTIFACT_SIGNER }}
+          project_id: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - name: Configure read-only registry access
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+        run: |
+          set -euo pipefail
+          registry="${IMAGE_REF%%/*}"
+          gcloud auth configure-docker "$registry" --quiet
+
+      - name: Require Buildkite build and provenance evidence
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          BUILD_PROJECT: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT }}
+          BUILD_ATTESTOR: ${{ vars.BINAUTHZ_BUILD_ATTESTOR }}
+        run: |
+          set -euo pipefail
+          attestations="$(gcloud container binauthz attestations list \
+            --project="$BUILD_PROJECT" \
+            --artifact-url="$IMAGE_REF" \
+            --attestor="$BUILD_ATTESTOR" \
+            --attestor-project="$BUILD_PROJECT" \
+            --limit=1 \
+            --format=json)"
+          if ! jq -e 'length == 1' <<< "$attestations" >/dev/null; then
+            echo "::error::digest lacks the Buildkite build/provenance attestation" >&2
+            exit 1
+          fi
+
+      - name: Require independent Buildkite qualification
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          QUALIFICATION_PROJECT: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR_PROJECT }}
+          QUALIFICATION_ATTESTOR: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR }}
+        run: |
+          set -euo pipefail
+          attestations="$(gcloud container binauthz attestations list \
+            --project="$QUALIFICATION_PROJECT" \
+            --artifact-url="$IMAGE_REF" \
+            --attestor="$QUALIFICATION_ATTESTOR" \
+            --attestor-project="$QUALIFICATION_PROJECT" \
+            --limit=1 \
+            --format=json)"
+          if ! jq -e 'length == 1' <<< "$attestations" >/dev/null; then
+            echo "::error::digest lacks the independently issued Buildkite qualification attestation" >&2
+            exit 1
+          fi
+
+      - id: existing
+        name: Check for an existing deployment attestation
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          DEPLOYMENT_PROJECT: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT }}
+          DEPLOYMENT_ATTESTOR: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR }}
+        run: |
+          set -euo pipefail
+          attestations="$(gcloud container binauthz attestations list \
+            --project="$DEPLOYMENT_PROJECT" \
+            --artifact-url="$IMAGE_REF" \
+            --attestor="$DEPLOYMENT_ATTESTOR" \
+            --attestor-project="$DEPLOYMENT_PROJECT" \
+            --limit=1 \
+            --format=json)"
+          if jq -e 'length == 1' <<< "$attestations" >/dev/null; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create deployment attestation with the signer identity
+        if: steps.existing.outputs.created == 'true'
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          DEPLOYMENT_PROJECT: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT }}
+          DEPLOYMENT_ATTESTOR: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR }}
+          DEPLOYMENT_KEY_VERSION: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_KEY_VERSION }}
+        run: |
+          set -euo pipefail
+          gcloud container binauthz attestations sign-and-create \
+            --project="$DEPLOYMENT_PROJECT" \
+            --artifact-url="$IMAGE_REF" \
+            --attestor="$DEPLOYMENT_ATTESTOR" \
+            --attestor-project="$DEPLOYMENT_PROJECT" \
+            --keyversion="$DEPLOYMENT_KEY_VERSION" \
+            --quiet
+
+      - name: Verify the deployment attestation
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          DEPLOYMENT_PROJECT: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT }}
+          DEPLOYMENT_ATTESTOR: ${{ vars.BINAUTHZ_DEPLOYMENT_ATTESTOR }}
+        run: |
+          set -euo pipefail
+          attestations="$(gcloud container binauthz attestations list \
+            --project="$DEPLOYMENT_PROJECT" \
+            --artifact-url="$IMAGE_REF" \
+            --attestor="$DEPLOYMENT_ATTESTOR" \
+            --attestor-project="$DEPLOYMENT_PROJECT" \
+            --limit=1 \
+            --format=json)"
+          jq -e 'length == 1' <<< "$attestations" >/dev/null || {
+            echo "::error::deployment attestation was not observable after signing" >&2
+            exit 1
+          }
+
+      - name: Summary
+        if: always()
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          CREATED: ${{ steps.existing.outputs.created }}
+        run: |
+          {
+            echo "### Binary Authorization promotion"
+            echo
+            echo "- Digest: \`$IMAGE_REF\`"
+            echo "- Build/provenance authority: Buildkite attestor"
+            echo "- Independent qualification authority: Buildkite attestor"
+            echo "- New deployment attestation created: \`${CREATED:-false}\`"
+            echo "- Protected environment: \`release\`"
+          } >> "$GITHUB_STEP_SUMMARY"

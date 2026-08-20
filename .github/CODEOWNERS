@@ -1,38 +1,39 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 # Changes here can alter CI behavior across the organization after a new immutable release or
 # through a required ruleset workflow. Platform and security therefore co-own the default
 # surface.
 
-* @Mindclade/platform @Mindclade/security
+* @mindclade/platform @mindclade/security
 
 # Authentication, supply chain, provenance, and organization-required controls.
-/.github/workflows/required-security-baseline.yml      @Mindclade/security
-/.github/workflows/reusable-wif-auth.yml         @Mindclade/security
-/.github/workflows/reusable-codeql.yml           @Mindclade/security
-/.github/workflows/reusable-oci-build.yml        @Mindclade/security
-/.github/workflows/reusable-tf-plan.yml          @Mindclade/platform @Mindclade/security
-/.github/workflows/reusable-artifact-verification.yml @Mindclade/platform @Mindclade/security
-/.github/workflows/reusable-terraform-validate.yml     @Mindclade/platform @Mindclade/security
-/.github/workflows/reusable-terragrunt-plan.yml        @Mindclade/platform @Mindclade/security
-/.github/workflows/required-repository-policy.yml         @Mindclade/security
-/.github/workflows/release.yml                   @Mindclade/platform @Mindclade/security
+/.github/workflows/required-security-baseline.yml      @mindclade/security
+/.github/workflows/reusable-wif-auth.yml         @mindclade/security
+/.github/workflows/reusable-codeql.yml           @mindclade/security
+/.github/workflows/reusable-oci-build.yml        @mindclade/security
+/.github/workflows/reusable-binauthz-sign.yml    @mindclade/security
+/.github/workflows/reusable-tf-plan.yml          @mindclade/platform @mindclade/security
+/.github/workflows/reusable-artifact-verification.yml @mindclade/platform @mindclade/security
+/.github/workflows/reusable-terraform-validate.yml     @mindclade/platform @mindclade/security
+/.github/workflows/reusable-terragrunt-plan.yml        @mindclade/platform @mindclade/security
+/.github/workflows/required-repository-policy.yml         @mindclade/security
+/.github/workflows/release.yml                   @mindclade/platform @mindclade/security
 
 # New-repository defaults and reusable workflow qualification/contracts.
-/workflow-templates/                             @Mindclade/platform
-/testdata/                                      @Mindclade/platform
-/contracts/workflows/                           @Mindclade/platform @Mindclade/security
-/tools/                                         @Mindclade/platform @Mindclade/security
-/docs/                                          @Mindclade/platform @Mindclade/security
+/workflow-templates/                             @mindclade/platform
+/testdata/                                      @mindclade/platform
+/contracts/workflows/                           @mindclade/platform @mindclade/security
+/tools/                                         @mindclade/platform @mindclade/security
+/docs/                                          @mindclade/platform @mindclade/security
 
 # Community health and reporting routes.
-/SECURITY.md                                    @Mindclade/security
-/GOVERNANCE.md                                  @Mindclade/security
-/CODE_OF_CONDUCT.md                             @Mindclade/security
-/CONTRIBUTING.md                                @Mindclade/platform @Mindclade/security
-/SUPPORT.md                                     @Mindclade/platform @Mindclade/security
-/.github/DISCUSSION_TEMPLATE/                   @Mindclade/platform
-/.github/ISSUE_TEMPLATE/security_placeholder.yml @Mindclade/security
-/.github/ISSUE_TEMPLATE/model_behavior.yml       @Mindclade/security
+/SECURITY.md                                    @mindclade/security
+/GOVERNANCE.md                                  @mindclade/security
+/CODE_OF_CONDUCT.md                             @mindclade/security
+/CONTRIBUTING.md                                @mindclade/platform @mindclade/security
+/SUPPORT.md                                     @mindclade/platform @mindclade/security
+/.github/DISCUSSION_TEMPLATE/                   @mindclade/platform
+/.github/ISSUE_TEMPLATE/security_placeholder.yml @mindclade/security
+/.github/ISSUE_TEMPLATE/model_behavior.yml       @mindclade/security

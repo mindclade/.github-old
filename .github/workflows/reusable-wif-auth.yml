@@ -86,7 +86,7 @@ jobs:
           visibility = claims.get("repository_visibility")
           expected_owner_id = os.environ.get("EXPECTED_OWNER_ID", "")
 
-          if owner != "Mindclade":
+          if owner != "mindclade":
               print(f"::error::unexpected repository_owner claim: {owner!r}")
               sys.exit(1)
           if visibility not in {"internal", "private"}:

@@ -9,7 +9,23 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added `reusable-binauthz-sign.yml`, a protected-release workflow that requires distinct
+  Buildkite build/provenance and qualification attestations before using a dedicated signer
+  identity and immutable KMS key version to issue a third deployment attestation.
+
+### Changed
+
+- **Breaking:** removed Binary Authorization attestor/key inputs and signing from
+  `reusable-oci-build.yml`. Publish this contract change as a new major release; do not move
+  an existing release tag.
+
+### Security
+
+- GitHub's general OCI builder is not a Mindclade production trust authority. Buildkite build
+  and qualification identities cannot mint the deployment attestation accepted by production
+  GKE, and caller-controlled inputs cannot select the signer identity, attestors, or KMS key.
 
 ## v3.0.0
 
@@ -55,7 +71,7 @@ No unreleased changes.
 - CI uses actionlint 1.7.12 through a narrow Nix override while retaining the existing locked
   nixpkgs base.
 - Organization profile content is removed from this internal repository; member profile
-  content is maintained in `profile/README.md`.
+  content is maintained in `.github-private/profile/README.md`.
 
 ### Removed
 

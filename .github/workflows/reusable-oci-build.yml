@@ -1,5 +1,7 @@
 ---
-# Build → SBOM → GitHub provenance/SBOM attestations → optional BinAuthz. The output that matters is the image DIGEST, not a tag.
+# Build → SBOM → GitHub provenance/SBOM attestations. The output that matters is the image
+# DIGEST, not a tag. This workflow deliberately cannot create a deployable Binary
+# Authorization attestation: build and production-signing identities are separate.
 # Everything downstream (gitops manifests, Binary Authorization, promotion) keys off the
 # digest, because a tag can be moved and a digest cannot.
 name: Reusable — OCI build
@@ -17,10 +19,9 @@ on:
           publishes it with oci_push, and needs bazel-image-target and bazel-push-target
           instead of context/dockerfile.
 
-          Only the build step differs. Everything downstream — SBOM, GitHub provenance, SBOM
-          attestation, Binary Authorization — keys off image@digest and is identical either
-          way, which is the reason this is an input here rather than a second workflow that
-          would have to keep its own copy of the signing chain in step.
+          Only the build step differs. Everything downstream in this workflow — SBOM, GitHub
+          provenance, and SBOM attestation — keys off image@digest and is identical either
+          way.
         required: false
         type: string
         default: docker
@@ -29,8 +30,7 @@ on:
           oci_image label, e.g. //services/go_vanity:image. Required when builder is bazel.
 
           Named separately from the push target because the digest is read from this target's
-          OCI layout. oci_push computes the same value internally but does not report it, and
-          a digest the workflow did not observe is one it cannot sign.
+          OCI layout. oci_push computes the same value internally but does not report it.
         required: false
         type: string
         default: ""
@@ -78,22 +78,6 @@ on:
           Default GCP project for the job. Leave empty only when the registry project and the
           service account's own project are the same — auth derives project_id from the SA
           email otherwise, which is rarely what a cross-project push wants.
-        required: false
-        type: string
-        default: ""
-      attestor:
-        description: >-
-          Binary Authorization attestor short name, e.g. build-attestor. Leave empty to skip
-          the GKE admission attestation; GitHub provenance/SBOM attestations still run.
-        required: false
-        type: string
-        default: ""
-      attestor-project:
-        required: false
-        type: string
-        default: ""
-      attestor-key:
-        description: Full KMS key version resource name used by the attestor.
         required: false
         type: string
         default: ""
@@ -336,31 +320,6 @@ jobs:
           push-to-registry: true
           create-storage-record: true
 
-      - name: Binary Authorization attestation
-        if: inputs.push && inputs.attestor != ''
-        # GitHub attestations establish source-build provenance. BinAuthz is separate on
-        # purpose: it is the GKE admission decision the cluster actually enforces.
-        env:
-          ATTESTOR: ${{ inputs.attestor }}
-          ATTESTOR_PROJECT: ${{ inputs.attestor-project }}
-          ATTESTOR_KEY: ${{ inputs.attestor-key }}
-          IMAGE_REF: ${{ steps.ref.outputs.image-ref }}
-        run: |
-          set -euo pipefail
-          # attestor-project and attestor-key are optional inputs that become mandatory the
-          # moment attestor is set. Unset, gcloud fails with an argument error that does not
-          # name the workflow input that was missing.
-          if [ -z "${ATTESTOR_PROJECT}" ] || [ -z "${ATTESTOR_KEY}" ]; then
-            echo "::error::attestor is set, so attestor-project and attestor-key are both required" >&2
-            exit 1
-          fi
-          gcloud container binauthz attestations sign-and-create \
-            --project="${ATTESTOR_PROJECT}" \
-            --artifact-url="${IMAGE_REF}" \
-            --attestor="${ATTESTOR}" \
-            --attestor-project="${ATTESTOR_PROJECT}" \
-            --keyversion="${ATTESTOR_KEY}"
-
       - name: Summary
         if: always()
         run: |
@@ -374,7 +333,7 @@ jobs:
             echo "| Pushed | ${{ inputs.push }} |"
             echo "| GitHub provenance attested | ${{ inputs.push }} |"
             echo "| SBOM attested | ${{ inputs.push }} |"
-            echo "| BinAuthz attested | ${{ inputs.push && inputs.attestor != '' }} |"
             echo
-            echo "Deploy by digest. Do not deploy by tag."
+            echo "Deploy by digest. Build output is not production-authorized here; an"
+            echo "independently qualified digest must pass the protected signing workflow."
           } >> "$GITHUB_STEP_SUMMARY"

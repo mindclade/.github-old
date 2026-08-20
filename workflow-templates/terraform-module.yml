@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 name: Terraform module CI
 
 on:
@@ -23,7 +23,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: write
-    uses: Mindclade/.github/.github/workflows/reusable-tf-plan.yml@v3.0.0
+    uses: mindclade/.github/.github/workflows/reusable-tf-plan.yml@v3.0.0
     with:
       working-directory: "."
       terraform-version: "1.15.9"

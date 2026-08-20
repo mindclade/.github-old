@@ -1,14 +1,21 @@
-.PHONY: validate contracts pins
+PYTHON ?= python3
+ACTIONLINT ?= actionlint
+YAMLLINT ?= yamllint
 
-validate: contracts pins validate-production-contract
-	python3 tools/validate_repo.py
+.PHONY: validate lint contracts pins validate-production-contract
+
+validate: lint contracts pins validate-production-contract
+	$(PYTHON) tools/validate_repo.py
+
+lint:
+	$(ACTIONLINT) -config-file .github/actionlint.yaml .github/workflows/*.yml
+	$(YAMLLINT) --strict .
 
 contracts:
-	python3 tools/check_workflow_contracts.py
+	$(PYTHON) tools/check_workflow_contracts.py
 
 pins:
-	python3 tools/validate_action_pins.py
+	$(PYTHON) tools/validate_action_pins.py
 
-.PHONY: validate-production-contract
 validate-production-contract:
-	python3 scripts/validate-production-contract.py
+	$(PYTHON) scripts/validate-production-contract.py

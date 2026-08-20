@@ -1,6 +1,6 @@
 # GitHub OIDC and Google Cloud WIF contract
 
-This document defines the trust boundary consumed by `Mindclade/.github`. The root trust
+This document defines the trust boundary consumed by `mindclade/.github`. The root trust
 anchor is provisioned in `bootstrap`; normal workload identities live in
 `infrastructure-live`; GitHub-side variables/properties/policy live in `github-config`.
 
@@ -47,7 +47,7 @@ Terraform-plan provider should conceptually require all of the following:
 ```text
 repository_owner_id == <immutable Mindclade organization ID>
 repository_visibility is internal or private
-job_workflow_ref == Mindclade/.github/.github/workflows/reusable-tf-plan.yml@refs/tags/v3.0.0
+job_workflow_ref == mindclade/.github/.github/workflows/reusable-tf-plan.yml@refs/tags/v3.0.0
 cloud_access == enabled
 workload_class == infrastructure
 ```
@@ -58,7 +58,7 @@ Use an equivalent CEL expression in the GCP Workload Identity Provider, for exam
 attribute_condition = join(" && ", [
   format("assertion.repository_owner_id == '%s'", var.mindclade_github_org_id),
   "(assertion.repository_visibility == 'internal' || assertion.repository_visibility == 'private')",
-  "assertion.job_workflow_ref == 'Mindclade/.github/.github/workflows/reusable-tf-plan.yml@refs/tags/v3.0.0'",
+  "assertion.job_workflow_ref == 'mindclade/.github/.github/workflows/reusable-tf-plan.yml@refs/tags/v3.0.0'",
   "assertion.repo_property_cloud_access == 'enabled'",
   "assertion.repo_property_workload_class == 'infrastructure'",
 ])

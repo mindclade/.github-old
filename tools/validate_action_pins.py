@@ -19,7 +19,7 @@ for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
         target, sep, ref = use.rpartition("@")
         if not sep:
             errors.append(f"{path.relative_to(ROOT)}: unversioned {use}")
-        elif target.startswith("Mindclade/.github/.github/workflows/"):
+        elif target.startswith("mindclade/.github/.github/workflows/"):
             if not SEMVER.fullmatch(ref):
                 errors.append(f"{path.relative_to(ROOT)}: internal workflow must use full semver: {use}")
         elif not (SHA.fullmatch(ref) or DIGEST.fullmatch(ref)):

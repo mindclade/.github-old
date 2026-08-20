@@ -2,7 +2,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a vulnerability privately
-    url: https://github.com/Mindclade/.github/blob/main/SECURITY.md
+    url: https://github.com/mindclade/.github/blob/main/SECURITY.md
     about: >-
       Follow the private reporting policy. Open an advisory on the affected repository;
       never put exploit details, credentials, customer data, or restricted content in an issue.

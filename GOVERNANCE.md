@@ -13,11 +13,12 @@ drift detection is the point rather than a nicety.
 
 | What | Declared in | Applied by |
 |---|---|---|
-| Org settings, teams, rulesets, environments | [`github-config`](https://github.com/Mindclade/github-config) | Terraform, CI-applied behind an environment gate |
-| GCP org hierarchy, state backend, WIF, break-glass | [`bootstrap`](https://github.com/Mindclade/bootstrap) | Terraform, human-applied |
-| Live GCP infrastructure | [`infrastructure-live`](https://github.com/Mindclade/infrastructure-live) | Terragrunt, CI-applied behind an environment gate |
-| Cluster state and admission policy | [`gitops`](https://github.com/Mindclade/gitops) | ArgoCD |
-| Org-wide CI, templates, community health | [`.github`](https://github.com/Mindclade/.github) | Inheritance and `uses:` |
+| Org settings, teams, rulesets, environments | [`github-config`](https://github.com/mindclade/github-config) | Terraform, CI-applied behind an environment gate |
+| GCP org hierarchy, state backend, WIF, break-glass | [`bootstrap`](https://github.com/mindclade/bootstrap) | Terraform, human-applied |
+| Live GCP infrastructure | [`infrastructure-live`](https://github.com/mindclade/infrastructure-live) | Terragrunt, CI-applied behind an environment gate |
+| Cluster state and admission policy | [`gitops`](https://github.com/mindclade/gitops) | ArgoCD |
+| Org-wide CI, templates, community health | [`.github`](https://github.com/mindclade/.github) | Inheritance and `uses:` |
+| Member-only organization profile | [`.github-private`](https://github.com/mindclade/.github-private) | GitHub member-profile rendering |
 | Package ownership and promotion policy | Monorepo `governance/` | `just policy` |
 
 Enterprise-account settings that no provider can manage — SAML, SCIM, enterprise policies —

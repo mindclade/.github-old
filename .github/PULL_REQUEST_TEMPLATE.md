@@ -8,7 +8,7 @@ Describe the outcome and the smallest coherent vertical slice implemented here.
 - Public contract or artifact changes:
 - Cross-component dependency changes:
 
-## Validation
+## Validation checklist
 
 - [ ] Formatting and static analysis passed for every changed language.
 - [ ] Affected tests passed.
@@ -23,7 +23,7 @@ List the exact commands and results:
 
 ```
 
-## Release and operations
+## Risk, release, and rollback
 
 Describe rollout, compatibility, observability, security, and rollback impact. Write `None`
 when the change cannot affect a release or a running environment.

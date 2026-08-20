@@ -1,19 +1,12 @@
-# Mindclade
+# Organization profile publication boundary
 
-Mindclade develops frontier AI systems for programmable biology: models, data systems, and
-scientific infrastructure for understanding and designing proteins, nucleic acids, small
-molecules, and biomolecular complexes.
+The member-only Mindclade organization profile is maintained in
+[`mindclade/.github-private/profile/README.md`](https://github.com/mindclade/.github-private/blob/main/profile/README.md).
 
-## Internal engineering estate
+Canonical navigation: [enterprise](https://github.com/enterprises/mindclade),
+[organization](https://github.com/mindclade), and
+[repository index](https://github.com/orgs/mindclade/repositories).
 
-Mindclade's control plane is intentionally separated by authority:
-
-- `.github` provides shared workflow implementations and organization-wide contributor UX.
-- `github-config` governs GitHub Enterprise repositories, teams, rulesets, environments, and access.
-- `bootstrap` owns only Ring-0 state, automation trust, seed projects, and recovery.
-- `infrastructure-live` owns normal Google Cloud infrastructure.
-- `gitops` owns Argo CD and Kubernetes desired state.
-- `mindclade-internal-monorepo` owns product, model, training, data, serving, and build source.
-
-Internal documentation must not contain credentials, customer data, restricted biological data,
-private model weights, or production secrets.
+This internal `.github` repository owns reusable workflows, starter workflows, and shared
+community-health content. It does not own the rendered member profile. This pointer remains so
+maintainers do not create a second, silently stale profile source here.

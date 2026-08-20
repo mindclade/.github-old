@@ -1,20 +1,5 @@
 {
   "inputs": {
-    "attestor": {
-      "default": "",
-      "required": false,
-      "type": "string"
-    },
-    "attestor-key": {
-      "default": "",
-      "required": false,
-      "type": "string"
-    },
-    "attestor-project": {
-      "default": "",
-      "required": false,
-      "type": "string"
-    },
     "bazel-args": {
       "default": "",
       "required": false,

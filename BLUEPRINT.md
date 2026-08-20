@@ -8,7 +8,6 @@
 
 - `shared-workflows`
 - `community-health`
-- `organization-profile`
 - `workflow-contracts`
 
 ## Explicit exclusions

@@ -5,25 +5,29 @@ schema_version: 1
 repository: .github
 repository_class: enterprise-control
 visibility: internal
+github:
+  enterprise_url: https://github.com/enterprises/mindclade
+  organization_url: https://github.com/mindclade
+  repository_index_url: https://github.com/orgs/mindclade/repositories
+  repository_url: https://github.com/mindclade/.github
 authority:
-    - shared-workflows
-    - community-health
-    - organization-profile
-    - workflow-contracts
+  - shared-workflows
+  - community-health
+  - workflow-contracts
 forbidden_authority:
-    - cloud-resources
-    - github-enterprise-desired-state
-    - kubernetes-desired-state
-    - application-source
+  - cloud-resources
+  - github-enterprise-desired-state
+  - kubernetes-desired-state
+  - application-source
 required_paths:
-    - .github/workflows
-    - workflow-templates
-    - contracts/workflows
-    - SECURITY.md
-    - CODEOWNERS
+  - .github/workflows
+  - workflow-templates
+  - contracts/workflows
+  - SECURITY.md
+  - .github/CODEOWNERS
 forbidden_paths:
-    - .terraform
-    - .terragrunt-cache
+  - .terraform
+  - .terragrunt-cache
 default_branch: main
 change_model: pull-request
 production_controls:

@@ -1,0 +1,26 @@
+{
+  "inputs": {
+    "image-ref": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "sign": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "sign"
+  ],
+  "outputs": [
+    "created"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-binauthz-sign.yml"
+}

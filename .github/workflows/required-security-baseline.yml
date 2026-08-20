@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 # Organization ruleset workflow. github-config attaches this workflow to protected default
 # branches across internal/private repositories. Keep it language-neutral and safe for
 # untrusted pull-request content: it reads source, but never executes repository code.
@@ -97,7 +97,7 @@ jobs:
                   if sha_re.fullmatch(ref) or digest_re.fullmatch(ref):
                       continue
                   if (
-                      target.startswith("Mindclade/.github/.github/workflows/")
+                      target.startswith("mindclade/.github/.github/workflows/")
                       and semver_re.fullmatch(ref)
                   ):
                       # Mindclade reusable workflows use immutable full-semver releases.

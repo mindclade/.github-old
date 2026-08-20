@@ -1,18 +1,23 @@
 # GitHub Enterprise setup
 
-This is the deployment contract for `Mindclade/.github`. Apply organization/repository
-settings through `Mindclade/github-config`; use the UI only for controls the provider/API
+This is the deployment contract for [`mindclade/.github`](https://github.com/mindclade/.github).
+The owning [enterprise](https://github.com/enterprises/mindclade),
+[organization](https://github.com/mindclade), and
+[repository index](https://github.com/orgs/mindclade/repositories) use the canonical
+`mindclade` slug. Apply organization/repository
+settings through `mindclade/github-config`; use the UI only for controls the provider/API
 cannot manage, and record those exceptions in the same desired-state repository.
 
 ## 1. Repository identity
 
-- Owner: `Mindclade`
+- Owner: `mindclade`
 - Name: `.github`
 - Visibility: **internal**
 - Default branch: `main`
 - Forking: disabled unless a documented enterprise policy requires it
 - Actions access: internal/private Mindclade repositories may call reusable workflows here
-- Organization profile source: `profile/README.md`; keep this repository authoritative
+- Member-only organization profile source: `mindclade/.github-private/profile/README.md`;
+  keep `.github-private` private and authoritative
 
 `required-repository-policy.yml` checks repository owner, default branch, class-compatible visibility, lifecycle, production authority, and required Mindclade custom properties on governed changes
 to `main`.
@@ -21,8 +26,8 @@ to `main`.
 
 Create and maintain these organization teams before CODEOWNERS enforcement:
 
-- `@Mindclade/platform`
-- `@Mindclade/security`
+- `@mindclade/platform`
+- `@mindclade/security`
 
 Both need read access. Grant higher repository roles only through declared GitHub desired state.
 Security-sensitive workflow, identity, provenance, and policy paths require security review.
@@ -58,7 +63,7 @@ It enforces:
 1. GitHub dependency review for pull requests, failing on newly introduced high/critical
    vulnerable dependencies.
 2. Full commit-SHA pinning for new/changed third-party action references. Calls to released
-   `Mindclade/.github` reusable workflows may use immutable full semver.
+   `mindclade/.github` reusable workflows may use immutable full semver.
 3. A stable `verdict` job so internal workflow details can evolve without ruleset churn.
 
 Roll the ruleset out in **Evaluate** mode first, inspect results across representative Go,
@@ -77,7 +82,7 @@ At the enterprise/organization level:
 - require action references to be pinned to a full commit SHA where the platform supports it;
 - default `GITHUB_TOKEN` permissions to read-only;
 - block self-hosted runners from untrusted pull-request code;
-- allow internal/private repositories to call `Mindclade/.github` workflows;
+- allow internal/private repositories to call `mindclade/.github` workflows;
 - retain logs/artifacts according to evidence-retention policy;
 - manage allowed actions centrally rather than allowing repository-local exceptions by
   default.
@@ -109,19 +114,38 @@ Never move/reuse an immutable release tag. Publish a new patch release for corre
 
 ## 7. Artifact provenance and linked artifacts
 
-For container publication, `reusable-oci-build.yml` is canonical:
+For general GitHub container publication, `reusable-oci-build.yml` provides:
 
 - build and push by digest;
 - generate an SPDX JSON SBOM;
 - generate GitHub SLSA build provenance with `actions/attest`;
 - generate a GitHub SBOM attestation;
 - push the attestations to the OCI registry;
-- create a GitHub linked-artifact storage record using `artifact-metadata: write`;
-- optionally create a GCP Binary Authorization attestation for GKE admission.
+- create a GitHub linked-artifact storage record using `artifact-metadata: write`.
 
 Private/internal artifact attestations use GitHub's private Sigstore instance; no public Rekor
-publication path is required. Binary Authorization is not source provenance: keep it as the
-separate cluster-admission decision.
+publication path is required. The builder cannot issue a Binary Authorization deployment
+attestation.
+
+This general-purpose workflow is not Mindclade's production artifact authority. Buildkite
+performs the authoritative production build and qualification and issues two distinct Binary
+Authorization evidence roots for the immutable digest.
+
+After both Buildkite build/provenance and qualification attestations exist,
+`reusable-binauthz-sign.yml` may create the separately named GKE admission attestation. It:
+
+- accepts only the digest from the caller;
+- obtains identity, attestors, and KMS key version from governance-managed variables;
+- runs behind the caller repository's protected `release` environment;
+- verifies the distinct Buildkite build/provenance and qualification attestors;
+- authenticates as a dedicated signer service account; and
+- creates or verifies the deployment attestation idempotently.
+
+Bind the signer service account's WIF grant to the exact released `job_workflow_ref`, the
+monorepo's immutable repository identifiers, and the `release` environment subject. Do not
+grant either Buildkite evidence identity access to the signer key or deployment attestor.
+The three governed roots use explicit `BINAUTHZ_BUILD_*`, `BINAUTHZ_QUALIFICATION_*`, and
+`BINAUTHZ_DEPLOYMENT_*` variables; do not reuse an attestor across roles.
 
 ## 8. OIDC/WIF governance
 
@@ -154,6 +178,8 @@ Publish only identity references and non-secret configuration as variables, for 
 - `MINDCLADE_GITHUB_ORG_ID`
 - `WIF_PROVIDER_PLAN`
 - `SA_TF_PLAN`
+- `WIF_PROVIDER_SIGNER` and `SA_ARTIFACT_SIGNER`
+- qualification and deployment attestor projects/names plus an immutable KMS key version
 - environment-specific Artifact Registry and Binary Authorization identifiers
 
 The optional consumer-pin audit uses a GitHub App:
@@ -173,6 +199,10 @@ An internal `.github` repository can provide supported organization community-he
 and internal workflow/template components. Issue/PR template inheritance has stricter public
 repository requirements, so `github-config` should provision repository-local copies where
 needed rather than making this repository public.
+
+The member organization profile is a separate GitHub publication boundary. Keep
+`mindclade/.github-private` private with its rendered source at `profile/README.md`; do not
+duplicate the profile body in this repository.
 
 `CODEOWNERS`, rulesets, environments, variables, secrets, repository custom properties, and
 required checks do not inherit from this repository; `github-config` owns them.

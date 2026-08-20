@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 # Organization ruleset workflow. github-config attaches this workflow to repositories by
 # `mindclade_repository_class`. It validates the repository that triggered the workflow;
 # it must never hard-code `.github` or another single repository identity.
@@ -31,7 +31,7 @@ jobs:
       - name: Verify repository metadata and governance properties
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_OWNER: Mindclade
+          EXPECTED_OWNER: mindclade
           EXPECTED_DEFAULT_BRANCH: main
         shell: bash
         run: |

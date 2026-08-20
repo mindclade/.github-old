@@ -64,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           # A release nobody documented is one every consumer's reviewer has to reverse
-          # engineer from a diff across six repositories.
+          # engineer from a diff across the repository estate.
           if ! grep -qE "^## ${TAG}( |$)" CHANGELOG.md; then
             echo "::error file=CHANGELOG.md::no '## ${TAG}' section. Move Unreleased under the version before tagging."
             exit 1
