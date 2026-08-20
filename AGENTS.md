@@ -4,7 +4,7 @@
 
 This repository owns shared workflow implementations, workflow contracts, organization profile,
 and community-health assets. Read BLUEPRINT.md, README.md, CONTRIBUTING.md, and
-docs/workflow-contracts.md before editing. github-config owns the rulesets and settings that
+docs/WORKFLOW_CONTRACTS.md before editing. github-config owns the rulesets and settings that
 require these workflows.
 
 ## Working rules
