@@ -53,6 +53,6 @@ request with the intended semver release documented in `CHANGELOG.md`.
 
 ## Release references
 
-Starter workflows intentionally pin `v3.0.0`, the first production contract of this
+Starter workflows intentionally pin `v4.0.0`, the ARC artifact-authority contract of this
 repository. Subsequent consumers may be upgraded by Renovate, but moving an existing release
 tag is forbidden. Publish a new patch/minor/major release instead.

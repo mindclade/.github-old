@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 ORG = "mindclade"
-RELEASE = "v3.0.0"
+RELEASE = "v4.0.0"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SEMVER_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", re.MULTILINE)
@@ -41,12 +41,17 @@ REQUIRED = {
     ".github/workflows/required-security-baseline.yml",
     ".github/workflows/release.yml",
     ".github/workflows/smoke.yml",
+    "AGENTS.md",
+    "actions/validate-repository-home/action.yml",
+    "actions/validate-repository-home/README.md",
+    "actions/validate-repository-home/validate.py",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
     "README.md",
     "SECURITY.md",
     "SUPPORT.md",
+    "tests/test_repository_home.py",
     "docs/ENTERPRISE_SETUP.md",
     "docs/WIF.md",
     "docs/WORKFLOW_CONTRACTS.md",
@@ -59,6 +64,15 @@ REQUIRED = {
     ".github/workflows/reusable-terragrunt-plan.yml",
     ".github/workflows/reusable-artifact-verification.yml",
     ".github/workflows/reusable-binauthz-sign.yml",
+    ".github/workflows/reusable-arc-wif-canary.yml",
+    ".github/workflows/reusable-arc-oci-build.yml",
+    ".github/workflows/reusable-arc-oci-qualify.yml",
+    ".github/workflows/reusable-arc-qualification-attest.yml",
+    ".github/workflows/reusable-gitops-promote.yml",
+    ".github/workflows/reusable-dr-evidence.yml",
+    "schemas/drill-report-v2.schema.json",
+    "tools/validate_drill_report.py",
+    "tests/test_drill_report.py",
 }
 
 TEXT_SUFFIXES = {
@@ -238,8 +252,8 @@ def main() -> int:
         "    environment: release": "protected release environment",
         "vars.WIF_PROVIDER_SIGNER": "governed signer WIF provider",
         "vars.SA_ARTIFACT_SIGNER": "dedicated signer service account",
-        "vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT": "Buildkite build/provenance project",
-        "vars.BINAUTHZ_BUILD_ATTESTOR": "Buildkite build/provenance attestor",
+        "vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT": "ARC build/provenance project",
+        "vars.BINAUTHZ_BUILD_ATTESTOR": "ARC build/provenance attestor",
         "vars.BINAUTHZ_QUALIFICATION_ATTESTOR_PROJECT": "independent qualification project",
         "vars.BINAUTHZ_QUALIFICATION_ATTESTOR": "independent qualification attestor",
         "vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_PROJECT": "deployment attestor project",
@@ -282,6 +296,30 @@ def main() -> int:
             errors,
             "Binary Authorization signer uses the unsupported stable-track spelling",
         )
+
+    arc_workflows = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in workflow_dir.glob("reusable-arc-*.yml")
+    }
+    arc_workflows["reusable-gitops-promote.yml"] = (
+        workflow_dir / "reusable-gitops-promote.yml"
+    ).read_text(encoding="utf-8")
+    for name, text in arc_workflows.items():
+        for required_claim in ("= push ]", "= refs/heads/main ]"):
+            if required_claim not in text:
+                fail(errors, f"{name} lacks trusted-main runtime check: {required_claim}")
+        if "workflow_dispatch:" in text or "repository_dispatch:" in text:
+            fail(errors, f"{name} exposes a manual/API authority trigger")
+
+    for name in (
+        "reusable-arc-oci-build.yml",
+        "reusable-arc-oci-qualify.yml",
+        "reusable-arc-qualification-attest.yml",
+    ):
+        if "actions/checkout@" not in arc_workflows[name]:
+            fail(errors, f"{name} does not perform an exact source checkout")
+        if "ref: ${{ github.sha }}" not in arc_workflows[name]:
+            fail(errors, f"{name} does not pin checkout to the platform SHA")
 
     for markdown in sorted(ROOT.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")

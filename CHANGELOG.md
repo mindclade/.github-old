@@ -9,6 +9,28 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ## Unreleased
 
+## v4.0.0
+
+### Added
+
+- Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
+  disaster-recovery evidence workflows with versioned machine contracts.
+- Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for
+  the production artifact-authority path.
+
+### Changed
+
+- **Breaking:** replaced Buildkite artifact authority with private GKE-hosted GitHub Actions
+  Runner Controller and six capability-specific workload identity providers.
+- Required trusted-main callers, push-only execution, exact provider audiences, and immutable v4
+  reusable-workflow identities for production artifact operations.
+
+### Security
+
+- Capability-prefixed federated subjects prevent cross-provider IAM subject collisions.
+- Production promotion remains PR-only and the builder cannot issue qualification or deployment
+  authority.
+
 ## v3.0.0
 
 ### Added

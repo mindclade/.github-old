@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = ".github"
 CONTRACT = json.loads(
-    '{"authority": ["shared-workflows", "community-health", "workflow-contracts"], "forbidden_authority": ["cloud-resources", "github-enterprise-desired-state", "kubernetes-desired-state", "application-source"], "forbidden_paths": [".terraform", ".terragrunt-cache"], "repository_class": "enterprise-control", "required_paths": [".github/workflows", "workflow-templates", "contracts/workflows", "SECURITY.md", ".github/CODEOWNERS"], "visibility": "internal"}'
+    '{"authority": ["shared-workflows", "community-health", "workflow-contracts"], "forbidden_authority": ["cloud-resources", "github-enterprise-desired-state", "kubernetes-desired-state", "application-source"], "forbidden_paths": [".terraform", ".terragrunt-cache"], "repository_class": "enterprise-control", "required_paths": ["AGENTS.md", ".github/workflows", "workflow-templates", "contracts/workflows", "SECURITY.md", ".github/CODEOWNERS"], "visibility": "internal"}'
 )
 ERRORS = []
 

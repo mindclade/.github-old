@@ -1,0 +1,31 @@
+{
+  "inputs": {
+    "image-ref": {
+      "required": true,
+      "type": "string"
+    },
+    "qualification-artifact": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "attest": {
+      "actions": "read",
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "attest"
+  ],
+  "outputs": [
+    "created"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-arc-qualification-attest.yml"
+}

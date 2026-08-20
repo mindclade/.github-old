@@ -17,6 +17,12 @@
 | Canonical source | `mindclade/.github/docs/MINDCLADE_ENTERPRISE_PLATFORM_FOUNDATION_BLUEPRINT.md` |
 | Supersedes | Earlier standalone control-repository draft blueprints |
 
+> **ARC amendment — 2026-08-20:** GitHub Actions Runner Controller replaces Buildkite as the
+> authoritative heavy CI and artifact authority. This amendment incorporates the supplied
+> six-repository blueprint input with SHA-256
+> `539bf304c85d3602710493f82f6ce4276e8fdba267951c33bb187bd5096958ec` without
+> reverting the later repository-contract corrections in this canonical copy.
+
 ---
 
 ## 1. Executive Decision
@@ -117,7 +123,7 @@ Owned by `bootstrap`.
 Provides:
 
 - Terraform remote state;
-- initial GitHub/Buildkite-to-Google Cloud federation;
+- initial GitHub-to-Google Cloud federation for control and ARC release workflows;
 - seed and CI trust projects;
 - bootstrap service accounts;
 - break-glass recovery.
@@ -268,7 +274,9 @@ Development, staging, and production use the same immutable digest. Environment-
 
 ### 7.3 Keyless automation
 
-GitHub Actions and Buildkite authenticate to Google Cloud with short-lived OIDC federation. GKE workloads use Workload Identity Federation for GKE. Static service-account keys are prohibited.
+GitHub Actions authenticates to Google Cloud with short-lived OIDC federation. ARC runner pods
+use GitHub OIDC for job authority and Workload Identity Federation for GKE only for narrowly
+scoped Kubernetes infrastructure needs. Static service-account keys are prohibited.
 
 ### 7.4 Git-mediated production change
 
@@ -663,14 +671,15 @@ Use a dedicated workload identity project and narrowly scoped providers.
 Trust providers separately for:
 
 - GitHub Actions infrastructure workflows;
-- Buildkite artifact/build workflows, if Buildkite needs Google Cloud access.
+- ARC canary, build, qualification, signing, and promotion workflows.
 
 Use:
 
-- attribute conditions for the trusted GitHub organization or Buildkite organization;
+- attribute conditions for immutable GitHub organization and repository IDs;
 - immutable identity attributes;
 - explicit audiences;
-- one provider per external issuer where practical;
+- one capability-specific provider per privileged release workflow;
+- exact `event_name`, `ref`, `workflow_ref`, and immutable `job_workflow_ref` conditions;
 - service-account impersonation;
 - audit logging for token exchange and impersonation.
 
@@ -1198,7 +1207,8 @@ Production rules:
 ### 12.8 Promotion
 
 ```text
-monorepo/buildkite
+reviewed release request on protected monorepo main
+  -> immutable ARC reusable workflow
   -> candidate image digest
   -> SBOM
   -> provenance
@@ -1292,7 +1302,7 @@ The monorepo owns:
 - Bazel build graph;
 - container definitions;
 - environment-neutral Helm/Kustomize/package templates where needed;
-- Buildkite pipelines;
+- reviewed GitHub Actions release-request workflow callers;
 - unit, integration, numerical, GPU, security, and release qualification;
 - artifact manifests;
 - SBOM generation;
@@ -1312,9 +1322,13 @@ It does not own:
 Use:
 
 - GitHub Actions for lightweight PR metadata, organization-required workflows, documentation checks, and repository administration;
-- Buildkite for authoritative heavy CI, GPU qualification, clean-checkout builds, numerical qualification, integration tests, release builds, and artifact publication.
+- GitHub-hosted runners for pull requests and other untrusted source evaluation;
+- ARC on a dedicated CI cluster for authoritative heavy CI, GPU qualification, clean-checkout builds, numerical qualification, integration tests, release builds, and artifact publication.
 
-Buildkite agents use OIDC and short-lived Google Cloud credentials. They do not store service-account keys.
+Only a protected-main push adding one reviewed release request may enter the ARC artifact path.
+Manual/API dispatch, tags, pull requests, custom checkout refs, and indeterminate source
+verification are denied by the capability-specific WIF conditions and immutable reusable
+workflow. ARC jobs use short-lived GitHub OIDC credentials and do not store service-account keys.
 
 ---
 
@@ -1350,8 +1364,10 @@ Every production artifact has:
 
 ### 14.3 Artifact flow
 
-- Buildkite publishes a candidate to Artifact Registry.
+- The ARC builder publishes a candidate to Artifact Registry from the exact protected-main SHA.
 - Qualification runs against the digest.
+- Candidate-executing qualification has no attestor authority; a fresh qualifier job creates
+  qualification evidence only after validating the result for the same digest.
 - The signer attests the digest only after qualification.
 - Binary Authorization accepts only approved attestations in production.
 - GitOps verifies metadata and references the digest.
@@ -1390,12 +1406,12 @@ GitHub OIDC
   -> scoped service-account impersonation
 ```
 
-### Buildkite
+### ARC release workflows
 
 ```text
-Buildkite OIDC
+GitHub OIDC from an immutable released reusable workflow
   -> bootstrap-managed WIF provider
-  -> scoped build/registry/signing identities
+  -> distinct canary/build/qualification/signing/promotion identities
 ```
 
 ### GKE workloads
@@ -1419,22 +1435,25 @@ Kubernetes service account
 
 ## 16. CI Runner Isolation
 
-Buildkite runner infrastructure is not Ring 0.
+ARC runner infrastructure is not Ring 0.
 
 Ownership split:
 
 - `bootstrap`: WIF trust and minimal CI identity prerequisites;
 - `infrastructure-live`: runner projects, networks, clusters/node pools, storage, and IAM;
-- `gitops`: Kubernetes Buildkite agent/controller deployment if agents run on GKE;
-- monorepo: pipeline definitions.
+- `gitops`: dedicated CI Argo CD and ARC controller/listener/scale-set desired state;
+- monorepo: reviewed release requests, target catalog, Bazel build graph, and caller workflow.
 
 Rules:
 
 - CI runners do not run in production serving clusters.
 - Untrusted PR jobs cannot reach production credentials or networks.
+- Pull-request jobs remain GitHub-hosted and cannot target the artifact-authority runner group.
 - GPU CI runners are separate from production inference capacity.
-- Agents are ephemeral where possible.
-- Job identities are short-lived and pipeline-scoped.
+- Runner pods are ephemeral and workspaces are never persisted between jobs.
+- Job identities are short-lived and exact-workflow-scoped.
+- Runner pods have no Kubernetes API token, host socket/path, privileged mode, or production
+  network route.
 - Secrets are fetched just in time from Secret Manager.
 
 ---
@@ -1514,7 +1533,7 @@ Centralize evidence from:
 
 - GitHub audit log;
 - GitHub Actions;
-- Buildkite;
+- ARC controller, listener, scale-set, and runner events;
 - Google Cloud audit logs;
 - WIF token exchange and service-account impersonation;
 - Terraform/Terragrunt plans and applies;
@@ -1692,7 +1711,7 @@ Rules:
 - [ ] Centralize required ruleset workflows.
 - [ ] Remove committed local Terraform/Terragrunt caches.
 - [ ] Complete bootstrap remote state migration.
-- [ ] Enable WIF for GitHub Actions and Buildkite.
+- [ ] Enable capability-specific GitHub WIF for ARC release workflows.
 - [ ] Separate plan/apply identities.
 - [ ] Resolve all bootstrap/infrastructure-live ownership overlap.
 - [ ] Rename Terraform Argo CD ownership to `argocd-prereqs`.
@@ -1784,7 +1803,7 @@ Rules:
 
 ### `mindclade-internal-monorepo`
 
-- [ ] Buildkite is the authoritative heavy qualification engine.
+- [ ] ARC is the authoritative heavy qualification engine on a dedicated CI trust domain.
 - [ ] Clean-checkout builds are reproducible.
 - [ ] Release artifacts include SBOM/provenance.
 - [ ] Builder and signer capabilities are separate.

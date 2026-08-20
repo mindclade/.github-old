@@ -127,17 +127,17 @@ Private/internal artifact attestations use GitHub's private Sigstore instance; n
 publication path is required. The builder cannot issue a Binary Authorization deployment
 attestation.
 
-This general-purpose workflow is not Mindclade's production artifact authority. Buildkite
-performs the authoritative production build and qualification and issues two distinct Binary
-Authorization evidence roots for the immutable digest.
+This general-purpose workflow is not Mindclade's production artifact authority. Dedicated ARC
+workflows on the isolated private CI cluster perform the authoritative production build and
+qualification and issue two distinct Binary Authorization evidence roots for the immutable digest.
 
-After both Buildkite build/provenance and qualification attestations exist,
+After both ARC build/provenance and qualification attestations exist,
 `reusable-binauthz-sign.yml` may create the separately named GKE admission attestation. It:
 
 - accepts only the digest from the caller;
 - obtains identity, attestors, and KMS key version from governance-managed variables;
 - runs behind the caller repository's protected `release` environment;
-- cryptographically validates the distinct Buildkite build/provenance and qualification
+- cryptographically validates the distinct ARC build/provenance and qualification
   occurrences against their attestors (list results alone are not trusted);
 - authenticates as a dedicated signer service account; and
 - creates or verifies the deployment attestation idempotently.
@@ -148,7 +148,7 @@ or before switching to a future stable-track spelling.
 
 Bind the signer service account's WIF grant to the exact released `job_workflow_ref`, the
 monorepo's immutable repository identifiers, and the `release` environment subject. Do not
-grant either Buildkite evidence identity access to the signer key or deployment attestor.
+grant either ARC evidence identity access to the signer key or deployment attestor.
 Grant the signer `roles/binaryauthorization.attestorsVerifier`, not the list-only
 `attestorsViewer`, on the three attestor projects.
 The three governed roots use explicit `BINAUTHZ_BUILD_*`, `BINAUTHZ_QUALIFICATION_*`, and
@@ -233,11 +233,11 @@ Push `main`, enable rulesets/immutable releases, let repository workflows pass, 
 first production contract:
 
 ```sh
-git tag -a v3.0.0 -m "Mindclade GitHub Enterprise workflow foundation v3"
-git push origin v3.0.0
+git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4"
+git push origin v4.0.0
 ```
 
-Starter workflows intentionally reference `v3.0.0`; they become usable after this release.
+Starter workflows intentionally reference `v4.0.0`; they become usable after this release.
 Do not create the tag before `main` protection and organization immutable-release enforcement
 are active.
 

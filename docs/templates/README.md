@@ -37,5 +37,9 @@ Every published page must:
 - use sequential headings, meaningful link text, and tables only for comparable records; and
 - pass local-link and repository validation before merge.
 
+Root repository homes additionally conform to `repository-home@2`: responsive MONO artwork,
+local contract-backed badges, no external image requests, no more than 850 prose words, and one
+accessible highlighted estate diagram.
+
 The complete writing and review rules are in the
 [Mindclade documentation style guide](../documentation-style.md).

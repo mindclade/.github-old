@@ -23,7 +23,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: write
-    uses: mindclade/.github/.github/workflows/reusable-tf-plan.yml@v3.0.0
+    uses: mindclade/.github/.github/workflows/reusable-tf-plan.yml@v4.0.0
     with:
       working-directory: "."
       terraform-version: "1.15.9"

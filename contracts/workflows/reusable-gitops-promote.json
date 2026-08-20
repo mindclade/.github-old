@@ -1,0 +1,32 @@
+{
+  "inputs": {
+    "image-ref": {
+      "required": true,
+      "type": "string"
+    },
+    "release-id": {
+      "required": true,
+      "type": "string"
+    },
+    "rollback-digest": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "promote": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "promote"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-gitops-promote.yml"
+}

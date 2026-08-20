@@ -1,0 +1,64 @@
+---
+name: Reusable — ARC WIF canary
+
+on:
+  workflow_call:
+    outputs:
+      authenticated:
+        description: Whether the exact ARC canary identity completed a keyless exchange.
+        value: ${{ jobs.canary.outputs.authenticated }}
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: mindclade-arc-canary
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      authenticated: ${{ steps.result.outputs.authenticated }}
+    steps:
+      - name: Verify platform-authenticated event
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          [ "$EVENT_NAME" = push ] || { echo "::error::ARC canary requires a push event"; exit 1; }
+          [ "$REPOSITORY" = mindclade/mindclade-internal-monorepo ] || {
+            echo "::error::ARC canary is restricted to the internal monorepo"
+            exit 1
+          }
+          [ "$REF_NAME" = refs/heads/main ] || {
+            echo "::error::ARC canary requires protected main"
+            exit 1
+          }
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || {
+            echo "::error::id-token permission is unavailable"
+            exit 1
+          }
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_ARC_CANARY }}
+          service_account: ${{ vars.SA_ARC_CANARY }}
+          create_credentials_file: false
+          export_environment_variables: false
+
+      - id: result
+        run: echo 'authenticated=true' >> "$GITHUB_OUTPUT"
+
+      - name: Record source-only canary result
+        run: |
+          {
+            echo '### ARC WIF canary'
+            echo
+            echo '- Platform event: protected-main push'
+            echo '- Static service-account key: none'
+            echo '- Data-plane permissions: none'
+            echo '- Connected GCP authorization beyond token exchange: not claimed'
+          } >> "$GITHUB_STEP_SUMMARY"

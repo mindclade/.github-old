@@ -31,6 +31,9 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = false
 
+      - name: Locked flake contract
+        run: nix flake check --no-update-lock-file --show-trace
+
       - name: actionlint
         run: nix develop .#ci --command actionlint -color
 
@@ -48,6 +51,12 @@ jobs:
 
       - name: Validate repository structure and pins
         run: python3 tools/validate_repo.py
+
+      - name: Validate repository home
+        uses: ./actions/validate-repository-home
+
+      - name: Test repository-home validator
+        run: python3 -m unittest discover -s tests -p 'test_repository_home.py'
 
       - name: Verify reusable workflow API contracts
         run: python3 tools/check_workflow_contracts.py

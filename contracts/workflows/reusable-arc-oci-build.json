@@ -1,0 +1,30 @@
+{
+  "inputs": {
+    "request-path": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "build": {
+      "artifact-metadata": "write",
+      "attestations": "write",
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "build"
+  ],
+  "outputs": [
+    "candidate-artifact",
+    "image-ref",
+    "release-id"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-arc-oci-build.yml"
+}

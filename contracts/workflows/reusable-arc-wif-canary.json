@@ -1,0 +1,21 @@
+{
+  "inputs": {},
+  "job_permissions": {
+    "canary": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "canary"
+  ],
+  "outputs": [
+    "authenticated"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-arc-wif-canary.yml"
+}

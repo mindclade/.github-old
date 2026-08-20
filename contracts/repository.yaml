@@ -20,6 +20,7 @@ forbidden_authority:
   - kubernetes-desired-state
   - application-source
 required_paths:
+  - AGENTS.md
   - .github/workflows
   - workflow-templates
   - contracts/workflows

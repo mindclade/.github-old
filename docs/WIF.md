@@ -93,7 +93,7 @@ scheduled read paths to an exact `workflow_ref` on `refs/heads/main`.
 
 The production signer is the exception: its dedicated provider maps `job_workflow_ref` and
 requires the exact released
-`mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0`, the immutable
+`mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0`, the immutable
 monorepo IDs, the `release` environment subject, and the exact audience. Publish and protect
 that immutable release before activating this trust. Never move the tag.
 
