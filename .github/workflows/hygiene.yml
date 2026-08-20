@@ -1,0 +1,61 @@
+---
+name: hygiene
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hygiene-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: actionlint + yamllint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - name: actionlint
+        run: nix develop .#ci --command actionlint -color
+
+      - name: yamllint
+        run: nix develop .#ci --command yamllint --strict .
+
+  consistency:
+    name: offline validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate repository structure and pins
+        run: python3 tools/validate_repo.py
+
+      - name: Verify reusable workflow API contracts
+        run: python3 tools/check_workflow_contracts.py
+
+  size:
+    uses: ./.github/workflows/reusable-repo-hygiene.yml
+    with:
+      max-binary-total-kb: 4096
+      max-file-kb: 512
+      max-added-kb: 1024
+      enforce: false

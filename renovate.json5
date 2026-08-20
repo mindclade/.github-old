@@ -1,0 +1,48 @@
+{
+  // Matches the Mindclade monorepo Renovate policy so both read as one estate.
+  //
+  // This exists because every action in this repo is pinned to a commit SHA. Pinning without
+  // automated bumping is how you stay on a known-vulnerable version for a year — the pin
+  // makes the version reproducible, Renovate makes it current. Neither is sufficient alone.
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    // Any action added without a SHA gets one in the first Renovate PR.
+    "helpers:pinGitHubActionDigests",
+  ],
+  "dependencyDashboard": true,
+  "labels": ["dependencies", "renovate"],
+  "timezone": "America/Detroit",
+  "schedule": ["before 5am"],
+  // Seven days. Long enough that a compromised or broken release is usually withdrawn before
+  // it reaches a PR here.
+  "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "replace",
+  "rebaseWhen": "conflicted",
+  "separateMajorMinor": true,
+  // Never automerge. Every dependency in this estate is in the path of infrastructure or
+  // admission control; a human reads each one.
+  "automerge": false,
+  "packageRules": [
+    {
+      "description": "Keep security-sensitive workflow action upgrades isolated",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+    },
+    {
+      "description": "This repo defines the reusable workflows; nothing else to track",
+      "matchManagers": ["nvm", "npm"],
+      "enabled": false,
+    },
+    {
+      // The flake supplies actionlint, shellcheck and yamllint to the lint gate, so a stale
+      // nixpkgs means the gate drifts from the one the monorepo runs. Grouped separately
+      // because a nixpkgs bump changes three tools at once and is reviewed as one decision.
+      "description": "Toolchain flake",
+      "matchManagers": ["nix"],
+      "groupName": "nix toolchain",
+    },
+  ],
+}

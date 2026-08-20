@@ -1,0 +1,33 @@
+{
+  "inputs": {
+    "expected-source-repository": {
+      "required": true,
+      "type": "string"
+    },
+    "image-ref": {
+      "required": true,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "verify": {
+      "attestations": "read",
+      "contents": "read"
+    }
+  },
+  "jobs": [
+    "verify"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-artifact-verification.yml"
+}

@@ -1,0 +1,51 @@
+{
+  "inputs": {
+    "app-id": {
+      "required": true,
+      "type": "string"
+    },
+    "dry-run": {
+      "default": false,
+      "required": false,
+      "type": "boolean"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "subtree-path": {
+      "required": true,
+      "type": "string"
+    },
+    "tag": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "target-branch": {
+      "default": "main",
+      "required": false,
+      "type": "string"
+    },
+    "target-repo": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "mirror"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {
+    "app-private-key": {
+      "required": true
+    }
+  },
+  "workflow": ".github/workflows/reusable-subtree-mirror.yml"
+}

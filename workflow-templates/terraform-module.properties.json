@@ -1,0 +1,7 @@
+{
+  "name": "Terraform module CI",
+  "description": "fmt, validate, tflint, checkov, and a plan commented on the PR. Authenticates to GCP keylessly.",
+  "iconName": "octicon server",
+  "categories": ["Terraform", "Continuous integration", "Infrastructure"],
+  "filePatterns": [".*\\.tf$"]
+}

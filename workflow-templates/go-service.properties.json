@@ -1,0 +1,7 @@
+{
+  "name": "Go service CI",
+  "description": "Build, vet, golangci-lint, and race-detector tests via the org's reusable Go workflow.",
+  "iconName": "octicon terminal",
+  "categories": ["Go", "Continuous integration"],
+  "filePatterns": ["go.mod$"]
+}

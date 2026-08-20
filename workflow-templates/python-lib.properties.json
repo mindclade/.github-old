@@ -1,0 +1,7 @@
+{
+  "name": "Python library CI",
+  "description": "uv sync --locked, ruff, pyright, and pytest via the org's reusable Python workflow.",
+  "iconName": "octicon package",
+  "categories": ["Python", "Continuous integration"],
+  "filePatterns": ["pyproject.toml$", "uv.lock$"]
+}

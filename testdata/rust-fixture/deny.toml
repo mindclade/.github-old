@@ -1,0 +1,18 @@
+# Minimal cargo-deny policy for the fixture. The fixture has zero dependencies, so every
+# check passes vacuously — the point is that `cargo deny check` executes.
+[licenses]
+allow = ["Apache-2.0", "MIT"]
+# The fixture crate itself is publish = false and carries no licence field, which is correct
+# for proprietary internal code. Without this, the licenses check fails on the fixture —
+# found by running cargo-deny against it.
+private = { ignore = true }
+
+[bans]
+multiple-versions = "warn"
+
+[advisories]
+yanked = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

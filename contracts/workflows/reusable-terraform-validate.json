@@ -1,0 +1,40 @@
+{
+  "inputs": {
+    "backend": {
+      "default": false,
+      "required": false,
+      "type": "boolean"
+    },
+    "backend-config": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "terraform-version": {
+      "default": "1.15.9",
+      "required": false,
+      "type": "string"
+    },
+    "working-directory": {
+      "default": ".",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "validate"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-terraform-validate.yml"
+}

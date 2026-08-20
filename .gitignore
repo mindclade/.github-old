@@ -1,0 +1,16 @@
+.DS_Store
+._*
+__pycache__/
+*.pyc
+result
+.env
+.env.*
+.terraform/
+.terragrunt-cache/
+*.tfstate
+*.tfstate.*
+*.tfplan
+!.env.example
+credentials/
+kubeconfig*
+*.py[cod]

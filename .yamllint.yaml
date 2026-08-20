@@ -1,0 +1,12 @@
+---
+# Shared with the Mindclade monorepo YAML policy.
+extends: default
+rules:
+  line-length: disable
+  # The Kubernetes manifests use spaced flow mappings — `{ type: RuntimeDefault }` — which is
+  # a deliberate readability choice and not a defect. yamllint's default forbids the inner
+  # spaces outright; this permits exactly one, so `{  type: x  }` is still an error.
+  braces:
+    max-spaces-inside: 1
+  truthy:
+    allowed-values: ["true", "false", "on"]

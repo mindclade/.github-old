@@ -1,0 +1,20 @@
+{
+  "inputs": {
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "check"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-nix-flake.yml"
+}

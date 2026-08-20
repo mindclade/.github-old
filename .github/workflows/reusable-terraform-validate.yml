@@ -1,0 +1,61 @@
+---
+name: Reusable — Terraform validate
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: false
+        type: string
+        default: .
+      terraform-version:
+        required: false
+        type: string
+        default: "1.15.9"
+      backend:
+        description: Whether to initialize the configured backend.
+        required: false
+        type: boolean
+        default: false
+      backend-config:
+        required: false
+        type: string
+        default: ""
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive -diff
+      - name: Initialize
+        env:
+          USE_BACKEND: ${{ inputs.backend }}
+          BACKEND_CONFIG: ${{ inputs.backend-config }}
+        run: |
+          set -euo pipefail
+          args=(-input=false -lockfile=readonly)
+          if [ "$USE_BACKEND" != "true" ]; then
+            args+=(-backend=false)
+          elif [ -n "$BACKEND_CONFIG" ]; then
+            args+=(-backend-config="$BACKEND_CONFIG")
+          fi
+          terraform init "${args[@]}"
+      - run: terraform validate -no-color

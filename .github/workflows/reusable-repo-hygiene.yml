@@ -1,0 +1,201 @@
+---
+# Repository size and binary hygiene.
+#
+# The push-blocklist ruleset already caps individual files at 50MB and rejects a set of
+# credential-shaped paths server-side, before the object lands. That is the control that
+# matters and this does not replace it.
+#
+# What it adds is the thing a per-file cap cannot see: ACCRETION. Fifty-five PNGs of 70KB
+# each pass every rule in that ruleset and still add a megabyte to every clone, forever —
+# git keeps the blob after the file is deleted. Nobody notices at commit time, and by the
+# time anybody does, the history is the problem rather than the working tree.
+#
+# So the thresholds below are on TOTALS and on DELTAS, not on single files, and they are
+# advisory by default: this reports a budget, it does not block a brand refresh.
+name: reusable-repo-hygiene
+
+on:
+  workflow_call:
+    inputs:
+      max-file-kb:
+        description: Largest permitted single tracked file, in KB.
+        type: number
+        default: 512
+      max-binary-total-kb:
+        description: Budget for ALL binary files in the repository, in KB.
+        type: number
+        default: 4096
+      max-added-kb:
+        description: Budget for binary bytes ADDED by this pull request, in KB.
+        type: number
+        default: 1024
+      allowed-binary-extensions:
+        description: Space-separated extensions permitted to be binary.
+        type: string
+        default: "png jpg jpeg gif webp ico woff woff2 pdf"
+      enforce:
+        description: >-
+          Fail the job rather than warn. Off by default — a size budget that blocks a
+          legitimate asset refresh gets removed rather than raised.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Full history: the added-bytes check below diffs against the merge base, and a
+          # shallow clone has no merge base to diff against.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: scan
+        name: Measure tracked binaries
+        env:
+          MAX_FILE_KB: ${{ inputs.max-file-kb }}
+          MAX_TOTAL_KB: ${{ inputs.max-binary-total-kb }}
+          ALLOWED_EXT: ${{ inputs.allowed-binary-extensions }}
+        run: |
+          set -euo pipefail
+          status=0
+
+          # git ls-files, not find: only TRACKED files count. An untracked build artefact is
+          # not in anybody's clone and is not this check's business.
+          #
+          # One file(1) process for the whole tree, not one per file. The per-file loop was
+          # process-spawn bound — ~4x slower on this repository's 121 files and linearly
+          # worse on the monorepo, which also calls this workflow.
+          #
+          # Three flags carry the correctness, and each was verified against od(1) output
+          # because two of them fail silently when wrong:
+          #   - options BEFORE -f. file(1) applies options positionally, so
+          #     `-f - --mime-encoding` types every file with DEFAULT output ("data",
+          #     "ASCII text") and the "binary" comparison below matches nothing — the check
+          #     passes vacuously on a repo full of binaries.
+          #   - -0: each record becomes "<path>\0: <encoding>\n", so a ': ' inside a path
+          #     can no longer be confused with file(1)'s own separator.
+          #   - -N: without it, file pads the separator column to align output, and short
+          #     names carry leading spaces into the encoding field — which again defeats
+          #     the "binary" comparison, but only for names shorter than the longest one.
+          #
+          # The name list into -f is newline-delimited because that is the only format -f
+          # accepts. A filename containing a newline cannot be represented, which is not a
+          # regression: git ls-files C-quotes such a name, and the -f existence test below
+          # skipped it before and skips it now.
+          : > binaries.txt
+          while IFS= read -r -d '' f && IFS= read -r enc; do
+            enc="${enc#:}"; enc="${enc#"${enc%%[![:space:]]*}"}"
+            [ "$enc" = "binary" ] || continue
+            [ -f "$f" ] || continue
+            printf '%s\t%s\n' "$(wc -c < "$f" | tr -d ' ')" "$f" >> binaries.txt
+          done < <(git ls-files | file --mime-encoding -0 -N -f -)
+
+          total_b=$(awk -F'\t' '{s+=$1} END {print s+0}' binaries.txt)
+          total_kb=$(( total_b / 1024 ))
+          count=$(wc -l < binaries.txt | tr -d ' ')
+
+          {
+            echo "### Repository hygiene"
+            echo
+            echo "| Metric | Value | Budget |"
+            echo "|---|---|---|"
+            echo "| Tracked binary files | ${count} | — |"
+            echo "| Tracked binary bytes | ${total_kb} KB | ${MAX_TOTAL_KB} KB |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$total_kb" -gt "$MAX_TOTAL_KB" ]; then
+            echo "::warning::tracked binaries total ${total_kb}KB, over the ${MAX_TOTAL_KB}KB budget."
+            status=1
+          fi
+
+          # Oversized individual files.
+          while IFS=$'\t' read -r size path; do
+            [ -z "${path:-}" ] && continue
+            kb=$(( size / 1024 ))
+            if [ "$kb" -gt "$MAX_FILE_KB" ]; then
+              echo "::warning file=${path}::${kb}KB exceeds the ${MAX_FILE_KB}KB per-file budget."
+              status=1
+            fi
+          done < binaries.txt
+
+          # Binary files whose extension is not on the allowlist. This is the one that catches
+          # a committed archive, a .tfstate, or a compiled artefact — things the push ruleset
+          # blocks by name, caught here by SHAPE for the names nobody thought of.
+          while IFS=$'\t' read -r _ path; do
+            [ -z "${path:-}" ] && continue
+            ext="${path##*.}"
+            case " $ALLOWED_EXT " in
+              *" ${ext,,} "*) ;;
+              *)
+                echo "::error file=${path}::binary file with unexpected extension '.${ext}'."
+                echo "  Allowed binary extensions: ${ALLOWED_EXT}"
+                echo "  A binary nobody expected is usually a build artefact, an archive, or a"
+                echo "  credential — git keeps the blob even after you delete the file."
+                status=1 ;;
+            esac
+          done < binaries.txt
+
+          {
+            echo
+            echo "<details><summary>Largest tracked binaries</summary>"
+            echo
+            echo '```'
+            sort -rn binaries.txt | head -15 | awk -F'\t' '{ printf "%8.1f KB  %s\n", $1/1024, $2 }'
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - id: delta
+        name: Measure binary bytes added by this pull request
+        if: github.event_name == 'pull_request'
+        env:
+          MAX_ADDED_KB: ${{ inputs.max-added-kb }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          added_b=0
+
+          # Only files ADDED or MODIFIED. A deletion does not shrink the clone — the blob
+          # stays in history — but it is not this PR's fault either. Batched through one
+          # file(1) process; flag order, -0 and -N are load-bearing — see the scan step.
+          while IFS= read -r -d '' f && IFS= read -r enc; do
+            enc="${enc#:}"; enc="${enc#"${enc%%[![:space:]]*}"}"
+            [ "$enc" = "binary" ] || continue
+            [ -f "$f" ] || continue
+            added_b=$(( added_b + $(wc -c < "$f" | tr -d ' ') ))
+          done < <( { git diff --name-only --diff-filter=AM "origin/${BASE_REF}...HEAD" || true; } \
+                    | file --mime-encoding -0 -N -f - )
+
+          added_kb=$(( added_b / 1024 ))
+          {
+            echo "| Binary bytes added by this PR | ${added_kb} KB | ${MAX_ADDED_KB} KB |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$added_kb" -gt "$MAX_ADDED_KB" ]; then
+            echo "::warning::this PR adds ${added_kb}KB of binary content, over the ${MAX_ADDED_KB}KB budget."
+            echo "::warning::git keeps these blobs permanently. Consider whether they belong in the repo."
+            echo "status=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enforce
+        if: inputs.enforce
+        env:
+          SCAN: ${{ steps.scan.outputs.status }}
+          DELTA: ${{ steps.delta.outputs.status }}
+        run: |
+          set -euo pipefail
+          if [ "${SCAN:-0}" != "0" ] || [ "${DELTA:-0}" != "0" ]; then
+            echo "::error::repository hygiene budgets exceeded, and enforce is on."
+            exit 1
+          fi
+          echo "Within budget."

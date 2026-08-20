@@ -1,0 +1,62 @@
+{
+  "inputs": {
+    "command": {
+      "default": "run --all plan",
+      "required": false,
+      "type": "string"
+    },
+    "project-id": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "service-account": {
+      "required": true,
+      "type": "string"
+    },
+    "terraform-version": {
+      "default": "1.15.9",
+      "required": false,
+      "type": "string"
+    },
+    "terragrunt-sha256": {
+      "required": true,
+      "type": "string"
+    },
+    "terragrunt-version": {
+      "default": "1.1.2",
+      "required": false,
+      "type": "string"
+    },
+    "working-directory": {
+      "default": ".",
+      "required": false,
+      "type": "string"
+    },
+    "workload-identity-provider": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "plan": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "plan"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-terragrunt-plan.yml"
+}

@@ -1,0 +1,34 @@
+---
+name: Reusable — license headers
+
+on:
+  workflow_call:
+    inputs:
+      script:
+        description: Repository-relative header-check script.
+        required: false
+        type: string
+        default: scripts/license-header-check.sh
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify proprietary headers
+        env:
+          SCRIPT: ${{ inputs.script }}
+        run: |
+          set -euo pipefail
+          test -f "$SCRIPT"
+          bash "$SCRIPT" --check

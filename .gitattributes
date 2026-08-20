@@ -1,0 +1,21 @@
+# Normalise line endings on everything text. Without this a Windows checkout can rewrite the
+# shell in a `run:` block on the way through, and the failure surfaces on a runner rather
+# than in review.
+* text=auto eol=lf
+
+# Brand assets. Marked binary so git does not attempt a diff or a merge on them, and marked
+# vendored so the repository's language statistics reflect the workflows rather than
+# reporting this as a design asset repository.
+*.png binary
+*.jpg binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+profile/assets/** linguist-vendored
+
+# SVGs are text and worth diffing, but they are not source either.
+*.svg text linguist-vendored
+
+# Locked by tooling; a conflict here is resolved by regenerating, never by hand.
+flake.lock linguist-generated

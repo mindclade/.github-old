@@ -1,0 +1,78 @@
+---
+name: Reusable — CodeQL
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: JSON array of CodeQL languages, e.g. '["go","python"]'
+        required: false
+        type: string
+        default: '["go","python","javascript-typescript"]'
+      queries:
+        required: false
+        type: string
+        default: security-extended
+      build-mode:
+        description: >-
+          none | autobuild. Forwarded to codeql-action/init, which is what actually selects
+          the no-build path for compiled languages — skipping the autobuild step alone does
+          not. `manual` is deliberately not offered: it requires the caller to supply build
+          steps between init and analyze, and a reusable workflow has no seam to inject them.
+          A repository that needs a manual build writes its own CodeQL workflow.
+        required: false
+        type: string
+        default: autobuild
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate build-mode
+        env:
+          MODE: ${{ inputs.build-mode }}
+        run: |
+          set -euo pipefail
+          case "${MODE}" in
+            none|autobuild) ;;
+            manual)
+              echo "::error::build-mode 'manual' is not supported by this reusable workflow — it has no seam for caller build steps. Write a repository-local CodeQL workflow instead." >&2
+              exit 1 ;;
+            *)
+              echo "::error::build-mode must be 'none' or 'autobuild', got '${MODE}'" >&2
+              exit 1 ;;
+          esac
+
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: ${{ inputs.queries }}
+          # One language per matrix job is exactly the shape init requires for this input.
+          build-mode: ${{ inputs.build-mode }}
+
+      - if: inputs.build-mode == 'autobuild'
+        uses: github/codeql-action/autobuild@5595ccaf912efad79be6eef63a5619ff05969be3  # v4
+
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3  # v4
+        with:
+          category: /language:${{ matrix.language }}

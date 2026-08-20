@@ -1,0 +1,130 @@
+---
+name: Reusable — Rust CI
+
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        description: Leave empty to honour rust-toolchain.toml, which is the usual case.
+        required: false
+        type: string
+        default: ""
+      working-directory:
+        required: false
+        type: string
+        default: "."
+      features:
+        required: false
+        type: string
+        default: "--all-features"
+      deny:
+        description: Run cargo-deny — licence, advisory, and duplicate-dependency policy.
+        required: false
+        type: boolean
+        default: true
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      CARGO_TERM_COLOR: always
+      # No job-wide RUSTFLAGS. RUSTFLAGS participates in cargo's fingerprint, so setting
+      # "-D warnings" here invalidated the cache against any artifact built without it and
+      # forced full recompiles of the dependency graph on every run.
+      #
+      # Warnings still fail this workflow — through clippy, which is the single warnings
+      # gate: `clippy --all-targets -- -D warnings` denies every rustc warning too, and
+      # `--all-targets` is the load-bearing part, verified empirically: a warning confined
+      # to a #[cfg(test)] target fails with it (exit 101) and passes silently without it.
+      # (The tempting alternative, `--config lints.rust.warnings="deny"`, does nothing:
+      # [lints] is a manifest table, not a cargo config key, and cargo ignores it without
+      # even a warning. Also verified empirically. Do not "restore" it.)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c  # stable
+        with:
+          toolchain: ${{ inputs.toolchain || 'stable' }}
+          components: rustfmt, clippy
+
+      # The toolchain belongs in the key: rustc's version is part of every artifact's
+      # fingerprint, so a toolchain bump against a lockfile-keyed cache restored artifacts
+      # cargo then rebuilt anyway — the cache cost download time and saved nothing.
+      - id: toolchain-key
+        run: echo "rustc=$(rustc --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.working-directory }}/target
+          key: cargo-${{ runner.os }}-${{ steps.toolchain-key.outputs.rustc }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.working-directory)) }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ steps.toolchain-key.outputs.rustc }}-
+
+      - run: cargo fmt --all -- --check
+
+      - name: Verify the lockfile is current
+        # --locked turns "Cargo.lock would change" into a failure. Without it, CI happily
+        # builds a dependency set nobody has reviewed.
+        run: cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Clippy
+        env:
+          FEATURES: ${{ inputs.features }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          # Intentional: FEATURES is a flag list, not one argument.
+          cargo clippy --workspace ${FEATURES} --all-targets -- -D warnings
+
+      - name: Test
+        env:
+          FEATURES: ${{ inputs.features }}
+        # No warning denial here — clippy above is the warnings gate (see the job comment).
+        # Tests compile with the same flags as a developer's `cargo test`, which also keeps
+        # their fingerprints identical to the build step's and the cache warm.
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          # Intentional: FEATURES is a flag list ("--all-features" or "--features a,b"), not
+          # one argument.
+          cargo test --workspace --locked ${FEATURES}
+
+      - name: Dependency policy
+        if: inputs.deny
+        env:
+          DENY_VERSION: "0.18.6"
+          # sha256 of cargo-deny-0.18.6-x86_64-unknown-linux-musl.tar.gz, recorded from the
+          # release artifact. Renovate bumps DENY_VERSION; whoever reviews that PR updates
+          # this hash from the release's checksum file — a version bump that leaves the hash
+          # stale fails here loudly, which is the point.
+          DENY_SHA256: "a9c3db6db22288045ad8407bd0febbb13c6339b3d948d666ae8ef634fb3f3853"
+        # Prebuilt musl binary, hash-pinned, instead of `cargo install`, which compiled
+        # cargo-deny from source on every run — several minutes each time, unconditionally,
+        # because ~/.cargo/bin is not in the cache and does not belong there. The hash makes
+        # this the same trust model as a SHA-pinned action: the artifact cannot change
+        # without the workflow noticing.
+        run: |
+          set -euo pipefail
+          name="cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -sSfL --retry 3 -o /tmp/deny.tgz \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/${name}.tar.gz"
+          echo "${DENY_SHA256}  /tmp/deny.tgz" | sha256sum -c -
+          tar -xzf /tmp/deny.tgz -C /tmp
+          "/tmp/${name}/cargo-deny" check

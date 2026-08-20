@@ -1,0 +1,89 @@
+---
+name: Model behavior report
+description: Report a quality problem in CLADE-1 output — poor accuracy, calibration, or constraint handling.
+title: "model: "
+labels: [model-behavior, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This template is for model *quality*, not model *safety*.**
+
+        If the model produced content relating to a controlled agent or toxin, appeared to
+        bypass biosecurity screening, or generated something you believe is dual-use, stop
+        here. Close this form and email `biosecurity@mindclade.com`. Those reports are
+        handled out of band by the safety team and are never triaged in an issue — this
+        repository is internal, not public, and that makes no difference to the rule.
+
+        Do not paste sequences of concern into this form. A job ID is enough for us to
+        retrieve the run.
+  - type: input
+    id: model
+    attributes:
+      label: Model and version
+      description: The pinned version string from the response, not just the family name.
+      placeholder: clade-1@2026-05-14
+    validations:
+      required: true
+  - type: input
+    id: job
+    attributes:
+      label: Job ID
+      description: >-
+        From the response envelope. This lets us pull the exact run, including seed and
+        constraint hash, without you pasting any sequence data.
+      placeholder: dsn_8f21c4a0
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: What kind of problem?
+      description: >-
+        Screening constraints are out of scope here. If a *screening* constraint was reported
+        as met but was not, that is a biosecurity report and goes to the address above — the
+        option below covers design constraints only.
+      options:
+        - Predicted property did not match wet-lab measurement
+        - Design constraint (non-screening) reported as met but violated
+        - Candidates rejected that should have passed
+        - Scores poorly calibrated or not reproducible
+        - Degenerate or low-diversity output
+        - Other quality issue
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what did you get?
+      description: >-
+        Quantitative where possible. "Predicted Kd 8 nM, measured 4.2 uM across 3 replicates"
+        is actionable; "the binders were bad" is not.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting evidence
+      description: >-
+        Assay conditions, replicate count, controls used. If the comparison is against
+        another method, name it and its version.
+  - type: input
+    id: reproducibility
+    attributes:
+      label: Does it reproduce?
+      description: Same seed and constraint hash, re-run. How many times out of how many?
+      placeholder: 3/3 with seed 417
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: >-
+            This report contains no sequences of concern, no customer data, and no
+            restricted biological content.
+          required: true
+        - label: >-
+            I have confirmed this is a quality issue, not a biosecurity issue. Biosecurity
+            concerns go to biosecurity@mindclade.com instead.
+          required: true

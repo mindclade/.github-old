@@ -1,0 +1,244 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Organization ruleset workflow. github-config attaches this workflow to protected default
+# branches across internal/private repositories. Keep it language-neutral and safe for
+# untrusted pull-request content: it reads source, but never executes repository code.
+name: Required — PR security
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48  # v4.9.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
+
+  action-pin-policy:
+    name: changed workflow pins
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require immutable third-party action references
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          base = os.environ["BASE_SHA"]
+          head = os.environ["HEAD_SHA"]
+          changed_raw = subprocess.check_output(
+              ["git", "diff", "--name-only", "--diff-filter=ACMR", "-z", base, head]
+          )
+          changed = [
+              name.decode("utf-8", errors="surrogateescape")
+              for name in changed_raw.split(b"\0")
+              if name
+          ]
+
+          candidates = [
+              Path(name)
+              for name in changed
+              if (
+                  name.startswith(".github/workflows/")
+                  or name.startswith(".github/actions/")
+              )
+              and Path(name).suffix in {".yml", ".yaml"}
+          ]
+
+          uses_re = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", re.MULTILINE)
+          sha_re = re.compile(r"^[0-9a-f]{40}$")
+          digest_re = re.compile(r"^sha256:[0-9a-f]{64}$")
+          semver_re = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
+          violations = []
+
+          for path in candidates:
+              if not path.is_file():
+                  continue
+              text = path.read_text(encoding="utf-8")
+              for raw_use in uses_re.findall(text):
+                  use = raw_use.strip("'\"")
+                  if use.startswith("./"):
+                      continue
+                  target, sep, ref = use.rpartition("@")
+                  if not sep:
+                      violations.append((path, use, "missing immutable reference"))
+                      continue
+                  if sha_re.fullmatch(ref) or digest_re.fullmatch(ref):
+                      continue
+                  if (
+                      target.startswith("Mindclade/.github/.github/workflows/")
+                      and semver_re.fullmatch(ref)
+                  ):
+                      # Mindclade reusable workflows use immutable full-semver releases.
+                      continue
+                  violations.append((path, use, "expected full commit SHA"))
+
+          if violations:
+              for path, use, reason in violations:
+                  print(f"::error file={path}::{use}: {reason}")
+              sys.exit(1)
+
+          print(f"Checked {len(candidates)} changed workflow/action YAML file(s).")
+          PY
+
+
+  workflow-permission-policy:
+    name: workflow permission separation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Reject cloud identity and repository mutation in one PR job
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          dangerous = {
+              "actions", "attestations", "checks", "contents", "deployments",
+              "discussions", "issues", "packages", "pages", "pull-requests",
+              "repository-projects", "security-events", "statuses",
+          }
+
+          def indent(line: str) -> int:
+              return len(line) - len(line.lstrip(" "))
+
+          def has_pr_trigger(lines: list[str]) -> bool:
+              return any(
+                  re.match(r"^  (pull_request|pull_request_target|merge_group):", line)
+                  for line in lines
+              ) or any(
+                  re.match(r"^on:\s*\[[^]]*(pull_request|merge_group)", line)
+                  for line in lines
+              )
+
+          def explicitly_non_pr(condition: str) -> bool:
+              # Only a single-event restriction is accepted. An OR expression can still
+              # admit pull_request and is therefore intentionally not treated as safe.
+              if "||" in condition:
+                  return False
+              if re.search(r"github\.event_name\s*!=\s*['\"]pull_request['\"]", condition):
+                  return True
+              return bool(re.search(
+                  r"github\.event_name\s*==\s*['\"](?:push|schedule|workflow_dispatch|workflow_run)['\"]",
+                  condition,
+              ))
+
+          violations: list[str] = []
+          for path in sorted(Path(".github/workflows").glob("*.y*ml")):
+              lines = path.read_text(encoding="utf-8").splitlines()
+              if not has_pr_trigger(lines):
+                  continue
+              try:
+                  jobs_index = lines.index("jobs:")
+              except ValueError:
+                  continue
+              starts: list[tuple[str, int]] = []
+              for index in range(jobs_index + 1, len(lines)):
+                  match = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", lines[index])
+                  if match:
+                      starts.append((match.group(1), index))
+              for position, (job, start) in enumerate(starts):
+                  end = starts[position + 1][1] if position + 1 < len(starts) else len(lines)
+                  block = lines[start + 1:end]
+                  condition = " ".join(
+                      line.strip() for line in block if re.match(r"^    if:", line)
+                  )
+                  if explicitly_non_pr(condition):
+                      continue
+                  permission_index = next(
+                      (i for i, line in enumerate(block) if line == "    permissions:"),
+                      None,
+                  )
+                  if permission_index is None:
+                      continue
+                  permissions: dict[str, str] = {}
+                  for line in block[permission_index + 1:]:
+                      if line and indent(line) <= 4:
+                          break
+                      match = re.match(
+                          r"^      ([A-Za-z0-9_-]+):\s*(read|write|none)\s*(?:#.*)?$",
+                          line,
+                      )
+                      if match:
+                          permissions[match.group(1)] = match.group(2)
+                  writes = {name for name, value in permissions.items() if value == "write"}
+                  if "id-token" in writes and writes & dangerous:
+                      violations.append(
+                          f"{path}: job {job} combines id-token:write with "
+                          f"repository write permissions {sorted(writes & dangerous)}"
+                      )
+
+          if violations:
+              for violation in violations:
+                  print(f"::error::{violation}")
+              sys.exit(1)
+          print("Workflow permission-separation policy passed.")
+          PY
+
+  verdict:
+    name: verdict
+    if: always()
+    needs: [dependency-review, action-pin-policy, workflow-permission-policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require all applicable security jobs
+        env:
+          DEPENDENCY_REVIEW: ${{ needs.dependency-review.result }}
+          ACTION_PIN_POLICY: ${{ needs.action-pin-policy.result }}
+          WORKFLOW_PERMISSION_POLICY: ${{ needs.workflow-permission-policy.result }}
+        run: |
+          set -euo pipefail
+          case "${DEPENDENCY_REVIEW}" in
+            success|skipped) ;;
+            *) echo "::error::dependency review result: ${DEPENDENCY_REVIEW}"; exit 1 ;;
+          esac
+          if [ "${ACTION_PIN_POLICY}" != "success" ]; then
+            echo "::error::action pin policy result: ${ACTION_PIN_POLICY}"
+            exit 1
+          fi
+          if [ "${WORKFLOW_PERMISSION_POLICY}" != "success" ]; then
+            echo "::error::workflow permission policy result: ${WORKFLOW_PERMISSION_POLICY}"
+            exit 1
+          fi
+          echo "Required PR security policy passed."

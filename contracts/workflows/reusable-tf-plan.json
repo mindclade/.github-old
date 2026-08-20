@@ -1,0 +1,74 @@
+{
+  "inputs": {
+    "backend-config": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "checkov": {
+      "default": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "comment-on-pr": {
+      "default": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "project-id": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "service-account": {
+      "required": true,
+      "type": "string"
+    },
+    "terraform-version": {
+      "default": "1.15.9",
+      "required": false,
+      "type": "string"
+    },
+    "var-file": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "working-directory": {
+      "required": true,
+      "type": "string"
+    },
+    "workload-identity-provider": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "comment": {
+      "contents": "read",
+      "pull-requests": "write"
+    },
+    "plan": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "plan",
+    "comment"
+  ],
+  "outputs": [
+    "has-changes"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-tf-plan.yml"
+}

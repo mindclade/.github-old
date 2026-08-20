@@ -1,0 +1,148 @@
+---
+# Preflight check, NOT the way to authenticate a build.
+#
+# A reusable workflow runs as its own job on its own runner, so credentials it obtains are
+# gone the moment it returns. Authenticate inside every job that talks to GCP. This workflow
+# proves the GitHub OIDC -> GCP WIF -> service-account path end to end and exposes the safe
+# identity claims needed to debug trust conditions without ever printing the JWT.
+name: Reusable — WIF preflight
+
+on:
+  workflow_call:
+    inputs:
+      workload-identity-provider:
+        description: Full resource name of the WIF provider.
+        required: true
+        type: string
+      service-account:
+        description: Service account to impersonate.
+        required: true
+        type: string
+      project-id:
+        description: Optional explicit GCP project for gcloud configuration.
+        required: false
+        type: string
+        default: ""
+      expected-repository-owner-id:
+        description: >-
+          Optional immutable numeric GitHub organization ID. When supplied, preflight fails
+          if the OIDC repository_owner_id claim does not match.
+        required: false
+        type: string
+        default: ""
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Validate WIF inputs and permissions
+        env:
+          PROVIDER: ${{ inputs.workload-identity-provider }}
+          SERVICE_ACCOUNT: ${{ inputs.service-account }}
+        run: |
+          set -euo pipefail
+          [ -n "${PROVIDER}" ] || { echo "::error::workload-identity-provider is empty"; exit 1; }
+          [ -n "${SERVICE_ACCOUNT}" ] || { echo "::error::service-account is empty"; exit 1; }
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || {
+            echo "::error::the calling job must grant permissions: id-token: write"
+            exit 1
+          }
+
+      - name: Inspect GitHub OIDC identity claims
+        env:
+          EXPECTED_OWNER_ID: ${{ inputs.expected-repository-owner-id }}
+        run: |
+          set -euo pipefail
+          audience="https%3A%2F%2Fgithub.com%2FMindclade"
+          response="$(curl --fail --silent --show-error \
+            --header "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience}")"
+          token="$(jq -er '.value' <<< "${response}")"
+
+          OIDC_JWT="${token}" python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import sys
+
+          token = os.environ.pop("OIDC_JWT")
+          payload = token.split(".", 2)[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
+
+          owner = claims.get("repository_owner")
+          owner_id = str(claims.get("repository_owner_id", ""))
+          visibility = claims.get("repository_visibility")
+          expected_owner_id = os.environ.get("EXPECTED_OWNER_ID", "")
+
+          if owner != "Mindclade":
+              print(f"::error::unexpected repository_owner claim: {owner!r}")
+              sys.exit(1)
+          if visibility not in {"internal", "private"}:
+              print(f"::error::unexpected repository_visibility claim: {visibility!r}")
+              sys.exit(1)
+          if expected_owner_id and owner_id != expected_owner_id:
+              print(
+                  "::error::repository_owner_id does not match the immutable Mindclade "
+                  "organization ID configured by github-config"
+              )
+              sys.exit(1)
+
+          selected = {
+              "Repository": claims.get("repository", ""),
+              "Repository ID": claims.get("repository_id", ""),
+              "Owner ID": owner_id,
+              "Visibility": visibility,
+              "Workflow ref": claims.get("workflow_ref", ""),
+              "Reusable workflow ref": claims.get("job_workflow_ref", ""),
+              "Reusable workflow SHA": claims.get("job_workflow_sha", ""),
+              "cloud_access": claims.get("repo_property_cloud_access", "not included"),
+              "deployment_tier": claims.get("repo_property_deployment_tier", "not included"),
+              "workload_class": claims.get("repo_property_workload_class", "not included"),
+          }
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("### GitHub OIDC claims\n\n| Claim | Value |\n|---|---|\n")
+              for key, value in selected.items():
+                  safe = str(value).replace("|", "\\|").replace("`", "\\`")
+                  out.write(f"| {key} | `{safe}` |\n")
+          PY
+
+      - id: gcp-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+          project_id: ${{ inputs.project-id }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+
+      - name: Report resolved GCP identity
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "### GCP federation result"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Impersonated | \`$(gcloud config get-value account 2>/dev/null)\` |"
+            echo "| Project | \`$(gcloud config get-value project 2>/dev/null)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Confirm the token is usable
+        # A successful auth step proves federation; this additionally proves the impersonated
+        # service account can mint an access token accepted by Google Cloud.
+        run: gcloud auth print-access-token >/dev/null && echo "Token accepted by GCP."

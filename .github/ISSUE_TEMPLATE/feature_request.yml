@@ -1,0 +1,60 @@
+---
+name: Feature request
+description: Propose new capability or a change to an existing contract.
+title: "feat: "
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Describe the outcome you need, not the implementation you have in mind. If a
+        public API or artifact contract changes, say so explicitly — that determines
+        which team reviews this.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched open and closed issues and this is not a duplicate.
+          required: true
+  - type: input
+    id: component
+    attributes:
+      label: Owning component or path
+      description: Repository-relative path, matched against CODEOWNERS for routing.
+      placeholder: sdk/python
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today? Include the workaround you are using instead.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: What should become possible. Interface sketches welcome, not required.
+    validations:
+      required: true
+  - type: dropdown
+    id: contract
+    attributes:
+      label: Does this change a public contract?
+      description: Public API, SDK surface, wire format, artifact layout, or model behavior.
+      options:
+        - "No"
+        - "Yes — additive, backward compatible"
+        - "Yes — breaking"
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including doing nothing. Why is each insufficient?
+    validations:
+      required: true

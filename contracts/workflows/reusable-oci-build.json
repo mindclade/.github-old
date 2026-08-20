@@ -1,0 +1,107 @@
+{
+  "inputs": {
+    "attestor": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "attestor-key": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "attestor-project": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "bazel-args": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "bazel-image-target": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "bazel-push-target": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "build-args": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "builder": {
+      "default": "docker",
+      "required": false,
+      "type": "string"
+    },
+    "context": {
+      "default": ".",
+      "required": false,
+      "type": "string"
+    },
+    "dockerfile": {
+      "default": "Dockerfile",
+      "required": false,
+      "type": "string"
+    },
+    "image": {
+      "required": true,
+      "type": "string"
+    },
+    "platforms": {
+      "default": "linux/amd64",
+      "required": false,
+      "type": "string"
+    },
+    "project-id": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "push": {
+      "default": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "service-account": {
+      "required": true,
+      "type": "string"
+    },
+    "workload-identity-provider": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "build": {
+      "artifact-metadata": "write",
+      "attestations": "write",
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "build"
+  ],
+  "outputs": [
+    "digest",
+    "image-ref"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-oci-build.yml"
+}

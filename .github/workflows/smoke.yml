@@ -1,0 +1,94 @@
+---
+# Runs against THIS repository only — it is not a reusable workflow.
+#
+# The consistency job in hygiene.yml proves references resolve; actionlint proves each file
+# parses. Neither proves reusable-go-ci still WORKS. This does, by calling the reusable CI
+# workflows against the minimal fixtures in testdata/ — so breakage surfaces here, before a
+# tag is cut, instead of after it, in six consuming repositories.
+#
+# Coverage is deliberately partial. The WIF-dependent workflows (oci-build, tf-plan,
+# wif-auth) need cloud credentials and a target project; smoke-testing those
+# means granting this repository a service account, which is a security decision to take
+# deliberately, not a default. What CAN be tested hermetically is: go, uv, rust, codeql, and
+# repo-hygiene — which between them exercise checkout, toolchain setup, caching, lint, test,
+# and the workflow_call plumbing every workflow shares.
+name: smoke
+
+on:
+  schedule:
+    # Weekly. A runner-image or toolchain-download regression shows
+    # up here within a week instead of at the next release.
+    - cron: "41 6 * * 2"
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    uses: ./.github/workflows/reusable-go-ci.yml
+    with:
+      working-directory: testdata/go-fixture
+      # The org default toolchain. If setup-go cannot fetch it, that failure belongs here.
+      go-version: "1.25.12"
+      race: true
+      coverage-threshold: 0
+
+  uv:
+    uses: ./.github/workflows/reusable-uv-ci.yml
+    with:
+      working-directory: testdata/uv-fixture
+      python-version: "3.11.15"
+      # A single project, not a workspace — the fixture is one package.
+      packages: ""
+      typecheck: true
+
+  rust:
+    uses: ./.github/workflows/reusable-rust-ci.yml
+    with:
+      working-directory: testdata/rust-fixture
+      deny: true
+
+  codeql:
+    uses: ./.github/workflows/reusable-codeql.yml
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    with:
+      # Go only, and build-mode none: the fixture is trivially analyzable without a build,
+      # and this exercises exactly the input threading that was previously inert.
+      languages: '["go"]'
+      build-mode: none
+
+  hygiene:
+    uses: ./.github/workflows/reusable-repo-hygiene.yml
+    with:
+      enforce: false
+
+  # One check to require in a ruleset, instead of five that move when the matrix does.
+  verdict:
+    needs: [go, uv, rust, codeql, hygiene]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: All smoke jobs succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "${RESULTS}" | jq .
+          failed="$(echo "${RESULTS}" | jq -r 'to_entries[] | select(.value.result != "success") | .key')"
+          if [ -n "${failed}" ]; then
+            echo "::error::smoke jobs failed: ${failed//$'\n'/, }"
+            echo "::error::A reusable workflow is broken at HEAD. Do not cut a tag until this is green."
+            exit 1
+          fi
+          echo "All reusable workflows pass against the fixtures."

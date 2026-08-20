@@ -1,0 +1,45 @@
+{
+  "inputs": {
+    "coverage-threshold": {
+      "default": 0,
+      "required": false,
+      "type": "number"
+    },
+    "go-version": {
+      "default": "1.25.12",
+      "required": false,
+      "type": "string"
+    },
+    "golangci-lint-version": {
+      "default": "v2.6.2",
+      "required": false,
+      "type": "string"
+    },
+    "race": {
+      "default": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "working-directory": {
+      "default": ".",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "build"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-go-ci.yml"
+}

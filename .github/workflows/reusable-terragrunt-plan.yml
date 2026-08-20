@@ -1,0 +1,114 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+name: Reusable — Terragrunt plan
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: false
+        type: string
+        default: .
+      terraform-version:
+        required: false
+        type: string
+        default: "1.15.9"
+      terragrunt-version:
+        required: false
+        type: string
+        default: "1.1.2"
+      terragrunt-sha256:
+        description: SHA-256 of the pinned linux_amd64 Terragrunt release binary.
+        required: true
+        type: string
+      command:
+        description: "Allowlisted command: `run --all plan` or `run plan`."
+        required: false
+        type: string
+        default: run --all plan
+      workload-identity-provider:
+        required: true
+        type: string
+      service-account:
+        required: true
+        type: string
+      project-id:
+        required: false
+        type: string
+        default: ""
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      TG_STRICT_MODE: "true"
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+          project_id: ${{ inputs.project-id }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+      - name: Install Terragrunt
+        env:
+          VERSION: ${{ inputs.terragrunt-version }}
+          EXPECTED_SHA256: ${{ inputs.terragrunt-sha256 }}
+        run: |
+          set -euo pipefail
+          case "$VERSION" in (*[!0-9.]*|'') echo "invalid Terragrunt version" >&2; exit 1;; esac
+          case "$EXPECTED_SHA256" in
+            ([0-9a-fA-F][0-9a-fA-F]*) ;;
+            (*) echo "terragrunt-sha256 must be a hexadecimal SHA-256" >&2; exit 1 ;;
+          esac
+          [ "${#EXPECTED_SHA256}" -eq 64 ] || {
+            echo "terragrunt-sha256 must contain 64 hexadecimal characters" >&2
+            exit 1
+          }
+          url="https://github.com/gruntwork-io/terragrunt/releases/download/v${VERSION}/terragrunt_linux_amd64"
+          curl --fail --location --proto '=https' --tlsv1.2 --output /tmp/terragrunt "$url"
+          printf '%s  %s\n' "$EXPECTED_SHA256" /tmp/terragrunt | sha256sum --check --strict -
+          install -m 0755 /tmp/terragrunt "$RUNNER_TEMP/terragrunt"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Plan
+        env:
+          COMMAND: ${{ inputs.command }}
+        run: |
+          set -euo pipefail
+          case "$COMMAND" in
+            'run --all plan')
+              terragrunt run --all --non-interactive --provider-cache -- plan
+              ;;
+            'run plan')
+              terragrunt run --non-interactive --provider-cache -- plan
+              ;;
+            *)
+              echo "::error::unsupported Terragrunt command: $COMMAND"
+              exit 1
+              ;;
+          esac

@@ -1,0 +1,73 @@
+# Changelog
+
+All notable changes to the versioned reusable-workflow contract are recorded here. Consumers
+pin immutable full-semver releases, so a merged change reaches a consumer only after a new
+release is published and the consumer updates its `uses:` reference.
+
+The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
+outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
+
+## Unreleased
+
+No unreleased changes.
+
+## v3.0.0
+
+### Changed
+
+- Split cloud-federated planning from pull-request mutation so no plan job combines Google
+  Cloud OIDC with repository write authority.
+- Replaced concurrent Terragrunt `TF_PLUGIN_CACHE_DIR` use with Terragrunt's provider-cache
+  server and current `terragrunt run` command form.
+- Tightened reusable Terraform planning to read-only cloud and repository permissions; plan
+  comments are published by a separate least-privilege job.
+- Narrowed the supported Terraform line to `>= 1.15.0, < 1.16.0`.
+
+### Security
+
+- Required security policy rejects privileged pull-request jobs that combine `id-token: write`
+  with repository mutation permissions.
+- First-party consumers must pin the immutable `v3.0.0` release tag.
+
+## v2.0.0
+
+### Added
+
+- Organization-ruleset workflow for dependency review and changed-workflow action-pin policy.
+- GitHub-native SLSA build provenance and SBOM attestations for published OCI images.
+- Linked-artifact storage records for published images.
+- OIDC/WIF claim diagnostics including immutable organization/repository IDs,
+  `job_workflow_ref`, `job_workflow_sha`, visibility, and selected repository properties.
+- Versioned reusable-workflow API snapshots under `contracts/workflows/` with an offline
+  drift checker.
+- Enterprise guidance for immutable releases, ruleset workflows, custom OIDC properties, and
+  GCP WIF trust conditions.
+- Starter workflows for Go, Python/uv, and Terraform repositories pinned to `v2.0.0`.
+
+### Changed
+
+- Reset the first production workflow contract to `v2.0.0` and normalized all starter/docs
+  references to the same immutable release.
+- `reusable-oci-build.yml` now treats GitHub artifact attestations as canonical source-build
+  provenance while keeping GCP Binary Authorization as the optional GKE admission control.
+- `release.yml` assembles a draft release before publication, matching GitHub immutable-release
+  best practice.
+- CI uses actionlint 1.7.12 through a narrow Nix override while retaining the existing locked
+  nixpkgs base.
+- Organization profile content is removed from this internal repository; member profile
+  content is maintained in `profile/README.md`.
+
+### Removed
+
+- Legacy SLSA generator workflow and its third-party semver-pin exception.
+- Public-Sigstore/cosign image/SBOM attestation path from the standard OCI workflow.
+- Low-value `stale.yml` and OpenSSF Scorecard scheduled workflows.
+- Staged profile/brand assets that did not belong in the internal `.github` control repository.
+
+### Security
+
+- Every third-party action reference is full-commit-SHA pinned.
+- Required ruleset security runs centrally without executing untrusted repository code.
+- WIF policy is designed around immutable `repository_owner_id`, exact released
+  `job_workflow_ref`, private/internal visibility, and repository custom-property claims.
+- No GCP service-account JSON credentials are accepted by the reusable cloud workflows.

@@ -1,0 +1,43 @@
+{
+  "inputs": {
+    "expected-repository-owner-id": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "project-id": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "service-account": {
+      "required": true,
+      "type": "string"
+    },
+    "workload-identity-provider": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "preflight": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "preflight"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-wif-auth.yml"
+}

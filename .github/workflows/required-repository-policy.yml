@@ -1,0 +1,199 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Organization ruleset workflow. github-config attaches this workflow to repositories by
+# `mindclade_repository_class`. It validates the repository that triggered the workflow;
+# it must never hard-code `.github` or another single repository identity.
+name: Required — repository policy
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-policy-${{ github.repository_id }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify repository metadata and governance properties
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_OWNER: Mindclade
+          EXPECTED_DEFAULT_BRANCH: main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository_json="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}")"
+          properties_json="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/properties/values")"
+
+          export REPOSITORY_JSON="${repository_json}"
+          export PROPERTIES_JSON="${properties_json}"
+          export EXPECTED_OWNER EXPECTED_DEFAULT_BRANCH
+
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          repository = json.loads(os.environ["REPOSITORY_JSON"])
+          raw_properties = json.loads(os.environ["PROPERTIES_JSON"])
+          properties = {
+              item["property_name"]: item.get("value")
+              for item in raw_properties
+              if isinstance(item, dict) and "property_name" in item
+          }
+
+          required_properties = {
+              "mindclade_repository_class",
+              "mindclade_owner_team",
+              "mindclade_criticality",
+              "mindclade_data_classification",
+              "mindclade_production_authority",
+              "mindclade_ci_profile",
+              "mindclade_language_profile",
+              "mindclade_lifecycle",
+          }
+          allowed_classes = {
+              "enterprise-control",
+              "production-control",
+              "source-monorepo",
+              "public-sdk",
+              "archive",
+          }
+          allowed_visibility = {
+              "enterprise-control": {"private", "internal"},
+              "production-control": {"private", "internal"},
+              "source-monorepo": {"internal"},
+              "public-sdk": {"public"},
+              "archive": {"private", "internal", "public"},
+          }
+          allowed_ci_profiles = {
+              "enterprise-control": {"shared-workflows", "terraform-control"},
+              "production-control": {"terragrunt-control", "gitops-control"},
+              "source-monorepo": {"monorepo"},
+              "public-sdk": {"public-sdk"},
+              "archive": {"none", "public-sdk", "shared-workflows", "terraform-control", "terragrunt-control", "gitops-control", "monorepo"},
+          }
+
+          errors: list[str] = []
+          owner = repository.get("owner", {}).get("login")
+          visibility = repository.get("visibility")
+          default_branch = repository.get("default_branch")
+          archived = bool(repository.get("archived"))
+          disabled = bool(repository.get("disabled"))
+
+          missing = sorted(
+              name for name in required_properties
+              if name not in properties or properties[name] in (None, "", [])
+          )
+          if missing:
+              errors.append("missing required custom properties: " + ", ".join(missing))
+
+          repository_class = properties.get("mindclade_repository_class")
+          owner_team = properties.get("mindclade_owner_team")
+          data_classification = properties.get("mindclade_data_classification")
+          production_authority = str(properties.get("mindclade_production_authority", "")).lower()
+          ci_profile = properties.get("mindclade_ci_profile")
+          lifecycle = properties.get("mindclade_lifecycle")
+
+          if owner != os.environ["EXPECTED_OWNER"]:
+              errors.append(f"expected owner {os.environ['EXPECTED_OWNER']}, found {owner!r}")
+          if default_branch != os.environ["EXPECTED_DEFAULT_BRANCH"]:
+              errors.append(
+                  f"expected default branch {os.environ['EXPECTED_DEFAULT_BRANCH']}, found {default_branch!r}"
+              )
+          if disabled:
+              errors.append("repository is disabled")
+          if repository_class not in allowed_classes:
+              errors.append(f"unsupported repository class: {repository_class!r}")
+          elif visibility not in allowed_visibility[repository_class]:
+              errors.append(
+                  f"visibility {visibility!r} is invalid for class {repository_class!r}"
+              )
+          if repository_class in allowed_ci_profiles and ci_profile not in allowed_ci_profiles[repository_class]:
+              errors.append(
+                  f"CI profile {ci_profile!r} is invalid for class {repository_class!r}"
+              )
+          # Enterprise and production control repositories never execute privileged CI for
+          # code proposed from a fork. Public SDKs deliberately retain normal fork-based
+          # contribution semantics.
+          event_path = os.environ.get("GITHUB_EVENT_PATH")
+          if event_path and os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+              try:
+                  event = json.load(open(event_path, encoding="utf-8"))
+                  head_repo = event.get("pull_request", {}).get("head", {}).get("repo", {}).get("full_name")
+              except (OSError, json.JSONDecodeError):
+                  errors.append("unable to read pull-request event for source-trust policy")
+              else:
+                  if repository_class in {"enterprise-control", "production-control"} and head_repo != repository.get("full_name"):
+                      errors.append(
+                          f"{repository_class} pull requests must originate from a branch in the governed repository"
+                      )
+          if not owner_team:
+              errors.append("owner team is empty")
+          if production_authority not in {"true", "false"}:
+              errors.append("mindclade_production_authority must be true or false")
+          if repository_class in {"source-monorepo", "public-sdk", "archive"} and production_authority == "true":
+              errors.append(f"class {repository_class!r} may not hold production authority")
+          if visibility == "public" and data_classification != "public":
+              errors.append("public repository must have public data classification")
+          if visibility == "public" and repository_class not in {"public-sdk", "archive"}:
+              errors.append("public visibility is limited to public-sdk or archive repositories")
+          if repository_class == "archive" or lifecycle == "archive":
+              if repository_class != "archive" or lifecycle != "archive" or not archived:
+                  errors.append("archive class, archive lifecycle, and GitHub archived state must agree")
+          elif archived:
+              errors.append("active/maintenance repository is unexpectedly archived")
+
+          print("### Repository policy")
+          print()
+          print("| Property | Actual |")
+          print("|---|---|")
+          print(f"| Repository | `{repository.get('full_name')}` |")
+          print(f"| Visibility | `{visibility}` |")
+          print(f"| Default branch | `{default_branch}` |")
+          print(f"| Repository class | `{repository_class}` |")
+          print(f"| Owner team | `{owner_team}` |")
+          print(f"| CI profile | `{ci_profile}` |")
+          print(f"| Production authority | `{production_authority}` |")
+          print(f"| Lifecycle | `{lifecycle}` |")
+          print(f"| Archived | `{str(archived).lower()}` |")
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              with open(summary_path, "a", encoding="utf-8") as summary:
+                  summary.write("### Repository policy\n\n")
+                  summary.write("| Property | Actual |\n|---|---|\n")
+                  summary.write(f"| Repository | `{repository.get('full_name')}` |\n")
+                  summary.write(f"| Visibility | `{visibility}` |\n")
+                  summary.write(f"| Default branch | `{default_branch}` |\n")
+                  summary.write(f"| Repository class | `{repository_class}` |\n")
+                  summary.write(f"| Owner team | `{owner_team}` |\n")
+                  summary.write(f"| CI profile | `{ci_profile}` |\n")
+                  summary.write(f"| Production authority | `{production_authority}` |\n")
+                  summary.write(f"| Lifecycle | `{lifecycle}` |\n")
+                  summary.write(f"| Archived | `{str(archived).lower()}` |\n")
+                  if errors:
+                      summary.write("\n#### Violations\n\n")
+                      for error in errors:
+                          summary.write(f"- {error}\n")
+
+          if errors:
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+          PY

@@ -1,0 +1,46 @@
+---
+name: Reusable — artifact verification
+
+on:
+  workflow_call:
+    inputs:
+      image-ref:
+        description: Fully qualified immutable OCI image reference (`image@sha256:...`).
+        required: true
+        type: string
+      expected-source-repository:
+        required: true
+        type: string
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - name: Validate immutable reference
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+        run: |
+          set -euo pipefail
+          case "$IMAGE_REF" in
+            *@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) echo "::error::image-ref must be digest-pinned"; exit 1 ;;
+          esac
+      - name: Verify GitHub build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_REF: ${{ inputs.image-ref }}
+          SOURCE_REPOSITORY: ${{ inputs.expected-source-repository }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "oci://${IMAGE_REF}" --repo "$SOURCE_REPOSITORY"

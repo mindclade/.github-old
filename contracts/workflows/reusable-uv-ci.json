@@ -1,0 +1,50 @@
+{
+  "inputs": {
+    "packages": {
+      "default": "--all-packages",
+      "required": false,
+      "type": "string"
+    },
+    "pytest-args": {
+      "default": "-q",
+      "required": false,
+      "type": "string"
+    },
+    "python-version": {
+      "default": "3.11.15",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "typecheck": {
+      "default": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "uv-version": {
+      "default": "0.9.29",
+      "required": false,
+      "type": "string"
+    },
+    "working-directory": {
+      "default": ".",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "build"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-uv-ci.yml"
+}

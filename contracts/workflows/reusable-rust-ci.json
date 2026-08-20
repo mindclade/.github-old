@@ -1,0 +1,40 @@
+{
+  "inputs": {
+    "deny": {
+      "default": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "features": {
+      "default": "--all-features",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    },
+    "toolchain": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "working-directory": {
+      "default": ".",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "build"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-rust-ci.yml"
+}

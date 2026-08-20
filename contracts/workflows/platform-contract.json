@@ -1,0 +1,13 @@
+{
+  "contract_version": "1.0.0",
+  "repository": ".github",
+  "authority": [
+    "shared-workflows"
+  ],
+  "required_security_properties": [
+    "explicit-permissions",
+    "immutable-third-party-pins",
+    "oidc-only-cloud-auth",
+    "merge-group-compatible-required-checks"
+  ]
+}

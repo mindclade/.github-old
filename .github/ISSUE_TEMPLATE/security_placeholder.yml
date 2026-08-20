@@ -1,0 +1,49 @@
+---
+name: "⚠ Security vulnerability — do not use this form"
+description: Vulnerabilities are reported privately. This form exists only to redirect you.
+title: "STOP — report this privately instead"
+labels: [invalid]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Do not file this issue
+
+        This repository is internal, so what you write here is not visible to the public.
+        That is the only thing filing here protects you from, and it is not the part that
+        matters.
+
+        An issue is readable by every member of the organisation the moment you submit it,
+        and by anyone later granted access. It lands in an unmanaged channel with no embargo,
+        no coordinated-disclosure timeline, and no notification to the people who can fix it.
+        It persists in the REST API and in the timeline after you close it, and editing the
+        body does not remove it — issue edit history stays readable. Deletion needs admin,
+        and by then the details have already been mailed to every watcher.
+
+        A private advisory gives you what this form cannot: a private fork to develop the fix
+        in, a controlled disclosure timeline, and a path to a CVE.
+
+        **Close this tab and use one of these instead:**
+
+        - Open the **Security** tab of the affected repository and choose **Report a
+          vulnerability**. Advisories are repository-scoped; do not file one against this
+          `.github` repository for a vulnerability in another codebase.
+        - Email `security@mindclade.com` when GitHub private reporting is not suitable.
+        - For screening bypasses or dual-use model behavior, email `biosecurity@mindclade.com`.
+
+        Our response commitments, scope, and safe-harbour terms are in
+        [`SECURITY.md`](https://github.com/Mindclade/.github/blob/main/SECURITY.md).
+        Good-faith research is covered.
+
+        This form has no description field on purpose. There is nowhere here to write
+        vulnerability details. If you arrived by mistake and have an ordinary defect, use the
+        bug report form — nothing is lost by refiling.
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Confirm before continuing
+      options:
+        - label: >-
+            I understand this form is not a reporting channel, and that anything I submit
+            here is immediately readable by every member of the organisation.
+          required: true

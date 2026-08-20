@@ -1,0 +1,42 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+name: Terraform module CI
+
+on:
+  push:
+    branches: [$default-branch]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: Mindclade/.github/.github/workflows/reusable-tf-plan.yml@v3.0.0
+    with:
+      working-directory: "."
+      terraform-version: "1.15.9"
+      checkov: true
+      # Organization variables, not literals to fill in.
+      #
+      # These are published org-wide by github-config (modules/policies/secrets.tf) from
+      # bootstrap's outputs, so a repository created from this template authenticates without
+      # anyone editing this file. Keeping these values centralized prevents per-repository
+      # copies from drifting when the pool or service account changes.
+      #
+      # The PLAN identity, deliberately. It is read-only apart from state-bucket writes — an
+      # apply identity must never be reachable from a pull request, which is why this template
+      # names no `environment:` either.
+      workload-identity-provider: ${{ vars.WIF_PROVIDER_PLAN }}
+      service-account: ${{ vars.SA_TF_PLAN }}

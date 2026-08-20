@@ -1,0 +1,118 @@
+---
+# Publish a subtree of the monorepo to a standalone repository.
+#
+# The mirror is one-way and destructive on the target: history is rewritten from the
+# monorepo's, so anything committed directly to the target is lost. Targets must be
+# ruleset-protected against direct pushes by everyone except this workflow's App.
+name: Reusable — subtree mirror
+
+on:
+  workflow_call:
+    inputs:
+      subtree-path:
+        description: Path within this repo to publish, e.g. infra/terraform/modules
+        required: true
+        type: string
+      target-repo:
+        description: Destination in owner/name form.
+        required: true
+        type: string
+      target-branch:
+        required: false
+        type: string
+        default: main
+      tag:
+        description: >-
+          Semver tag to create on the mirror, e.g. v1.4.0. Consumers pin to this. Leave empty
+          to mirror the branch without tagging.
+        required: false
+        type: string
+        default: ""
+      app-id:
+        description: GitHub App id with contents:write on the target repo.
+        required: true
+        type: string
+      dry-run:
+        required: false
+        type: boolean
+        default: false
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+    secrets:
+      app-private-key:
+        description: >-
+          PEM private key for the App. Source it from GCP Secret Manager in the caller
+          rather than storing it as a long-lived GitHub secret.
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # subtree split needs real history; a shallow clone silently produces a truncated
+          # mirror rather than failing.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
+        with:
+          app-id: ${{ inputs.app-id }}
+          private-key: ${{ secrets.app-private-key }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ inputs.target-repo }}
+
+      - name: Verify the subtree exists
+        run: |
+          set -euo pipefail
+          if [ ! -d "${{ inputs.subtree-path }}" ]; then
+            echo "::error::subtree-path '${{ inputs.subtree-path }}' does not exist in this repo"
+            exit 1
+          fi
+
+      - name: Split and push
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config user.name  "mindclade-mirror[bot]"
+          git config user.email "mindclade-mirror[bot]@users.noreply.github.com"
+
+          branch="mirror-$(date -u +%Y%m%d%H%M%S)"
+          git subtree split --prefix="${{ inputs.subtree-path }}" -b "$branch"
+
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target-repo }}.git"
+
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "Dry run — would force-push $branch to ${{ inputs.target-repo }}:${{ inputs.target-branch }}"
+            git log --oneline -10 "$branch"
+            exit 0
+          fi
+
+          git push --force "$remote" "$branch:${{ inputs.target-branch }}"
+
+          if [ -n "${{ inputs.tag }}" ]; then
+            git tag -f "${{ inputs.tag }}" "$branch"
+            git push --force "$remote" "refs/tags/${{ inputs.tag }}"
+          fi
+
+      - name: Summary
+        run: |
+          {
+            echo "### Subtree mirror"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Source | \`${{ inputs.subtree-path }}\` |"
+            echo "| Target | \`${{ inputs.target-repo }}:${{ inputs.target-branch }}\` |"
+            echo "| Tag | \`${{ inputs.tag || 'none' }}\` |"
+            echo "| Dry run | ${{ inputs.dry-run }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

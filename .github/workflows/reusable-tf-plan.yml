@@ -1,0 +1,235 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+name: Reusable — Terraform plan
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      terraform-version:
+        required: false
+        type: string
+        default: "1.15.9"
+      backend-config:
+        description: Path to a .tfbackend file, relative to working-directory.
+        required: false
+        type: string
+        default: ""
+      var-file:
+        required: false
+        type: string
+        default: ""
+      workload-identity-provider:
+        required: true
+        type: string
+      service-account:
+        description: Read-only speculative-plan identity.
+        required: true
+        type: string
+      project-id:
+        description: >-
+          Default GCP project for the job. Leave empty only when the plan targets the same
+          project in which the service account lives.
+        required: false
+        type: string
+        default: ""
+      comment-on-pr:
+        required: false
+        type: boolean
+        default: true
+      checkov:
+        required: false
+        type: boolean
+        default: true
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+    outputs:
+      has-changes:
+        description: "true when the plan is non-empty"
+        value: ${{ jobs.plan.outputs.has-changes }}
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+      has-changes: ${{ steps.plan.outputs.has-changes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate WIF inputs and permissions
+        env:
+          PROVIDER: ${{ inputs.workload-identity-provider }}
+          SERVICE_ACCOUNT: ${{ inputs.service-account }}
+        run: |
+          set -euo pipefail
+          [ -n "${PROVIDER}" ] || { echo "::error::workload-identity-provider is empty"; exit 1; }
+          [ -n "${SERVICE_ACCOUNT}" ] || { echo "::error::service-account is empty"; exit 1; }
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || {
+            echo "::error::the calling job must grant permissions: id-token: write"
+            exit 1
+          }
+
+      - id: gcp-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+          project_id: ${{ inputs.project-id }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - run: terraform fmt -check -recursive -diff
+
+      - name: Init
+        run: |
+          set -euo pipefail
+          args=(-input=false -lockfile=readonly)
+          if [ -n "${{ inputs.backend-config }}" ]; then
+            args+=(-backend-config="${{ inputs.backend-config }}")
+          fi
+          terraform init "${args[@]}"
+
+      - run: terraform validate -no-color
+
+      - uses: terraform-linters/setup-tflint@6e1e0642c0289bd619021bf6b34e3c08ed1e005a  # v6
+        with:
+          tflint_version: v0.59.1
+
+      - run: |
+          set -euo pipefail
+          tflint --init
+          tflint --format=compact --recursive
+
+      - name: Checkov
+        if: inputs.checkov
+        uses: bridgecrewio/checkov-action@1246d92f57abae29d5db5f9aeeed2a9813e52d7d  # v12
+        with:
+          directory: ${{ inputs.working-directory }}
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+          soft_fail: false
+
+      - id: plan
+        name: Plan
+        run: |
+          set -euo pipefail
+          args=(-input=false -no-color -lock=false -out=tfplan)
+          if [ -n "${{ inputs.var-file }}" ]; then args+=(-var-file="${{ inputs.var-file }}"); fi
+          set +e
+          terraform plan -detailed-exitcode "${args[@]}"
+          code=$?
+          set -e
+          case "$code" in
+            0) echo "has-changes=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "has-changes=true"  >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::terraform plan failed"; exit 1 ;;
+          esac
+          terraform show -no-color tfplan > plan.txt
+          terraform show -json tfplan > plan.json
+          rm -f tfplan
+
+      - name: Flag destructive changes
+        run: |
+          set -euo pipefail
+          destroy_count="$(jq '[.resource_changes[]? | select(.change.actions | index("delete"))] | length' plan.json)"
+          replace_count="$(jq '[.resource_changes[]? | select(.change.actions == ["delete","create"] or .change.actions == ["create","delete"])] | length' plan.json)"
+          if [ "$destroy_count" -gt 0 ] || [ "$replace_count" -gt 0 ]; then
+            echo "::warning::Plan contains ${destroy_count} delete action(s) and ${replace_count} replacement(s)."
+          fi
+
+      - id: artifact
+        name: Derive a collision-resistant artifact name
+        env:
+          UNIT: ${{ inputs.working-directory }}
+        run: |
+          set -euo pipefail
+          safe="$(printf '%s' "$UNIT" | tr '/ .' '---' | tr -cd 'A-Za-z0-9_-')"
+          [ -n "$safe" ] || safe=root
+          echo "name=terraform-plan-${safe}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload speculative plan
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: |
+            ${{ inputs.working-directory }}/plan.txt
+            ${{ inputs.working-directory }}/plan.json
+          retention-days: 7
+          if-no-files-found: error
+
+  comment:
+    if: inputs.comment-on-pr && github.event_name == 'pull_request' && needs.plan.result == 'success'
+    needs: [plan]
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download speculative plan
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5
+        with:
+          name: ${{ needs.plan.outputs.artifact-name }}
+          path: plan-artifact
+
+      - name: Comment plan on PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UNIT: ${{ inputs.working-directory }}
+          PLAN_PATH: plan-artifact/plan.txt
+          ISSUE_NUMBER: ${{ github.event.number }}
+        run: |
+          # shellcheck disable=SC2016
+          set -euo pipefail
+          marker="<!-- tf-plan:${UNIT} -->"
+          export MARKER="$marker"
+          body="$(cat "$PLAN_PATH")"
+          [ -n "$body" ] || body='(no plan output produced)'
+          limit=60000
+          if [ "${#body}" -gt "$limit" ]; then
+            body="$(printf '%s' "$body" | tail -c "$limit")"
+            truncated_line='> Output truncated. Full plan is in the run artifacts.'
+          else
+            truncated_line=''
+          fi
+          comment="$marker"
+          comment+="\n### Terraform plan — \`${UNIT}\`"
+          if [ -n "$truncated_line" ]; then comment+="\n$truncated_line"; fi
+          comment+="\n\`\`\`terraform\n$body\n\`\`\`"
+          prior="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+            --jq '.[] | select(.body | contains($ENV.MARKER)) | .id' \
+            --paginate | head -n 1)"
+          if [ -n "$prior" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/$prior" \
+              --method PATCH --field body="$comment"
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+              --method POST --field body="$comment"
+          fi

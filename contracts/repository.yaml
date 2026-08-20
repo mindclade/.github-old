@@ -1,0 +1,34 @@
+---
+# MINDCLADE CONFIDENTIAL - PROPRIETARY AND TRADE SECRET
+# Copyright (c) 2026 Mindclade. All rights reserved.
+schema_version: 1
+repository: .github
+repository_class: enterprise-control
+visibility: internal
+authority:
+    - shared-workflows
+    - community-health
+    - organization-profile
+    - workflow-contracts
+forbidden_authority:
+    - cloud-resources
+    - github-enterprise-desired-state
+    - kubernetes-desired-state
+    - application-source
+required_paths:
+    - .github/workflows
+    - workflow-templates
+    - contracts/workflows
+    - SECURITY.md
+    - CODEOWNERS
+forbidden_paths:
+    - .terraform
+    - .terragrunt-cache
+default_branch: main
+change_model: pull-request
+production_controls:
+  required_reviews: true
+  codeowners: true
+  merge_queue: true
+  immutable_actions: true
+  oidc_only_cloud_authentication: true

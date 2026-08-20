@@ -1,0 +1,171 @@
+---
+# Runs against THIS repository only — it is not a reusable workflow.
+#
+# GOVERNANCE.md commits to nightly drift detection on every Terraform repository, with an
+# issue opened on delta. Workflow pins had no equivalent: after a tag, "Renovate opens the
+# bump PRs" was the whole rollout story, and a Renovate PR that stalls in one repository is
+# invisible until someone notices that repository running six-month-old CI. This makes the
+# "edit, tag, N consumer PRs" step observable — the same principle applied to the same class
+# of risk.
+#
+# The default GITHUB_TOKEN is scoped to this repository and cannot search the organisation,
+# so this authenticates as a GitHub App with org-wide contents:read (search) and
+# issues:write on THIS repo only. Source the key from Secret Manager into the repo secret;
+# the App id is a variable because it is not sensitive.
+name: Consumer pin audit
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pin-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Tags are the ground truth for "latest"; a shallow clone has none of them.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: config
+        name: Check optional GitHub App configuration
+        env:
+          APP_ID: ${{ vars.PIN_AUDIT_APP_ID }}
+          APP_KEY: ${{ secrets.PIN_AUDIT_APP_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_ID}" ] || [ -z "${APP_KEY}" ]; then
+            echo "configured=false" >> "${GITHUB_OUTPUT}"
+            echo "Consumer pin audit is not configured; see docs/ENTERPRISE_SETUP.md." >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "configured=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - id: app-token
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
+        with:
+          app-id: ${{ vars.PIN_AUDIT_APP_ID }}
+          private-key: ${{ secrets.PIN_AUDIT_APP_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Find consumers and compare pins
+        if: steps.config.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          latest="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          if [ -z "$latest" ]; then
+            echo "No semver tags exist yet; nothing to audit against."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "Latest release: $latest"
+          echo "LATEST=$latest" >> "$GITHUB_ENV"
+
+          # Code search for the uses: prefix. Search indexes default branches only, which is
+          # exactly the right scope: a stale pin on a feature branch is that branch's
+          # business; a stale pin on main is the estate's.
+          gh api --paginate -X GET search/code \
+            -f q="\"uses: ${ORG}/.github/.github/workflows/\" in:file path:.github/workflows org:${ORG}" \
+            --jq '.items[] | .repository.full_name + " " + .path' \
+            | sort -u > hits.txt || true
+
+          if [ ! -s hits.txt ]; then
+            echo "No consumers found. Either nothing calls these workflows yet, or the App"
+            echo "token lacks org-wide contents read — both are worth knowing."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          : > stale.tsv
+          while read -r repo path; do
+            [ "$repo" = "${ORG}/.github" ] && continue
+            # Fetch each hit and extract every pin it carries. Contents API returns base64.
+            content="$(gh api "repos/${repo}/contents/${path}" --jq '.content' | base64 -d)" || continue
+            while IFS= read -r pin; do
+              ver="${pin##*@}"
+              wf="${pin%@*}"; wf="${wf##*/}"
+              if [ "$ver" != "$latest" ]; then
+                printf '%s\t%s\t%s\t%s\n' "$repo" "$path" "$wf" "$ver" >> stale.tsv
+              fi
+            done < <(grep -oE "${ORG}/\.github/\.github/workflows/[A-Za-z0-9._-]+@[A-Za-z0-9._-]+" <<< "$content" | sort -u)
+          done < hits.txt
+
+          consumers=$(cut -f1 hits.txt -d' ' | sort -u | wc -l | tr -d ' ')
+          stale=$(cut -f1 stale.tsv | sort -u | wc -l | tr -d ' ')
+          {
+            echo "### Consumer pin audit — latest is \`$latest\`"
+            echo
+            echo "| Consumers found | Repositories behind |"
+            echo "|---|---|"
+            echo "| ${consumers} | ${stale} |"
+            if [ -s stale.tsv ]; then
+              echo
+              echo "| Repository | Workflow file | Calls | Pinned |"
+              echo "|---|---|---|---|"
+              sort -u stale.tsv | awk -F'\t' '{ printf "| %s | `%s` | `%s` | `%s` |\n", $1, $2, $3, $4 }'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the drift issue
+        if: steps.config.outputs.configured == 'true' && env.SKIP != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          MARKER="<!-- pin-audit -->"
+          existing="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open \
+            --search "in:body \"${MARKER}\"" --json number --jq '.[0].number // empty')"
+
+          if [ ! -s stale.tsv ]; then
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --repo "${GITHUB_REPOSITORY}" \
+                --comment "Every consumer is on ${LATEST}. Closing until the next drift."
+            fi
+            echo "No drift."
+            exit 0
+          fi
+
+          body_file=$(mktemp)
+          {
+            echo "${MARKER}"
+            echo "## Consumers behind \`${LATEST}\`"
+            echo
+            echo "A stalled Renovate PR is the usual cause — a stale pin means that repository"
+            echo "runs old CI, including any fix the newer tag carried. Chase the PR, or the"
+            echo "reason it cannot merge."
+            echo
+            echo "| Repository | Workflow file | Calls | Pinned |"
+            echo "|---|---|---|---|"
+            sort -u stale.tsv | awk -F'\t' '{ printf "| %s | \`%s\` | \`%s\` | \`%s\` |\n", $1, $2, $3, $4 }'
+            echo
+            echo "_Updated nightly by \`pin-audit.yml\`. This issue closes itself when every"
+            echo "consumer is current._"
+          } > "$body_file"
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "${GITHUB_REPOSITORY}" --body-file "$body_file"
+            echo "Updated issue #$existing."
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" \
+              --title "Consumers pinned behind ${LATEST}" \
+              --label "dependencies" \
+              --body-file "$body_file"
+          fi

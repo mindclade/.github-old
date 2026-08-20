@@ -1,0 +1,58 @@
+---
+title: "[design] "
+labels: [design]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Use this before writing code for anything that crosses a component boundary, changes
+        a public contract, or is expensive to reverse. A design discussion that ends in "we
+        decided not to" is a success, not wasted effort.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: >-
+        What is broken or missing today, stated without reference to your proposed fix.
+        Include what it currently costs us.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: >-
+        Compatibility guarantees, latency or cost budgets, compliance obligations, deadlines.
+        The things that rule options out.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The approach you favour, and the shape of the change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: >-
+        Including doing nothing. For each, say what it would cost and why you set it aside.
+        A proposal with no rejected alternatives usually means the space was not explored.
+    validations:
+      required: true
+  - type: textarea
+    id: blast-radius
+    attributes:
+      label: Blast radius and rollback
+      description: >-
+        What breaks if this is wrong, who notices first, and how we undo it. Say "irreversible"
+        where that is the honest answer.
+    validations:
+      required: true
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions
+      description: What you want input on. Be specific about who you need it from.

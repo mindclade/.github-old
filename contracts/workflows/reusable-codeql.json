@@ -1,0 +1,41 @@
+{
+  "inputs": {
+    "build-mode": {
+      "default": "autobuild",
+      "required": false,
+      "type": "string"
+    },
+    "languages": {
+      "default": "[\"go\",\"python\",\"javascript-typescript\"]",
+      "required": false,
+      "type": "string"
+    },
+    "queries": {
+      "default": "security-extended",
+      "required": false,
+      "type": "string"
+    },
+    "runs-on": {
+      "default": "ubuntu-24.04",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "analyze": {
+      "actions": "read",
+      "contents": "read",
+      "security-events": "write"
+    }
+  },
+  "jobs": [
+    "analyze"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-codeql.yml"
+}

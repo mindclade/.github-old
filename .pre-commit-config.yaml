@@ -1,0 +1,28 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+repos:
+  - repo: local
+    hooks:
+      - id: workflow-contracts
+        name: Validate reusable workflow contracts
+        entry: python3 tools/check_workflow_contracts.py
+        language: system
+        pass_filenames: false
+      - id: action-pins
+        name: Validate immutable GitHub Action pins
+        entry: python3 tools/validate_action_pins.py
+        language: system
+        pass_filenames: false
+      - id: production-contract
+        name: Validate Mindclade production contract
+        entry: python3 scripts/validate-production-contract.py
+        language: system
+        pass_filenames: false
+      - id: repository-invariants
+        name: Validate repository invariants
+        entry: python3 tools/validate_repo.py
+        language: system
+        pass_filenames: false

@@ -1,0 +1,103 @@
+---
+name: Reusable — Go CI
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: Go toolchain. Defaults to the org pin in build/toolchains/versions.yaml.
+        required: false
+        type: string
+        default: "1.25.12"
+      working-directory:
+        required: false
+        type: string
+        default: "."
+      golangci-lint-version:
+        required: false
+        type: string
+        default: "v2.6.2"
+      race:
+        description: Run tests under the race detector. Slower; worth it on anything concurrent.
+        required: false
+        type: boolean
+        default: true
+      coverage-threshold:
+        description: Minimum statement coverage percent. 0 disables the gate.
+        required: false
+        type: number
+        default: 0
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Verify module graph is tidy
+        # Catches a go.mod that was edited without running `go mod tidy`. Doing this before
+        # the build means the failure names the real cause instead of a confusing import error.
+        run: |
+          set -euo pipefail
+          go mod download
+          go mod verify
+          cp go.mod go.mod.orig && cp go.sum go.sum.orig
+          go mod tidy
+          diff -u go.mod.orig go.mod || { echo "::error::go.mod is not tidy — run 'go mod tidy'"; exit 1; }
+          diff -u go.sum.orig go.sum || { echo "::error::go.sum is not tidy — run 'go mod tidy'"; exit 1; }
+          rm -f go.mod.orig go.sum.orig
+
+      - run: go build ./...
+
+      - run: go vet ./...
+
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9
+        with:
+          version: ${{ inputs.golangci-lint-version }}
+          working-directory: ${{ inputs.working-directory }}
+
+      - name: Test
+        run: |
+          set -euo pipefail
+          flags=(-count=1 -covermode=atomic -coverprofile=coverage.out)
+          if [ "${{ inputs.race }}" = "true" ]; then flags+=(-race); fi
+          go test "${flags[@]}" ./...
+
+      - name: Coverage gate
+        if: inputs.coverage-threshold > 0
+        run: |
+          set -euo pipefail
+          pct=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/,"",$3); print $3}')
+          echo "Total statement coverage: ${pct}%"
+          awk -v p="$pct" -v t="${{ inputs.coverage-threshold }}" \
+            'BEGIN { if (p+0 < t+0) { printf "::error::coverage %.1f%% is below threshold %s%%\n", p, t; exit 1 } }'
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        if: always()
+        with:
+          # Keyed on working-directory, not github.job. In a called workflow github.job is a
+          # constant, so a monorepo caller invoking this twice for two modules produced two
+          # uploads named identically — which upload-artifact v4+ rejects outright rather
+          # than merging. Slashes are not legal in an artifact name.
+          name: go-coverage-${{ inputs.working-directory == '.' && 'root' || inputs.working-directory }}
+          path: ${{ inputs.working-directory }}/coverage.out
+          retention-days: 7
+          if-no-files-found: ignore

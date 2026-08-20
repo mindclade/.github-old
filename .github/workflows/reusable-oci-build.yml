@@ -1,0 +1,380 @@
+---
+# Build → SBOM → GitHub provenance/SBOM attestations → optional BinAuthz. The output that matters is the image DIGEST, not a tag.
+# Everything downstream (gitops manifests, Binary Authorization, promotion) keys off the
+# digest, because a tag can be moved and a digest cannot.
+name: Reusable — OCI build
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Full Artifact Registry path without a tag, e.g. europe-west4-docker.pkg.dev/prj/repo/name
+        required: true
+        type: string
+      builder:
+        description: >-
+          `docker` builds from a Dockerfile with buildx. `bazel` builds an oci_image and
+          publishes it with oci_push, and needs bazel-image-target and bazel-push-target
+          instead of context/dockerfile.
+
+          Only the build step differs. Everything downstream — SBOM, GitHub provenance, SBOM
+          attestation, Binary Authorization — keys off image@digest and is identical either
+          way, which is the reason this is an input here rather than a second workflow that
+          would have to keep its own copy of the signing chain in step.
+        required: false
+        type: string
+        default: docker
+      bazel-image-target:
+        description: >-
+          oci_image label, e.g. //services/go_vanity:image. Required when builder is bazel.
+
+          Named separately from the push target because the digest is read from this target's
+          OCI layout. oci_push computes the same value internally but does not report it, and
+          a digest the workflow did not observe is one it cannot sign.
+        required: false
+        type: string
+        default: ""
+      bazel-push-target:
+        description: oci_push label, e.g. //services/go_vanity:push. Required when builder is bazel.
+        required: false
+        type: string
+        default: ""
+      bazel-args:
+        description: >-
+          Extra flags for every bazel invocation, e.g. `--config=ci`.
+
+          A caller's CI configuration is its own — lockfile mode, keep_going, timeout scaling —
+          and hardcoding one repository's here is how a shared workflow stops being shareable.
+          Applied to build, cquery and run alike so the three cannot resolve different
+          configurations and disagree about which digest was produced.
+        required: false
+        type: string
+        default: ""
+      context:
+        required: false
+        type: string
+        default: "."
+      dockerfile:
+        required: false
+        type: string
+        default: Dockerfile
+      build-args:
+        required: false
+        type: string
+        default: ""
+      platforms:
+        required: false
+        type: string
+        default: linux/amd64
+      workload-identity-provider:
+        required: true
+        type: string
+      service-account:
+        description: Must hold artifactregistry.writer on the target repository.
+        required: true
+        type: string
+      project-id:
+        description: >-
+          Default GCP project for the job. Leave empty only when the registry project and the
+          service account's own project are the same — auth derives project_id from the SA
+          email otherwise, which is rarely what a cross-project push wants.
+        required: false
+        type: string
+        default: ""
+      attestor:
+        description: >-
+          Binary Authorization attestor short name, e.g. build-attestor. Leave empty to skip
+          the GKE admission attestation; GitHub provenance/SBOM attestations still run.
+        required: false
+        type: string
+        default: ""
+      attestor-project:
+        required: false
+        type: string
+        default: ""
+      attestor-key:
+        description: Full KMS key version resource name used by the attestor.
+        required: false
+        type: string
+        default: ""
+      push:
+        description: Set false on PRs to build and scan without publishing.
+        required: false
+        type: boolean
+        default: true
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-24.04
+    outputs:
+      digest:
+        description: Image digest (sha256:...). Pin deployments to this.
+        value: ${{ jobs.build.outputs.digest }}
+      image-ref:
+        description: Fully qualified image@digest reference.
+        value: ${{ jobs.build.outputs.image-ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write        # WIF + GitHub private-Sigstore attestation certificate
+      attestations: write    # persist build/SBOM attestations in GitHub
+      artifact-metadata: write  # linked-artifact storage records
+    outputs:
+      digest: ${{ steps.ref.outputs.digest }}
+      image-ref: ${{ steps.ref.outputs.image-ref }}
+    steps:
+      - name: Validate builder inputs
+        # Fail here, with the missing input named, rather than three steps later inside a
+        # Bazel invocation whose error would be about an empty label.
+        #
+        # Values arrive via env: rather than ${{ }} inside the script. Interpolation splices
+        # the value into the generated shell file before it runs, so a caller passing a quote
+        # or a $( ) changes what executes. These inputs come from a trusted caller workflow,
+        # but the rule is cheaper to apply everywhere than to adjudicate per input — and the
+        # bazel step below already does it correctly.
+        env:
+          BUILDER: ${{ inputs.builder }}
+          IMAGE_TARGET: ${{ inputs.bazel-image-target }}
+          PUSH_TARGET: ${{ inputs.bazel-push-target }}
+        run: |
+          set -euo pipefail
+          case "${BUILDER}" in
+            docker) ;;
+            bazel)
+              if [ -z "${IMAGE_TARGET}" ] || [ -z "${PUSH_TARGET}" ]; then
+                echo "::error::builder=bazel requires bazel-image-target and bazel-push-target" >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::builder must be 'docker' or 'bazel', got '${BUILDER}'" >&2
+              exit 1
+              ;;
+          esac
+      # The caller's source, which is what gets built. Kept here, unlike in the other two
+      # reusable workflows, because `inputs.context` and the Dockerfile are paths into it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate WIF inputs and permissions
+        env:
+          PROVIDER: ${{ inputs.workload-identity-provider }}
+          SERVICE_ACCOUNT: ${{ inputs.service-account }}
+        run: |
+          set -euo pipefail
+          [ -n "${PROVIDER}" ] || { echo "::error::workload-identity-provider is empty"; exit 1; }
+          [ -n "${SERVICE_ACCOUNT}" ] || { echo "::error::service-account is empty"; exit 1; }
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || {
+            echo "::error::the calling job must grant permissions: id-token: write"
+            exit 1
+          }
+
+      - id: gcp-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+          project_id: ${{ inputs.project-id }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+
+      - name: Registry login
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          registry="${IMAGE%%/*}"
+          gcloud auth configure-docker "$registry" --quiet
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3
+        if: inputs.builder == 'docker'
+
+      # Bazelisk reads the caller's .bazelversion, so the image is built by the same Bazel the
+      # repository builds everything else with. Caches are keyed by the action itself.
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
+        if: inputs.builder == 'bazel'
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051  # v5
+        with:
+          images: ${{ inputs.image }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+
+      - id: build
+        if: inputs.builder == 'docker'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.context }}/${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ inputs.build-args }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - id: bazel
+        if: inputs.builder == 'bazel'
+        env:
+          IMAGE: ${{ inputs.image }}
+          IMAGE_TARGET: ${{ inputs.bazel-image-target }}
+          PUSH_TARGET: ${{ inputs.bazel-push-target }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DO_PUSH: ${{ inputs.push }}
+          BAZEL_ARGS: ${{ inputs.bazel-args }}
+        run: |
+          set -euo pipefail
+
+          # Unquoted on purpose: bazel-args is a flag list, not one argument.
+          read -r -a extra <<< "${BAZEL_ARGS:-}"
+
+          bazel build "${extra[@]+"${extra[@]}"}" "$IMAGE_TARGET"
+
+          # The digest is read from the built OCI layout rather than from the registry, so it
+          # exists whether or not this run pushes. That is what lets a pull request report the
+          # digest it WOULD publish, and it is the same value oci_push sends: push.sh derives
+          # its reference from this identical index.json.
+          layout="$(bazel cquery "${extra[@]+"${extra[@]}"}" --output=files "$IMAGE_TARGET" 2>/dev/null | tail -1)"
+          if [ ! -f "$layout/index.json" ]; then
+            echo "::error::$IMAGE_TARGET did not produce an OCI layout at $layout" >&2
+            exit 1
+          fi
+          digest="$(jq -er '.manifests[0].digest' "$layout/index.json")"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+          if [ "$DO_PUSH" != "true" ]; then
+            echo "Built $digest; not pushing because push=false."
+            exit 0
+          fi
+
+          # docker/metadata-action emits fully qualified image:tag refs; crane tags by bare
+          # name. Strip the known image prefix rather than cutting at the last colon, which
+          # would mangle a registry host carrying a port.
+          args=(--repository "$IMAGE")
+          while IFS= read -r ref; do
+            [ -n "$ref" ] || continue
+            args+=(--tag "${ref#"$IMAGE":}")
+          done <<< "$TAGS"
+
+          bazel run "${extra[@]+"${extra[@]}"}" "$PUSH_TARGET" -- "${args[@]}"
+
+      - id: ref
+        env:
+          DIGEST: ${{ inputs.builder == 'bazel' && steps.bazel.outputs.digest || steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DIGEST:-}" ]; then
+            echo "::error::the ${{ inputs.builder }} builder produced no image digest" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "image-ref=${{ inputs.image }}@$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Generate image SBOM
+        if: inputs.push
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0
+        with:
+          image: ${{ steps.ref.outputs.image-ref }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: Generate source SBOM for non-publishing builds
+        if: inputs.push == false
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0
+        with:
+          path: ${{ inputs.context }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Attest build provenance
+        if: inputs.push
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4
+        with:
+          subject-name: ${{ inputs.image }}
+          subject-digest: ${{ steps.ref.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: true
+
+      - name: Attest SBOM
+        if: inputs.push
+        id: sbom-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4
+        with:
+          subject-name: ${{ inputs.image }}
+          subject-digest: ${{ steps.ref.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+          create-storage-record: true
+
+      - name: Binary Authorization attestation
+        if: inputs.push && inputs.attestor != ''
+        # GitHub attestations establish source-build provenance. BinAuthz is separate on
+        # purpose: it is the GKE admission decision the cluster actually enforces.
+        env:
+          ATTESTOR: ${{ inputs.attestor }}
+          ATTESTOR_PROJECT: ${{ inputs.attestor-project }}
+          ATTESTOR_KEY: ${{ inputs.attestor-key }}
+          IMAGE_REF: ${{ steps.ref.outputs.image-ref }}
+        run: |
+          set -euo pipefail
+          # attestor-project and attestor-key are optional inputs that become mandatory the
+          # moment attestor is set. Unset, gcloud fails with an argument error that does not
+          # name the workflow input that was missing.
+          if [ -z "${ATTESTOR_PROJECT}" ] || [ -z "${ATTESTOR_KEY}" ]; then
+            echo "::error::attestor is set, so attestor-project and attestor-key are both required" >&2
+            exit 1
+          fi
+          gcloud container binauthz attestations sign-and-create \
+            --project="${ATTESTOR_PROJECT}" \
+            --artifact-url="${IMAGE_REF}" \
+            --attestor="${ATTESTOR}" \
+            --attestor-project="${ATTESTOR_PROJECT}" \
+            --keyversion="${ATTESTOR_KEY}"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Image"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Reference | \`${{ steps.ref.outputs.image-ref }}\` |"
+            echo "| Digest | \`${{ steps.ref.outputs.digest }}\` |"
+            echo "| Pushed | ${{ inputs.push }} |"
+            echo "| GitHub provenance attested | ${{ inputs.push }} |"
+            echo "| SBOM attested | ${{ inputs.push }} |"
+            echo "| BinAuthz attested | ${{ inputs.push && inputs.attestor != '' }} |"
+            echo
+            echo "Deploy by digest. Do not deploy by tag."
+          } >> "$GITHUB_STEP_SUMMARY"

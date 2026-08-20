@@ -1,0 +1,22 @@
+# Mirrors the monorepo. Kept here so an editor does not undo what .yamllint.yaml enforces —
+# a stray tab in a workflow fails the lint gate, and finding it in review is a waste of a
+# reviewer.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{json,json5}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab

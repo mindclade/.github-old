@@ -1,0 +1,113 @@
+---
+# Runs against THIS repository only — it is not a reusable workflow.
+#
+# Cutting a tag is the entire release mechanism here: consumers pin an exact version, and a
+# merge to main reaches nobody until a tag exists and each consumer bumps. This workflow does
+# the two things that step needs and a human reliably forgets.
+#
+# It does NOT create or move tags. tag-protection in github-config makes `v*` immutable with
+# no bypass, which is the property the whole pinning model rests on. This only reacts to a tag
+# that a human already pushed.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Validate and publish release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write   # create the GitHub Release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # tag-protection's tag_name_pattern already rejects anything that is not full
+          # semver, so this is a second opinion rather than the gate. It exists because the
+          # failure mode it catches is silent: a consumer pinned to a tag that cannot be
+          # created gets a workflow-not-found error naming nothing useful.
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'${TAG}' is not full semver vX.Y.Z. Consumers cannot pin to it."
+            exit 1
+          fi
+
+          # An annotated tag carries an author and a message; a lightweight one carries
+          # neither, and the release notes below would be empty.
+          if [ "$(git cat-file -t "${TAG}")" != "tag" ]; then
+            echo "::error::'${TAG}' is a lightweight tag. Cut releases with 'git tag -a'."
+            exit 1
+          fi
+
+
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor "${TAG}^{}" origin/main; then
+            echo "::error::'${TAG}' does not point to a commit reachable from origin/main."
+            exit 1
+          fi
+
+      - name: Require a changelog entry
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # A release nobody documented is one every consumer's reviewer has to reverse
+          # engineer from a diff across six repositories.
+          if ! grep -qE "^## ${TAG}( |$)" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::no '## ${TAG}' section. Move Unreleased under the version before tagging."
+            exit 1
+          fi
+
+      - name: Extract release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          awk -v tag="## ${TAG}" '
+            $0 == tag        { inside = 1; next }
+            inside && /^## /  { exit }
+            inside            { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "---"
+            echo
+            echo "Consumers pin an exact tag. This release reaches a repository only when its"
+            echo "\`@vX.Y.Z\` is bumped — Renovate opens those pull requests."
+          } >> notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # GitHub recommends assembling an immutable release as a draft, then publishing it
+          # once all metadata/assets are complete. Publication locks the release and tag when
+          # the organization immutable-releases policy is enforced by github-config.
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes-file notes.md \
+            --verify-tag \
+            --draft
+
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "${TAG}" --draft=false
