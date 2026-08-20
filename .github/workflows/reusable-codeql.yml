@@ -19,7 +19,8 @@ on:
           the no-build path for compiled languages — skipping the autobuild step alone does
           not. `manual` is deliberately not offered: it requires the caller to supply build
           steps between init and analyze, and a reusable workflow has no seam to inject them.
-          A repository that needs a manual build writes its own CodeQL workflow.
+          A repository that needs a manual build writes its own CodeQL workflow. CodeQL does
+          not support `none` for Go, so Go callers must use `autobuild`.
         required: false
         type: string
         default: autobuild
@@ -50,6 +51,7 @@ jobs:
 
       - name: Validate build-mode
         env:
+          LANGUAGE: ${{ matrix.language }}
           MODE: ${{ inputs.build-mode }}
         run: |
           set -euo pipefail
@@ -62,6 +64,10 @@ jobs:
               echo "::error::build-mode must be 'none' or 'autobuild', got '${MODE}'" >&2
               exit 1 ;;
           esac
+          if [ "${LANGUAGE}" = "go" ] && [ "${MODE}" = "none" ]; then
+            echo "::error::CodeQL does not support build-mode 'none' for Go; use 'autobuild'." >&2
+            exit 1
+          fi
 
       - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4
         with:

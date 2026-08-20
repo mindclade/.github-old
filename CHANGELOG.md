@@ -9,6 +9,8 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ## Unreleased
 
+## v3.0.0
+
 ### Added
 
 - Added `reusable-binauthz-sign.yml`, a protected-release workflow that requires distinct
@@ -21,26 +23,21 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   `reusable-oci-build.yml`. Publish this contract change as a new major release; do not move
   an existing release tag.
 
-### Security
-
-- GitHub's general OCI builder is not a Mindclade production trust authority. Buildkite build
-  and qualification identities cannot mint the deployment attestation accepted by production
-  GKE, and caller-controlled inputs cannot select the signer identity, attestors, or KMS key.
-
-## v3.0.0
-
-### Changed
-
 - Split cloud-federated planning from pull-request mutation so no plan job combines Google
   Cloud OIDC with repository write authority.
 - Replaced concurrent Terragrunt `TF_PLUGIN_CACHE_DIR` use with Terragrunt's provider-cache
   server and current `terragrunt run` command form.
 - Tightened reusable Terraform planning to read-only cloud and repository permissions; plan
   comments are published by a separate least-privilege job.
+- Made Go module-tidiness checks support dependency-free modules without `go.sum`, corrected
+  executable fixture modes, and rejected CodeQL's unsupported Go `none` build mode before init.
 - Narrowed the supported Terraform line to `>= 1.15.0, < 1.16.0`.
 
 ### Security
 
+- GitHub's general OCI builder is not a Mindclade production trust authority. Buildkite build
+  and qualification identities cannot mint the deployment attestation accepted by production
+  GKE, and caller-controlled inputs cannot select the signer identity, attestors, or KMS key.
 - Required security policy rejects privileged pull-request jobs that combine `id-token: write`
   with repository mutation permissions.
 - First-party consumers must pin the immutable `v3.0.0` release tag.
