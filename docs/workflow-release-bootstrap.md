@@ -37,6 +37,14 @@ git push origin v4.0.0
 Confirm `release.yml` publishes the draft and the organization immutable-release policy locks
 the release and tag.
 
+Capture the commit behind the annotated release tag for composite-action consumers:
+
+```sh
+release_sha="$(git rev-parse 'v4.0.0^{}')"
+test "${#release_sha}" -eq 40
+git merge-base --is-ancestor "${release_sha}" origin/main
+```
+
 ## Verify
 
 Open a reviewed pull request in one representative consumer using an exact release reference:
@@ -49,6 +57,15 @@ jobs:
 
 Verify the called jobs report the expected check names and permissions. For WIF-enabled
 workflows, also perform the qualification in [OIDC and WIF](WIF.md#qualification).
+
+Pilot the repository-home composite action with the captured commit, not the tag or annotated
+tag object ID:
+
+```yaml
+- uses: mindclade/.github/actions/validate-repository-home@<release-commit-sha> # v4.0.0
+  with:
+    local-validator-path: scripts/validate-repository-home.py
+```
 
 ## Roll back or recover
 

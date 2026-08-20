@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -156,6 +157,43 @@ Do not commit secrets.
         errors = repository_home.validate(root)
         self.assertTrue(any("pins 1.15.9" in error for error in errors))
         self.assertTrue(any("broken local README link" in error for error in errors))
+
+    def test_identical_local_validator_mirror_passes(self) -> None:
+        root = self.fixture()
+        mirror = root / "scripts" / "validate-repository-home.py"
+        mirror.parent.mkdir()
+        shutil.copyfile(MODULE_PATH, mirror)
+        self.assertEqual(
+            repository_home.validate_local_validator(
+                MODULE_PATH, root, "scripts/validate-repository-home.py"
+            ),
+            [],
+        )
+
+    def test_modified_local_validator_mirror_fails(self) -> None:
+        root = self.fixture()
+        mirror = root / "scripts" / "validate-repository-home.py"
+        mirror.parent.mkdir()
+        mirror.write_bytes(MODULE_PATH.read_bytes() + b"\n")
+        errors = repository_home.validate_local_validator(
+            MODULE_PATH, root, "scripts/validate-repository-home.py"
+        )
+        self.assertTrue(any("differs from the released action" in error for error in errors))
+
+    def test_missing_and_unsafe_local_validator_paths_fail(self) -> None:
+        root = self.fixture()
+        missing = repository_home.validate_local_validator(
+            MODULE_PATH, root, "scripts/missing.py"
+        )
+        absolute = repository_home.validate_local_validator(
+            MODULE_PATH, root, str(MODULE_PATH)
+        )
+        escaping = repository_home.validate_local_validator(
+            MODULE_PATH, root, "../validate.py"
+        )
+        self.assertTrue(any("does not exist" in error for error in missing))
+        self.assertTrue(any("must be relative" in error for error in absolute))
+        self.assertTrue(any("escapes the workspace" in error for error in escaping))
 
 
 if __name__ == "__main__":

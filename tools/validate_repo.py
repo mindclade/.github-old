@@ -269,6 +269,13 @@ def main() -> int:
     for needle, control in signer_requirements.items():
         if needle not in signer_workflow:
             fail(errors, f"Binary Authorization signer lacks {control}")
+    for required_claim in (
+        '[ "$GITHUB_EVENT_NAME" = push ]',
+        '[ "$GITHUB_REF" = refs/heads/main ]',
+        '[ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ]',
+    ):
+        if required_claim not in signer_workflow:
+            fail(errors, f"Binary Authorization signer lacks runtime claim: {required_claim}")
     for caller_selected_input in (
         "      service-account:\n",
         "      workload-identity-provider:\n",
@@ -308,6 +315,8 @@ def main() -> int:
         for required_claim in ("= push ]", "= refs/heads/main ]"):
             if required_claim not in text:
                 fail(errors, f"{name} lacks trusted-main runtime check: {required_claim}")
+        if "mindclade/mindclade-internal-monorepo" not in text:
+            fail(errors, f"{name} lacks the exact artifact-authority repository check")
         if "workflow_dispatch:" in text or "repository_dispatch:" in text:
             fail(errors, f"{name} exposes a manual/API authority trigger")
 

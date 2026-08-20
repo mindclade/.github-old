@@ -52,7 +52,7 @@ Never publish from an unreviewed local commit. Never move or reuse an existing r
 
 ## Roll out to consumers
 
-Consumers pin the full version:
+Reusable-workflow consumers pin the full version:
 
 ```yaml
 jobs:
@@ -63,6 +63,21 @@ jobs:
 Adoption is a consumer-side pull request with its own CI evidence. Renovate may propose the
 bump; it does not bypass review. Roll out to representative lower-risk consumers before
 control-plane or production-authority repositories when behavior changed materially.
+
+Composite-action consumers use the full 40-character commit behind that release because the
+organization requires SHA-pinned action references:
+
+```sh
+release_sha="$(git rev-parse 'vX.Y.Z^{}')"
+test "${#release_sha}" -eq 40
+```
+
+```yaml
+- uses: mindclade/.github/actions/validate-repository-home@<release-commit-sha> # vX.Y.Z
+```
+
+Never substitute the annotated-tag object ID, a branch SHA that has not been released, or a
+mutable branch name.
 
 ## Correct a release
 

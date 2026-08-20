@@ -38,6 +38,7 @@ jobs:
           [[ "$ROLLBACK_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
           [ "$GITHUB_EVENT_NAME" = push ] || exit 1
           [ "$GITHUB_REF" = refs/heads/main ] || exit 1
+          [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
 
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
@@ -46,6 +47,10 @@ jobs:
           project_id: ${{ vars.CI_PROJECT_ID }}
           create_credentials_file: true
           export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
 
       - id: promoter-key
         name: Read the one authorized promoter App key version
@@ -81,6 +86,8 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: true
 
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+
       - name: Open a review-only promotion pull request
         working-directory: gitops
         env:
@@ -92,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           branch="promotion/${RELEASE_ID}-${SOURCE_SHA:0:12}"
-          python3 scripts/create-release-promotion.py \
+          nix develop .#ci --command python3 scripts/create-release-promotion.py \
             --release-id "$RELEASE_ID" \
             --image-ref "$IMAGE_REF" \
             --source-sha "$SOURCE_SHA" \

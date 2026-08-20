@@ -17,6 +17,8 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   disaster-recovery evidence workflows with versioned machine contracts.
 - Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for
   the production artifact-authority path.
+- Added the `validate-repository-home` composite action with optional byte-parity enforcement for
+  offline consumer mirrors.
 
 ### Changed
 
