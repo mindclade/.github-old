@@ -57,7 +57,7 @@ production contract is `v3.0.0`; the older `v1` bootstrap language is obsolete.
 - `python3 tools/check_workflow_contracts.py` still matches every checked-in snapshot.
 - A representative consumer can call a non-cloud reusable workflow from the release.
 
-## Recover
+## Roll back or recover
 
 If qualification fails, leave consumers on their existing release, correct `main` through a
 pull request, and repeat validation. If a bad immutable release is published, do not move or

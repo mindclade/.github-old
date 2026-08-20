@@ -50,7 +50,7 @@ jobs:
 Verify the called jobs report the expected check names and permissions. For WIF-enabled
 workflows, also perform the qualification in [OIDC and WIF](WIF.md#qualification).
 
-## Recover
+## Roll back or recover
 
 If validation or publication fails, correct `main` through a pull request and retry with the
 same tag only if GitHub never published or protected it. Once `v3.0.0` is published and
