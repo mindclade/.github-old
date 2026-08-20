@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release": "v4.0.0",
-  "source_commit": "9912f5c9996a7cd88c8770b3a938d863363f4075",
+  "source_commit": "f4744c44959dc699870565f630dccc6f986821da",
   "source_tree": "b1c7ae7a0d71ee28744c8c3285c363528a9f4974",
   "qualification": "source-qualified; connected tag and release evidence required",
   "release_surfaces": {
@@ -18,7 +18,7 @@
   "required_tag": {
     "name": "v4.0.0",
     "object_type": "tag",
-    "target_commit": "9912f5c9996a7cd88c8770b3a938d863363f4075",
+    "target_commit": "f4744c44959dc699870565f630dccc6f986821da",
     "operator_created": true,
     "move_or_reuse_forbidden": true
   },
