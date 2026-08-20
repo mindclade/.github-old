@@ -58,6 +58,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+<<<<<<< HEAD
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
           # ARC runners are ephemeral containers without an init system.
@@ -117,6 +118,47 @@ jobs:
           BINAUTHZ_BUILD_ATTESTOR_PROJECT: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT }}
           BINAUTHZ_BUILD_ATTESTOR: ${{ vars.BINAUTHZ_BUILD_ATTESTOR }}
           BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION }}
+||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
+=======
+      - name: Verify exact checkout before cloud authentication
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse --verify 'HEAD^{commit}')"
+          [ "$actual" = "$EXPECTED_SHA" ] || {
+            echo "::error::checkout HEAD $actual does not equal platform SHA $EXPECTED_SHA"
+            exit 1
+          }
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+
+      - name: Validate the reviewed request before cloud authentication
+        env:
+          REQUEST_PATH: ${{ inputs.request-path }}
+        run: |
+          set -euo pipefail
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py validate \
+              --request "$REQUEST_PATH" \
+              --source-sha "$GITHUB_SHA"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_ARC_BUILDER }}
+          service_account: ${{ vars.SA_ARTIFACT_BUILDER }}
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - name: Build, publish, and attest candidate
+        env:
+          REQUEST_PATH: ${{ inputs.request-path }}
+>>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/release-candidate"

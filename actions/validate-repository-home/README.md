@@ -12,6 +12,7 @@ steps:
     with:
       persist-credentials: false
   - uses: mindclade/.github/actions/validate-repository-home@<immutable-release-sha>
+<<<<<<< HEAD
     with:
       local-validator-path: scripts/validate-repository-home.py
 ```
@@ -39,3 +40,11 @@ through an aggregate `make validate`, split the non-home checks into `validate-c
 `make validate` continues to include both targets, while CI runs this action followed by
 `make validate-core`. This avoids executing the mirror after the released action has already
 proved both the repository contract and byte parity.
+||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
+=======
+```
+
+The action reads `$GITHUB_WORKSPACE`; it has no inputs, outputs, credentials, or write behavior.
+Until an immutable `.github` release containing the action is published and qualified, estate
+repositories run the byte-identical validator copy from their local validation target.
+>>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)

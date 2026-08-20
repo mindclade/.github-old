@@ -4,7 +4,12 @@
 
 This repository owns shared workflow implementations, workflow contracts, organization profile,
 and community-health assets. Read BLUEPRINT.md, README.md, CONTRIBUTING.md, and
+<<<<<<< HEAD
 docs/WORKFLOW_CONTRACTS.md before editing. github-config owns the rulesets and settings that
+||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
+=======
+docs/workflow-contracts.md before editing. github-config owns the rulesets and settings that
+>>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 require these workflows.
 
 ## Working rules

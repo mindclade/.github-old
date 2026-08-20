@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   attest:
+<<<<<<< HEAD
     # Qualification and qualification-attestation share the isolated CPU scale set; their
     # cloud authorities remain separate because each reusable workflow has an exact WIF
     # provider, subject prefix, job_workflow_ref, and service account.
@@ -48,6 +49,30 @@ jobs:
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
           install_options: --no-daemon
+||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
+=======
+    runs-on: mindclade-arc-qualify-attest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    outputs:
+      created: ${{ steps.attest.outputs.created }}
+    steps:
+      - name: Verify trusted event
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_EVENT_NAME" = push ] || exit 1
+          [ "$GITHUB_REF" = refs/heads/main ] || exit 1
+          [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+>>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5
         with:

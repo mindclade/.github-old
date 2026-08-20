@@ -6,6 +6,7 @@
 name: Validate Mindclade repository home
 description: Validate a repository-home@2 README against its local repository contract.
 
+<<<<<<< HEAD
 inputs:
   local-validator-path:
     description: Optional workspace-relative path to a byte-identical offline validator mirror.
@@ -23,3 +24,12 @@ runs:
         python3 "${GITHUB_ACTION_PATH}/validate.py"
         --root "${GITHUB_WORKSPACE}"
         --local-validator-path "${LOCAL_VALIDATOR_PATH}"
+||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
+=======
+runs:
+  using: composite
+  steps:
+    - name: Validate repository home
+      shell: bash
+      run: python3 "${GITHUB_ACTION_PATH}/validate.py" --root "${GITHUB_WORKSPACE}"
+>>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
