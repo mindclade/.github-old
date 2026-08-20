@@ -11,14 +11,12 @@
     { nixpkgs, ... }:
     let
       # The shared-workflow repository is developed on Apple Silicon and executes on
-      # Linux/amd64 in GitHub Actions. Keep the other Nixpkgs-supported systems evaluable so
-      # consumers can lint workflow changes from Linux/arm64 and Intel macOS through the final
-      # supported Nixpkgs release for that platform.
+      # Linux/amd64 in GitHub Actions. Keep the production-qualified native ARM systems
+      # evaluable for consumers as well.
       systems = [
         "x86_64-linux"
         "aarch64-linux"
         "aarch64-darwin"
-        "x86_64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       perSystem =

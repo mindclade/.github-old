@@ -1,0 +1,47 @@
+{
+  "inputs": {
+    "ci-command": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "enable-aarch64-darwin": {
+      "default": false,
+      "required": false,
+      "type": "boolean"
+    },
+    "enable-aarch64-linux": {
+      "default": false,
+      "required": false,
+      "type": "boolean"
+    },
+    "reproducibility-targets": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "watch-path-regex": {
+      "default": "(^|/)(flake\\.nix|flake\\.lock|[^/]+\\.nix)$|^\\.github/workflows/.*nix.*\\.ya?ml$",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {},
+  "jobs": [
+    "detect",
+    "x86_64_linux",
+    "aarch64_linux",
+    "aarch64_darwin",
+    "rebuild_a",
+    "rebuild_b",
+    "compare_rebuilds",
+    "verdict"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-nix-qualification.yml"
+}

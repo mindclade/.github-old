@@ -9,10 +9,28 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ## Unreleased
 
+### Changed
+
+- **Breaking (publish as v5.0.0):** `reusable-gitops-promote.yml` replaces the ambiguous
+  `rollback-digest` input with the exact `previous-release-id` and
+  `previous-subject-digest` lineage pair required by the GitOps v1beta1 promotion contract.
+  Existing v4 tags and callers remain immutable until an explicitly reviewed v5 release is
+  published and consumers update their pins.
+
+## v4.1.0
+
+### Added
+
+- Added `reusable-nix-qualification.yml` with internal change detection, isolated CI-shell
+  validation, and an always-present verdict job.
+- Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
+- Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
+
 ## v4.0.0
 
 ### Added
 
+- Added the `reusable-nix-flake.yml` baseline with a locked, runner-selectable flake check.
 - Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
   disaster-recovery evidence workflows with versioned machine contracts.
 - Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for

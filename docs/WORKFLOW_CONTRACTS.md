@@ -56,3 +56,27 @@ request with the intended semver release documented in `CHANGELOG.md`.
 Starter workflows intentionally pin `v4.0.0`, the ARC artifact-authority contract of this
 repository. Subsequent consumers may be upgraded by Renovate, but moving an existing release
 tag is forbidden. Publish a new patch/minor/major release instead.
+
+The unreleased GitOps promoter interface is a planned `v5.0.0` breaking change: callers provide
+both `previous-release-id` and `previous-subject-digest`. This exact pair replaces the v4
+`rollback-digest` input and lets the GitOps v1beta1 proposal prove rollback lineage instead of
+merely naming an otherwise-unattributed digest. Do not point a caller at v5 until that immutable
+release exists and its corresponding infrastructure WIF workflow identity has been reviewed.
+
+## Nix qualification releases
+
+`reusable-nix-qualification.yml` keeps the required-check context stable at
+`nix / verdict`. Pull requests without Nix-owned changes still reach that verdict, while
+merge queues, manual runs, and weekly schedules always execute qualification.
+
+The v4.0 `reusable-nix-flake.yml` contract establishes a locked, runner-selectable flake
+check. The v4.1 `reusable-nix-qualification.yml` contract adds internal change detection,
+isolated CI-shell validation, an always-present verdict, native aarch64-linux and
+aarch64-darwin runners, and two independent x86_64-linux rebuilds whose derivations, store
+paths, and SRI output hashes must agree.
+Consumers must move to `@v4.1.0` only after an operator publishes that immutable release;
+neither this documentation nor a branch commit creates or moves a release tag.
+
+Nix owns host tooling and reproducibility evidence. Bazel remains authoritative for the
+monorepo build/test graph and application container images, and this workflow does not create
+parallel NixOS, nix-darwin, Home Manager, or Nix container-image authority.
