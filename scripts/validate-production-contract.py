@@ -150,7 +150,7 @@ for p in TRACKED_PATHS:
         continue
     try:
         text = p.read_text("utf-8", errors="ignore")
-    except:
+    except OSError:
         continue
     for pattern in secret_patterns:
         if pattern.search(text):

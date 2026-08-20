@@ -1,11 +1,21 @@
+<!-- mindclade-doc: blueprint@1 -->
+
 # Mindclade Enterprise Platform Foundation Blueprint
 
-**Company:** Mindclade  
-**Scope:** GitHub Enterprise, Google Cloud foundation, Terraform/Terragrunt live infrastructure, Argo CD GitOps, and artifact promotion  
-**Repositories:** `.github`, `.github-private`, `github-config`, `bootstrap`, `infrastructure-live`, `gitops`, `mindclade-internal-monorepo`
-**Status:** Final — production architecture decision  
-**Date:** 2026-08-19  
-**Supersedes:** Earlier standalone draft blueprints for `github-config`, `bootstrap`, `infrastructure-live`, and `gitops`
+> **Platform Foundation · Canonical architecture contract**
+> Defines repository authority, trust rings, production invariants, and acceptance gates for
+> the Mindclade control plane.
+
+| Contract metadata | Value |
+| --- | --- |
+| Company | Mindclade |
+| Scope | GitHub Enterprise, Google Cloud, Terraform/Terragrunt, Argo CD, and artifact promotion |
+| Repositories | `.github`, `.github-private`, `github-config`, `bootstrap`, `infrastructure-live`, `gitops`, `mindclade-internal-monorepo` |
+| Status | Approved production architecture contract; connected-system qualification remains repository-specific |
+| Adopted | 2026-08-19 |
+| Last evidence review | 2026-08-20 |
+| Canonical source | `mindclade/.github/docs/MINDCLADE_ENTERPRISE_PLATFORM_FOUNDATION_BLUEPRINT.md` |
+| Supersedes | Earlier standalone control-repository draft blueprints |
 
 ---
 
@@ -33,15 +43,12 @@ This is a production target, not a requirement to deploy every scale feature imm
 
 ## 2. Review Scope and Confidence
 
-This review is based on:
+This contract was reviewed against the current repository inventories, machine-readable
+repository contracts, catalog schemas, protected workflows, Terraform/Terragrunt layouts,
+GitOps policy and promotion controls, and recovery documentation on 2026-08-20.
 
-- the supplied directory inventory for `gitops`;
-- the supplied directory inventory for `github-config`;
-- the supplied directory inventories for `bootstrap` and `infrastructure-live`;
-- the four draft blueprints produced from those inventories;
-- Mindclade's established use of GitHub Enterprise, Google Cloud, Terraform, Terragrunt, GKE, Argo CD, GitHub Actions, Buildkite, and a Bazel monorepo.
-
-The inventories demonstrate strong foundations, but they do not expose the full contents of every Terraform module, workflow, Argo CD object, policy template, or script. Therefore:
+Source review demonstrates the intended control boundaries, but it cannot substitute for
+connected-system qualification. Therefore:
 
 - this document finalizes architecture, ownership, repository shape, control flow, and production acceptance criteria;
 - it does not claim that every current implementation already satisfies those criteria;
@@ -63,7 +70,8 @@ The following existing decisions are strong and should be retained:
 - `infrastructure-live` models GPU node pools, protected storage, Binary Authorization, VPC Service Controls, backup/DR, and GKE.
 - `gitops` separates Argo CD projects and applications into platform, data, research, serving, and partner domains.
 - `gitops` already includes environment overlays, render verification, promotion/freeze workflows, policy constraints, policy fixtures, and artifact-verification intent.
-- all four control repositories use pinned development environments, pre-commit, Renovate, CI, security documentation, and proprietary headers.
+- the control repositories use pinned development environments, pre-commit, Renovate, CI,
+  security documentation, and proprietary headers.
 
 ### 3.2 Modify
 
@@ -194,6 +202,7 @@ GitHub internal repositories are readable by all enterprise members. Mindclade m
 | Repository | Final default |
 |---|---|
 | `.github` | Internal |
+| `.github-private` | Private |
 | `github-config` | Private |
 | `bootstrap` | Private |
 | `infrastructure-live` | Private |
@@ -219,11 +228,12 @@ No repository visibility change to public may be an ordinary Terraform edit. Pub
 
 ## 6. Repository Classifications
 
-`github-config` will assign every repository a custom property `mindclade.repository_class`.
+`github-config` assigns every repository the custom property
+`mindclade_repository_class`.
 
 | Class | Repositories | Policy |
 |---|---|---|
-| `enterprise-control` | `.github`, `github-config`, `bootstrap` | Strongest governance and smallest bypass surface |
+| `enterprise-control` | `.github`, `.github-private`, `github-config`, `bootstrap` | Strongest governance and smallest bypass surface |
 | `production-control` | `infrastructure-live`, `gitops` | Protected deployment paths and elevated review |
 | `source-monorepo` | `mindclade-internal-monorepo` | Merge queue, affected CI, release controls |
 | `public-sdk` | Future public SDK repositories | Public contribution and release controls |
@@ -232,13 +242,14 @@ No repository visibility change to public may be an ordinary Terraform edit. Pub
 Recommended custom properties:
 
 ```text
-mindclade.owner_team
-mindclade.repository_class
-mindclade.criticality
-mindclade.data_classification
-mindclade.production_authority
-mindclade.ci_profile
-mindclade.lifecycle
+mindclade_owner_team
+mindclade_repository_class
+mindclade_criticality
+mindclade_data_classification
+mindclade_production_authority
+mindclade_ci_profile
+mindclade_language_profile
+mindclade_lifecycle
 ```
 
 Rulesets should target custom properties rather than depend only on repository names.
