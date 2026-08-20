@@ -3,7 +3,7 @@
 # Publish the first shared workflow contract
 
 > **Audience:** Platform and security maintainers
-> **Outcome:** The reviewed `v3.0.0` workflow contract is published as an immutable GitHub
+> **Outcome:** The reviewed `v4.0.0` ARC workflow contract is published as an immutable GitHub
 > Release and can be adopted by downstream repositories.
 > **Risk:** Critical—downstream CI and cloud trust may bind the released workflow identity.
 
@@ -11,8 +11,8 @@
 
 - `main` is protected by the required checks listed in [Enterprise setup](ENTERPRISE_SETUP.md).
 - Tags matching `v*` are protected and organization immutable releases are enabled.
-- `CHANGELOG.md` describes `v3.0.0`.
-- Starter workflows and WIF policy references use `v3.0.0`.
+- `CHANGELOG.md` describes `v4.0.0`.
+- Starter workflows and WIF policy references use `v4.0.0`.
 - `platform` and `security` reviewers have approved the release commit.
 
 ## Qualify the release commit
@@ -30,12 +30,20 @@ Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v3.0.0 -m "Mindclade GitHub Enterprise workflow foundation v3"
-git push origin v3.0.0
+git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4"
+git push origin v4.0.0
 ```
 
 Confirm `release.yml` publishes the draft and the organization immutable-release policy locks
 the release and tag.
+
+Capture the commit behind the annotated release tag for composite-action consumers:
+
+```sh
+release_sha="$(git rev-parse 'v4.0.0^{}')"
+test "${#release_sha}" -eq 40
+git merge-base --is-ancestor "${release_sha}" origin/main
+```
 
 ## Verify
 
@@ -44,14 +52,23 @@ Open a reviewed pull request in one representative consumer using an exact relea
 ```yaml
 jobs:
   ci:
-    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@v3.0.0
+    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@v4.0.0
 ```
 
 Verify the called jobs report the expected check names and permissions. For WIF-enabled
 workflows, also perform the qualification in [OIDC and WIF](WIF.md#qualification).
 
+Pilot the repository-home composite action with the captured commit, not the tag or annotated
+tag object ID:
+
+```yaml
+- uses: mindclade/.github/actions/validate-repository-home@<release-commit-sha> # v4.0.0
+  with:
+    local-validator-path: scripts/validate-repository-home.py
+```
+
 ## Roll back or recover
 
 If validation or publication fails, correct `main` through a pull request and retry with the
-same tag only if GitHub never published or protected it. Once `v3.0.0` is published and
+same tag only if GitHub never published or protected it. Once `v4.0.0` is published and
 immutable, do not move or delete it; publish the correction as a new semantic version.

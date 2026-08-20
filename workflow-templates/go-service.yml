@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@v3.0.0
+    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@v4.0.0
     with:
       go-version: "1.25.12"
       race: true

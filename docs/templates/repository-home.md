@@ -1,4 +1,4 @@
-<!-- mindclade-doc-template: repository-home@1 -->
+<!-- mindclade-doc-template: repository-home@2 -->
 
 <!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
 
@@ -10,47 +10,68 @@
   </picture>
 </p>
 
+<p align="center">
+  <img alt="class: <repository-class>" src="docs/assets/badges/repository-class.svg">
+  <img alt="visibility: <visibility>" src="docs/assets/badges/visibility.svg">
+  <img alt="change: pull-request" src="docs/assets/badges/change-model.svg">
+  <img alt="<stable repository fact>" src="docs/assets/badges/<stable-fact>.svg">
+</p>
+
 # Mindclade · <Repository name>
 
-> **Platform Foundation · <Trust ring or system position>**  
-> <One sentence describing the repository's unique responsibility.>
+> **Platform Foundation · <Trust position>**
+> <One sentence describing the repository's unique responsibility and reader outcome.>
 
 | Repository contract | Value |
 | --- | --- |
 | Class | `<repository-class>` |
 | Visibility | `<visibility>` |
-| Change model | Pull request to `main` |
-| Authority | `<short authority summary>` |
+| Change model | `pull-request` |
+| Authority | `<authority-one>`<br>`<authority-two>` |
 | Start here | [`docs/README.md`](docs/README.md) |
 
 ## Mission
 
-Explain why the repository exists and the outcome it owns. Name the primary reader.
+Explain why the repository exists, the outcome it owns, and the primary reader. Keep volatile
+implementation and policy detail in an authoritative linked document.
 
 ## Authority boundary
 
-### This repository owns
+### This repository creates
 
-- <Authoritative responsibility.>
+- <Authoritative responsibility from `contracts/repository.yaml`.>
 
-### This repository does not own
+### This repository deliberately does not create
 
 - <Adjacent responsibility and the repository that owns it.>
 
 ## Quick start
 
-State prerequisites, then show the smallest read-only or validation path to first success.
+State prerequisites, then show the smallest credential-free validation path to first success.
 
 ```sh
 <enter the pinned toolchain>
 <run the repository's validation command>
 ```
 
-Describe the expected success signal and any command that must not be run casually.
+Expected result: <specific success signal>. Name any planning, applying, deployment, or recovery
+command that must not be run casually.
 
-## How it works
+## Estate position
 
-Give the minimum useful mental model. Link to the architecture page for detail.
+Introduce one shared estate diagram and explain what its highlighted node means. The authority
+table and boundary lists must preserve the same information for readers without Mermaid.
+
+```mermaid
+%% current: <repository> %%
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
+flowchart LR
+    CURRENT["<repository><br/>current authority"] --> NEXT["<reviewed downstream consumer>"]
+    classDef current fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:3px;
+    classDef managed fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
+    class CURRENT current;
+    class NEXT managed;
+```
 
 ## Repository map
 
@@ -60,18 +81,18 @@ Give the minimum useful mental model. Link to the architecture page for detail.
 
 ## Change path
 
-Describe review, planning, approval, apply/deploy, verification, and rollback at the level a
-new contributor needs. Link to procedures rather than duplicating them.
+Summarize review, validation, approval, apply/deploy, verification, and rollback at the level a
+new contributor needs. Link to procedures instead of copying them into the repository home.
 
-## Documentation
+## Documentation and support
 
 - [Documentation home](docs/README.md)
 - [Architecture](docs/architecture.md)
 - [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
+- [Support](SUPPORT.md)
 
 ## Security
 
-Name repository-specific sensitive material and link to `SECURITY.md`. Do not publish secret
-values, customer data, private model artifacts, restricted biological data, or raw sensitive
-plan/state output.
+Name repository-specific sensitive material and link to [the security policy](SECURITY.md).
+Do not publish secret values, customer data, private model artifacts, restricted biological
+data, or raw sensitive plan/state output.

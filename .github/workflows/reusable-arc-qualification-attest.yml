@@ -1,0 +1,101 @@
+---
+name: Reusable — ARC qualification attestation
+
+on:
+  workflow_call:
+    inputs:
+      qualification-artifact:
+        required: true
+        type: string
+      image-ref:
+        required: true
+        type: string
+    outputs:
+      created:
+        description: Whether the qualification attestation was created.
+        value: ${{ jobs.attest.outputs.created }}
+
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    # Qualification and qualification-attestation share the isolated CPU scale set; their
+    # cloud authorities remain separate because each reusable workflow has an exact WIF
+    # provider, subject prefix, job_workflow_ref, and service account.
+    runs-on: mindclade-arc-qualify-cpu
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    outputs:
+      created: ${{ steps.attest.outputs.created }}
+    steps:
+      - name: Verify trusted event
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_EVENT_NAME" = push ] || exit 1
+          [ "$GITHUB_REF" = refs/heads/main ] || exit 1
+          [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          install_options: --no-daemon
+
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5
+        with:
+          name: ${{ inputs.qualification-artifact }}
+          path: ${{ runner.temp }}/release-qualification
+
+      - name: Validate result before cloud authentication
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse --verify 'HEAD^{commit}')" = "$GITHUB_SHA" ] || exit 1
+          result="$RUNNER_TEMP/release-qualification/result.json"
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py validate-qualification \
+              --qualification "$result" \
+              --expected-image-ref "$IMAGE_REF"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_ARC_QUALIFIER }}
+          service_account: ${{ vars.SA_ARTIFACT_QUALIFIER }}
+          project_id: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR_PROJECT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - id: attest
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          PROJECT: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR_PROJECT }}
+          ATTESTOR: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR }}
+          KEY_VERSION: ${{ vars.BINAUTHZ_QUALIFICATION_ATTESTOR_KEY_VERSION }}
+        run: |
+          set -euo pipefail
+          existing="$(gcloud container binauthz attestations list \
+            --project="$PROJECT" --artifact-url="$IMAGE_REF" \
+            --attestor="$ATTESTOR" --attestor-project="$PROJECT" \
+            --limit=1 --format='value(name)')"
+          if [ -n "$existing" ]; then
+            echo 'created=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gcloud beta container binauthz attestations sign-and-create \
+            --project="$PROJECT" --artifact-url="$IMAGE_REF" \
+            --attestor="$ATTESTOR" --attestor-project="$PROJECT" \
+            --keyversion="$KEY_VERSION" --validate --quiet
+          echo 'created=true' >> "$GITHUB_OUTPUT"

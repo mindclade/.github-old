@@ -9,8 +9,9 @@
 
 Use `Mindclade · <System>` for repository and documentation-home titles. Follow it with a
 two-line callout that names the platform position and the page outcome. The theme is carried
-by consistent hierarchy, compact metadata, precise language, and generous whitespace—not by
-decorative badges or color-dependent meaning.
+by consistent hierarchy, compact metadata, precise language, generous whitespace, and a
+small set of local brand-colored badges. Badges reinforce text; they never carry meaning that
+is available only through color.
 
 Write directly to the reader. Prefer “Run `make validate`” to “Validation can be performed.”
 Use `Mindclade`, American English for new pages, and the exact product names used in code.
@@ -36,6 +37,12 @@ Use the dark wordmark when `prefers-color-scheme: dark` matches, retain the ligh
 the fallback, set the rendered width to `360`, and provide meaningful alt text. Use PNGs in
 GitHub Markdown because the source SVG wordmarks contain live font-dependent text. Do not
 stretch, recolor, shadow, outline, or recreate the wordmark.
+
+Root READMEs use local SVG badges under `docs/assets/badges/`. Class, visibility, and change
+model come from `contracts/repository.yaml`; one or two additional badges may show a stable
+toolchain or repository characteristic. Use the canonical palette, include an accessible
+`<title>`, and never load a badge or image from a third-party service. Do not put numeric
+toolchain versions in badges.
 
 GitHub Markdown does not load repository-provided CSS or web fonts. Let GitHub render body
 copy in its native interface font; the flattened wordmark preserves the approved MONO
@@ -69,6 +76,11 @@ Keep one primary reader need per page:
 
 Place volatile facts in one authoritative page and link to it. Preserve existing filenames and
 anchors when moving content would break links.
+
+Root READMEs follow `repository-home@2`: brand header, local badges, outcome, contract, mission,
+authority boundary, safe quick start, one highlighted estate diagram, repository map, change
+path, canonical links, and security. Keep prose at or below 850 words; a simple repository may
+be shorter rather than padded.
 
 ## Evidence standard
 
@@ -152,7 +164,8 @@ Before merge, confirm:
 3. commands match the Makefile, scripts, and CI;
 4. local links and anchors resolve;
 5. procedures include verification and recovery;
-6. headings and link text are accessible; and
+6. headings and link text are accessible;
 7. diagrams follow the Mermaid conventions and retain a text equivalent;
-8. root READMEs use the approved responsive MONO wordmark; and
-9. no generated output or unrelated formatting churn is included.
+8. root READMEs use the approved responsive MONO wordmark and local badges;
+9. repository homes pass the `repository-home@2` validator; and
+10. no generated output or unrelated formatting churn is included.

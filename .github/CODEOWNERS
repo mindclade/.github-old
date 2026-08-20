@@ -14,6 +14,9 @@
 /.github/workflows/reusable-codeql.yml           @mindclade/security
 /.github/workflows/reusable-oci-build.yml        @mindclade/security
 /.github/workflows/reusable-binauthz-sign.yml    @mindclade/security
+/.github/workflows/reusable-arc-*.yml            @mindclade/platform @mindclade/security
+/.github/workflows/reusable-gitops-promote.yml   @mindclade/platform @mindclade/security
+/.github/workflows/reusable-dr-evidence.yml      @mindclade/platform @mindclade/security
 /.github/workflows/reusable-tf-plan.yml          @mindclade/platform @mindclade/security
 /.github/workflows/reusable-artifact-verification.yml @mindclade/platform @mindclade/security
 /.github/workflows/reusable-terraform-validate.yml     @mindclade/platform @mindclade/security
@@ -26,6 +29,7 @@
 /testdata/                                      @mindclade/platform
 /contracts/workflows/                           @mindclade/platform @mindclade/security
 /tools/                                         @mindclade/platform @mindclade/security
+/schemas/                                       @mindclade/platform @mindclade/security
 /docs/                                          @mindclade/platform @mindclade/security
 
 # Community health and reporting routes.

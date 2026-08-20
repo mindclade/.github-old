@@ -1,0 +1,98 @@
+---
+name: Reusable — ARC OCI qualification
+
+on:
+  workflow_call:
+    inputs:
+      candidate-artifact:
+        required: true
+        type: string
+      image-ref:
+        required: true
+        type: string
+    outputs:
+      qualification-artifact:
+        description: Artifact containing qualification results for the exact digest.
+        value: ${{ jobs.qualify.outputs.qualification-artifact }}
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: mindclade-arc-qualify-cpu
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    outputs:
+      qualification-artifact: ${{ steps.contract.outputs.qualification-artifact }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          install_options: --no-daemon
+
+      - name: Verify exact checkout before cloud authentication
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA" ] || exit 1
+          [ "$GITHUB_EVENT_NAME" = push ] || exit 1
+          [ "$GITHUB_REF" = refs/heads/main ] || exit 1
+          [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
+
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5
+        with:
+          name: ${{ inputs.candidate-artifact }}
+          path: ${{ runner.temp }}/release-candidate
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_ARC_QUALIFICATION_READER }}
+          service_account: ${{ vars.SA_ARTIFACT_QUALIFICATION_READER }}
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - name: Execute qualification without attestor authority
+        env:
+          EXPECTED_IMAGE_REF: ${{ inputs.image-ref }}
+        run: |
+          set -euo pipefail
+          result="$RUNNER_TEMP/release-qualification"
+          mkdir -p "$result"
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py qualify \
+              --candidate "$RUNNER_TEMP/release-candidate/candidate.json" \
+              --expected-image-ref "$EXPECTED_IMAGE_REF" \
+              --output "$result/result.json"
+
+      - id: contract
+        run: |
+          set -euo pipefail
+          result="$RUNNER_TEMP/release-qualification/result.json"
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py validate-qualification \
+              --qualification "$result" \
+              --expected-image-ref '${{ inputs.image-ref }}'
+          artifact="release-qualification-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "qualification-artifact=$artifact" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: ${{ steps.contract.outputs.qualification-artifact }}
+          path: ${{ runner.temp }}/release-qualification/
+          if-no-files-found: error
+          retention-days: 90

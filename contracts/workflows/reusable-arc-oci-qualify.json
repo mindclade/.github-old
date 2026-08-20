@@ -1,0 +1,31 @@
+{
+  "inputs": {
+    "candidate-artifact": {
+      "required": true,
+      "type": "string"
+    },
+    "image-ref": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "qualify": {
+      "actions": "read",
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "qualify"
+  ],
+  "outputs": [
+    "qualification-artifact"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-arc-oci-qualify.yml"
+}

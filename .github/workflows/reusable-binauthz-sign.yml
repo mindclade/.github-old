@@ -49,6 +49,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          [ "$GITHUB_EVENT_NAME" = push ] || {
+            echo "::error::deployment signing requires a protected-main push" >&2
+            exit 1
+          }
+          [ "$GITHUB_REF" = refs/heads/main ] || exit 1
+          [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
           if [[ ! "$IMAGE_REF" =~ ^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]; then
             echo "::error::image-ref must be a digest-pinned Artifact Registry reference" >&2
             exit 1
@@ -209,8 +215,8 @@ jobs:
             echo "### Binary Authorization promotion"
             echo
             echo "- Digest: \`$IMAGE_REF\`"
-            echo "- Build/provenance authority: Buildkite attestor"
-            echo "- Independent qualification authority: Buildkite attestor"
+            echo "- Build/provenance authority: ARC builder attestor"
+            echo "- Independent qualification authority: ARC qualifier attestor"
             echo "- New deployment attestation created: \`${CREATED:-false}\`"
             echo "- Protected environment: \`release\`"
           } >> "$GITHUB_STEP_SUMMARY"

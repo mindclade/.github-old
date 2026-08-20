@@ -34,8 +34,9 @@ attribute_mapping = {
 ```
 
 `job_workflow_ref` and `job_workflow_sha` exist only for jobs executing a called reusable
-workflow. Map them only on the dedicated monorepo signer provider, which requires those claims.
-Mapping them on direct-workflow providers can make otherwise valid tokens fail evaluation.
+workflow. Map them on the six dedicated ARC release providers, each of which requires one exact
+immutable v4 reusable workflow. Do not map them on direct-workflow providers; doing so can make
+otherwise valid direct-job tokens fail evaluation.
 
 Mindclade does not currently authorize GCP access from repository custom-property claims.
 `github-config` custom properties classify and target governance policy; they are not cloud
@@ -91,11 +92,13 @@ The snippet is a policy contract, not a module copied into this repository. `boo
 organization and repository IDs. Service-account bindings further narrow direct apply and
 scheduled read paths to an exact `workflow_ref` on `refs/heads/main`.
 
-The production signer is the exception: its dedicated provider maps `job_workflow_ref` and
-requires the exact released
-`mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0`, the immutable
-monorepo IDs, the `release` environment subject, and the exact audience. Publish and protect
-that immutable release before activating this trust. Never move the tag.
+The production ARC lane uses one provider per capability: canary, builder,
+qualification-reader, qualifier, signer, and promoter. Every provider requires the immutable
+monorepo IDs, the exact `release.yml@refs/heads/main` caller, `push`, protected main, its own
+provider audience, and its exact `.github` v4 reusable workflow. The signer and promoter also
+require the protected `release` environment subject. Non-signer capability subjects are
+prefixed in `google.subject` so the same GitHub token subject cannot collide across providers.
+Publish and protect v4.0.0 before activating any provider; never move the tag.
 
 For production deployment identities, additionally bind a protected GitHub environment.
 Plan/read-only identities remain separate from apply/deployment identities.
@@ -137,8 +140,9 @@ properties. They are policy labels, not a credential store or an active WIF inpu
 
 ## Qualification
 
-Before enabling a new identity, invoke `reusable-wif-auth.yml` with the exact provider and
-service account the workload will use. Pass the immutable GitHub organization ID from an
-organization variable when available. Verify that the summary shows the expected immutable
-owner/repository IDs, ID-bearing subject, audience, workflow/ref, and—only for the signer—the
-expected reusable workflow ref/SHA.
+Before enabling the ARC lane, run the zero-data-authority `reusable-arc-wif-canary.yml` from one
+new reviewed request on protected main. Then negatively test every provider with the wrong
+capability, branch, caller, event, repository, audience, and reusable-workflow ref. Verify the
+expected immutable owner/repository IDs, ID-bearing subject, audience, workflow/ref, and exact
+reusable workflow ref/SHA for every capability. Generic `reusable-wif-auth.yml` remains useful
+for non-ARC identities but cannot substitute for these cross-capability denial tests.

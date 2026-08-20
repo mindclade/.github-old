@@ -13,7 +13,8 @@
 | Configure GitHub Enterprise | [Enterprise setup](ENTERPRISE_SETUP.md) | Establish teams, rulesets, Actions policy, and release controls |
 | Consume or change a reusable workflow | [Workflow contracts](WORKFLOW_CONTRACTS.md) | Preserve caller-visible APIs and choose the correct release level |
 | Configure cloud federation | [OIDC and WIF contract](WIF.md) | Bind workflow identity to narrowly scoped Google Cloud access |
-| Publish the first production contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify and publish the immutable `v3.0.0` baseline |
+| Publish disaster-recovery evidence | [DR evidence contract](DR_EVIDENCE.md) | Validate a measured report and retain immutable GCS and GitHub copies |
+| Publish the ARC production contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify and publish the immutable `v4.0.0` baseline |
 
 ## Getting started
 
@@ -30,6 +31,8 @@
 - [GitHub Actions security model](ACTIONS_SECURITY.md) — non-negotiable workflow invariants.
 - [OIDC and WIF contract](WIF.md) — division of identity responsibilities across control
   repositories.
+- [DR evidence contract](DR_EVIDENCE.md) — protected two-operator dispatch, report validation,
+  and append-only evidence publication.
 - [Enterprise platform foundation blueprint](MINDCLADE_ENTERPRISE_PLATFORM_FOUNDATION_BLUEPRINT.md)
   — estate-wide architecture and acceptance gates.
 
@@ -63,4 +66,3 @@ nix develop .#ci --command make validate
 ```
 
 Also check changed local links and render the Markdown in GitHub's preview before merge.
-

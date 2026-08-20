@@ -1,0 +1,40 @@
+{
+  "inputs": {
+    "environment": {
+      "required": true,
+      "type": "string"
+    },
+    "observer-operator": {
+      "required": true,
+      "type": "string"
+    },
+    "primary-operator": {
+      "required": true,
+      "type": "string"
+    },
+    "report-path": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "publish": {
+      "actions": "read",
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "publish"
+  ],
+  "outputs": [
+    "evidence-uri",
+    "report-sha256"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-dr-evidence.yml"
+}

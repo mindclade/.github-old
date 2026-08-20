@@ -1,0 +1,25 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Validate Mindclade repository home
+description: Validate a repository-home@2 README against its local repository contract.
+
+inputs:
+  local-validator-path:
+    description: Optional workspace-relative path to a byte-identical offline validator mirror.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Validate repository home
+      shell: bash
+      env:
+        LOCAL_VALIDATOR_PATH: ${{ inputs.local-validator-path }}
+      run: >-
+        python3 "${GITHUB_ACTION_PATH}/validate.py"
+        --root "${GITHUB_WORKSPACE}"
+        --local-validator-path "${LOCAL_VALIDATOR_PATH}"

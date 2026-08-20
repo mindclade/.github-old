@@ -1,0 +1,161 @@
+---
+name: Reusable — DR evidence
+
+on:
+  workflow_call:
+    inputs:
+      report-path:
+        description: Repository-relative path to a completed DR report v2.
+        required: true
+        type: string
+      environment:
+        description: Protected scratch or staging GitHub environment.
+        required: true
+        type: string
+      primary-operator:
+        description: GitHub login of the operator dispatching the evidence upload.
+        required: true
+        type: string
+      observer-operator:
+        description: Distinct GitHub login that observed the drill.
+        required: true
+        type: string
+    outputs:
+      evidence-uri:
+        description: Append-only GCS URI containing the validated report.
+        value: ${{ jobs.publish.outputs.evidence-uri }}
+      report-sha256:
+        description: SHA-256 digest of the validated report.
+        value: ${{ jobs.publish.outputs.report-sha256 }}
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    outputs:
+      evidence-uri: ${{ steps.prepare.outputs.evidence-uri }}
+      report-sha256: ${{ steps.prepare.outputs.report-sha256 }}
+    steps:
+      - name: Validate protected dispatch
+        env:
+          DR_ENVIRONMENT: ${{ inputs.environment }}
+          PRIMARY_OPERATOR: ${{ inputs.primary-operator }}
+          OBSERVER_OPERATOR: ${{ inputs.observer-operator }}
+          DISPATCHING_ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          case "$DR_ENVIRONMENT" in
+            scratch|staging) ;;
+            *) echo "::error::DR evidence may only be published from scratch or staging"; exit 1 ;;
+          esac
+          [ "$PRIMARY_OPERATOR" = "$DISPATCHING_ACTOR" ] || {
+            echo "::error::primary-operator must equal the dispatching GitHub actor"
+            exit 1
+          }
+          [ "$PRIMARY_OPERATOR" != "$OBSERVER_OPERATOR" ] || {
+            echo "::error::primary and observer operators must be distinct"
+            exit 1
+          }
+
+      - name: Check out drill source revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out immutable control validator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: mindclade/.github
+          ref: ${{ github.workflow_sha }}
+          path: _mindclade-control
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate report and dispatch binding
+        env:
+          REPORT_PATH: ${{ inputs.report-path }}
+          DR_ENVIRONMENT: ${{ inputs.environment }}
+          PRIMARY_OPERATOR: ${{ inputs.primary-operator }}
+          OBSERVER_OPERATOR: ${{ inputs.observer-operator }}
+        run: |
+          set -euo pipefail
+          python3 - "$REPORT_PATH" <<'PY'
+          import pathlib
+          import sys
+
+          path = pathlib.PurePosixPath(sys.argv[1])
+          if path.is_absolute() or ".." in path.parts or not path.parts:
+              raise SystemExit("report-path must remain inside the repository")
+          PY
+          test -f "$REPORT_PATH"
+          python3 _mindclade-control/tools/validate_drill_report.py "$REPORT_PATH"
+          python3 - "$REPORT_PATH" "$DR_ENVIRONMENT" "$PRIMARY_OPERATOR" "$OBSERVER_OPERATOR" "$GITHUB_REPOSITORY" "$GITHUB_SHA" <<'PY'
+          import json
+          import sys
+
+          report_path, environment, primary, observer, repository, revision = sys.argv[1:]
+          report = json.load(open(report_path, encoding="utf-8"))
+          operators = {(item["identity"], item["role"]) for item in report["operators"]}
+          if report["environment"] != environment:
+              raise SystemExit("report environment does not match protected dispatch")
+          if (primary, "primary") not in operators or (observer, "observer") not in operators:
+              raise SystemExit("report operators do not match protected dispatch")
+          if report["source_revisions"].get(repository) != revision:
+              raise SystemExit("report does not bind the caller repository to github.sha")
+          PY
+
+      - id: prepare
+        name: Prepare immutable evidence name
+        env:
+          REPORT_PATH: ${{ inputs.report-path }}
+          DR_ENVIRONMENT: ${{ inputs.environment }}
+          EVIDENCE_BUCKET: ${{ vars.DR_EVIDENCE_BUCKET }}
+        run: |
+          set -euo pipefail
+          test -n "$EVIDENCE_BUCKET"
+          drill_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["drill_id"])' "$REPORT_PATH")"
+          digest="$(shasum -a 256 "$REPORT_PATH" | awk '{print $1}')"
+          evidence_uri="gs://${EVIDENCE_BUCKET}/drills/${DR_ENVIRONMENT}/${drill_id}/${digest}.json"
+          mkdir -p "$RUNNER_TEMP/dr-evidence"
+          cp "$REPORT_PATH" "$RUNNER_TEMP/dr-evidence/report.json"
+          printf '%s  report.json\n' "$digest" > "$RUNNER_TEMP/dr-evidence/report.json.sha256"
+          echo "evidence-uri=$evidence_uri" >> "$GITHUB_OUTPUT"
+          echo "report-sha256=$digest" >> "$GITHUB_OUTPUT"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_DR_EVIDENCE }}
+          service_account: ${{ vars.SA_DR_EVIDENCE_WRITER }}
+          project_id: ${{ vars.DR_EVIDENCE_PROJECT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - name: Publish to protected append-only archive
+        env:
+          REPORT_PATH: ${{ inputs.report-path }}
+          EVIDENCE_URI: ${{ steps.prepare.outputs.evidence-uri }}
+        run: |
+          set -euo pipefail
+          gcloud storage cp --if-generation-match=0 "$REPORT_PATH" "$EVIDENCE_URI"
+
+      - name: Retain complementary GitHub evidence
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: dr-evidence-${{ inputs.environment }}-${{ steps.prepare.outputs.report-sha256 }}
+          path: ${{ runner.temp }}/dr-evidence
+          if-no-files-found: error
+          retention-days: 90

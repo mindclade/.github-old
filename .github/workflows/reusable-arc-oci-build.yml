@@ -1,0 +1,162 @@
+---
+name: Reusable — ARC OCI build authority
+
+on:
+  workflow_call:
+    inputs:
+      request-path:
+        description: Newly merged release request under ci/release/requests/.
+        required: true
+        type: string
+    outputs:
+      candidate-artifact:
+        description: GitHub artifact containing the immutable candidate evidence manifest.
+        value: ${{ jobs.build.outputs.candidate-artifact }}
+      image-ref:
+        description: Candidate Artifact Registry image pinned by digest.
+        value: ${{ jobs.build.outputs.image-ref }}
+      release-id:
+        description: Validated semantic release identifier.
+        value: ${{ jobs.build.outputs.release-id }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: mindclade-arc-build-cpu
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    outputs:
+      candidate-artifact: ${{ steps.contract.outputs.candidate-artifact }}
+      image-ref: ${{ steps.contract.outputs.image-ref }}
+      release-id: ${{ steps.contract.outputs.release-id }}
+    steps:
+      - name: Verify platform-authenticated event
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref }}
+          REQUEST_PATH: ${{ inputs.request-path }}
+        run: |
+          set -euo pipefail
+          [ "$EVENT_NAME" = push ] || { echo "::error::artifact authority requires push"; exit 1; }
+          [ "$REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
+          [ "$REF_NAME" = refs/heads/main ] || { echo "::error::artifact authority requires protected main"; exit 1; }
+          [[ "$REQUEST_PATH" =~ ^ci/release/requests/v[0-9]+\.[0-9]+\.[0-9]+\.yaml$ ]] || {
+            echo "::error::request-path is outside the versioned release-request boundary"
+            exit 1
+          }
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          # ARC runners are ephemeral containers without an init system.
+          install_options: --no-daemon
+
+      - name: Verify exact checkout before cloud authentication
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse --verify 'HEAD^{commit}')"
+          [ "$actual" = "$EXPECTED_SHA" ] || {
+            echo "::error::checkout HEAD $actual does not equal platform SHA $EXPECTED_SHA"
+            exit 1
+          }
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+
+      - name: Validate the reviewed request before cloud authentication
+        env:
+          REQUEST_PATH: ${{ inputs.request-path }}
+        run: |
+          set -euo pipefail
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py validate \
+              --request "$REQUEST_PATH" \
+              --source-sha "$GITHUB_SHA"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_ARC_BUILDER }}
+          service_account: ${{ vars.SA_ARTIFACT_BUILDER }}
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - name: Configure the exact Artifact Registry credential helper
+        env:
+          ARTIFACT_REGISTRY_HOST: ${{ vars.ARTIFACT_REGISTRY_HOST }}
+        run: |
+          set -euo pipefail
+          [[ "$ARTIFACT_REGISTRY_HOST" =~ ^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev$ ]] || {
+            echo "::error::ARTIFACT_REGISTRY_HOST is absent or malformed"
+            exit 1
+          }
+          gcloud auth configure-docker "$ARTIFACT_REGISTRY_HOST" --quiet
+
+      - name: Build, publish, and attest candidate
+        env:
+          REQUEST_PATH: ${{ inputs.request-path }}
+          ARTIFACT_REGISTRY_HOST: ${{ vars.ARTIFACT_REGISTRY_HOST }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          BINAUTHZ_BUILD_ATTESTOR_PROJECT: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT }}
+          BINAUTHZ_BUILD_ATTESTOR: ${{ vars.BINAUTHZ_BUILD_ATTESTOR }}
+          BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION }}
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/release-candidate"
+          mkdir -p "$evidence"
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py build \
+              --request "$REQUEST_PATH" \
+              --source-sha "$GITHUB_SHA" \
+              --output "$evidence/candidate.json"
+
+      - id: contract
+        name: Validate candidate evidence contract
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/release-candidate/candidate.json"
+          tools/dev/nixw develop .#ci --command \
+            python3 ci/release/release_request.py validate-candidate --candidate "$evidence"
+          image_ref="$(jq -er '.artifact.imageRef' "$evidence")"
+          release_id="$(jq -er '.releaseId' "$evidence")"
+          artifact="release-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          {
+            echo "image-ref=$image_ref"
+            echo "release-id=$release_id"
+            echo "candidate-artifact=$artifact"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: ${{ steps.contract.outputs.candidate-artifact }}
+          path: ${{ runner.temp }}/release-candidate/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          {
+            echo '### ARC candidate build'
+            echo
+            echo "- Release: \`${{ steps.contract.outputs.release-id }}\`"
+            echo "- Image: \`${{ steps.contract.outputs.image-ref }}\`"
+            echo "- Source: \`${GITHUB_SHA}\`"
+            echo '- Deployment authority: none'
+          } >> "$GITHUB_STEP_SUMMARY"

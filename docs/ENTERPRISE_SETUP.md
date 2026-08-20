@@ -127,17 +127,17 @@ Private/internal artifact attestations use GitHub's private Sigstore instance; n
 publication path is required. The builder cannot issue a Binary Authorization deployment
 attestation.
 
-This general-purpose workflow is not Mindclade's production artifact authority. Buildkite
-performs the authoritative production build and qualification and issues two distinct Binary
-Authorization evidence roots for the immutable digest.
+This general-purpose workflow is not Mindclade's production artifact authority. Dedicated ARC
+workflows on the isolated private CI cluster perform the authoritative production build and
+qualification and issue two distinct Binary Authorization evidence roots for the immutable digest.
 
-After both Buildkite build/provenance and qualification attestations exist,
+After both ARC build/provenance and qualification attestations exist,
 `reusable-binauthz-sign.yml` may create the separately named GKE admission attestation. It:
 
 - accepts only the digest from the caller;
 - obtains identity, attestors, and KMS key version from governance-managed variables;
 - runs behind the caller repository's protected `release` environment;
-- cryptographically validates the distinct Buildkite build/provenance and qualification
+- cryptographically validates the distinct ARC build/provenance and qualification
   occurrences against their attestors (list results alone are not trusted);
 - authenticates as a dedicated signer service account; and
 - creates or verifies the deployment attestation idempotently.
@@ -148,7 +148,7 @@ or before switching to a future stable-track spelling.
 
 Bind the signer service account's WIF grant to the exact released `job_workflow_ref`, the
 monorepo's immutable repository identifiers, and the `release` environment subject. Do not
-grant either Buildkite evidence identity access to the signer key or deployment attestor.
+grant either ARC evidence identity access to the signer key or deployment attestor.
 Grant the signer `roles/binaryauthorization.attestorsVerifier`, not the list-only
 `attestorsViewer`, on the three attestor projects.
 The three governed roots use explicit `BINAUTHZ_BUILD_*`, `BINAUTHZ_QUALIFICATION_*`, and
@@ -190,6 +190,11 @@ Publish only identity references and non-secret configuration as variables, for 
 - `WIF_PROVIDER_PLAN`
 - `SA_TF_PLAN`
 - `WIF_PROVIDER_SIGNER` and `SA_ARTIFACT_SIGNER`
+- `WIF_PROVIDER_ARC_CANARY` and `SA_ARC_CANARY`
+- `WIF_PROVIDER_ARC_BUILDER` and `SA_ARTIFACT_BUILDER`
+- `WIF_PROVIDER_ARC_QUALIFICATION_READER` and `SA_ARTIFACT_QUALIFICATION_READER`
+- `WIF_PROVIDER_ARC_QUALIFIER` and `SA_ARTIFACT_QUALIFIER`
+- `WIF_PROVIDER_ARC_PROMOTER` and `SA_ARTIFACT_PROMOTER`
 - qualification and deployment attestor projects/names plus an immutable KMS key version
 - environment-specific Artifact Registry and Binary Authorization identifiers
 
@@ -203,6 +208,14 @@ The optional consumer-pin audit uses a GitHub App:
 When those values are absent, the optional audit skips cleanly.
 
 Never store a GCP service-account key.
+
+Create runner group `mindclade-arc-artifact-authority` as selected/private, allow only
+`mindclade-internal-monorepo`, and restrict it to
+`mindclade/mindclade-internal-monorepo/.github/workflows/release.yml@refs/heads/main`. Install
+the `mindclade-arc` GitHub App only on that repository with organization self-hosted-runners
+write and repository Actions/metadata read. Install `mindclade-release-promoter` only on
+`gitops` with contents and pull-requests write plus metadata read. These installations are
+connected controls and must be verified against `github-config` before enabling WIF.
 
 ## 10. Inheritance boundaries
 
@@ -233,11 +246,11 @@ Push `main`, enable rulesets/immutable releases, let repository workflows pass, 
 first production contract:
 
 ```sh
-git tag -a v3.0.0 -m "Mindclade GitHub Enterprise workflow foundation v3"
-git push origin v3.0.0
+git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4"
+git push origin v4.0.0
 ```
 
-Starter workflows intentionally reference `v3.0.0`; they become usable after this release.
+Starter workflows intentionally reference `v4.0.0`; they become usable after this release.
 Do not create the tag before `main` protection and organization immutable-release enforcement
 are active.
 
