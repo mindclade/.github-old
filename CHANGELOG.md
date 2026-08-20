@@ -29,6 +29,8 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   server and current `terragrunt run` command form.
 - Tightened reusable Terraform planning to read-only cloud and repository permissions; plan
   comments are published by a separate least-privilege job.
+- Made Go module-tidiness checks support dependency-free modules without `go.sum`, corrected
+  executable fixture modes, and rejected CodeQL's unsupported Go `none` build mode before init.
 - Narrowed the supported Terraform line to `>= 1.15.0, < 1.16.0`.
 
 ### Security

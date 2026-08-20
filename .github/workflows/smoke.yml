@@ -62,10 +62,9 @@ jobs:
       security-events: write
       actions: read
     with:
-      # Go only, and build-mode none: the fixture is trivially analyzable without a build,
-      # and this exercises exactly the input threading that was previously inert.
+      # Go requires autobuild; CodeQL rejects the no-build path for this compiled language.
       languages: '["go"]'
-      build-mode: none
+      build-mode: autobuild
 
   hygiene:
     uses: ./.github/workflows/reusable-repo-hygiene.yml

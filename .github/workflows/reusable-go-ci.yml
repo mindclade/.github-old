@@ -59,11 +59,20 @@ jobs:
           set -euo pipefail
           go mod download
           go mod verify
-          cp go.mod go.mod.orig && cp go.sum go.sum.orig
+          cp go.mod go.mod.orig
+          sum_snapshot="$(mktemp)"
+          if [ -f go.sum ]; then
+            cp go.sum "${sum_snapshot}"
+          fi
           go mod tidy
           diff -u go.mod.orig go.mod || { echo "::error::go.mod is not tidy — run 'go mod tidy'"; exit 1; }
-          diff -u go.sum.orig go.sum || { echo "::error::go.sum is not tidy — run 'go mod tidy'"; exit 1; }
-          rm -f go.mod.orig go.sum.orig
+          if [ -f go.sum ]; then
+            diff -u "${sum_snapshot}" go.sum || { echo "::error::go.sum is not tidy — run 'go mod tidy'"; exit 1; }
+          elif [ -s "${sum_snapshot}" ]; then
+            echo "::error::go.sum is not tidy — run 'go mod tidy'"
+            exit 1
+          fi
+          rm -f go.mod.orig "${sum_snapshot}"
 
       - run: go build ./...
 
