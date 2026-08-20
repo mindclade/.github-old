@@ -31,7 +31,7 @@ behavior change gets read as neither.
 
 Conventional Commits — the type prefix drives changelog generation and release tooling:
 
-```
+```text
 feat(control-plane): add per-tenant rate limit override
 fix(sdk-python): retry on 429 with jitter
 chore(deps): bump golangci-lint to 2.6.2
