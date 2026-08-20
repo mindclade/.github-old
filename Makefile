@@ -2,9 +2,9 @@ PYTHON ?= python3
 ACTIONLINT ?= actionlint
 YAMLLINT ?= yamllint
 
-.PHONY: validate lint contracts pins repository-home validate-production-contract
+.PHONY: validate lint contracts pins release-readiness repository-home validate-production-contract
 
-validate: lint contracts pins repository-home validate-production-contract
+validate: lint contracts pins release-readiness repository-home validate-production-contract
 	$(PYTHON) tools/validate_repo.py
 
 lint:
@@ -16,6 +16,9 @@ contracts:
 
 pins:
 	$(PYTHON) tools/validate_action_pins.py
+
+release-readiness:
+	$(PYTHON) tools/validate_release_readiness.py
 
 repository-home:
 	$(PYTHON) actions/validate-repository-home/validate.py --root .

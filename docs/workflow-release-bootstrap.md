@@ -23,6 +23,12 @@ From a clean checkout of the reviewed `main` commit:
 nix develop .#ci --command make validate
 ```
 
+The checked-in `contracts/releases/v4.0.0.json` records the exact source commit, Git trees,
+mandatory-workflow digests, and the connected evidence that source validation cannot supply.
+Run `python3 tools/validate_release_readiness.py --require-local-tag` only after fetching the
+authoritative tag namespace. The ordinary source check intentionally accepts an absent local tag
+without treating that absence as proof about GitHub.
+
 Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same commit.
 
 ## Create the immutable release

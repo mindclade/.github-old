@@ -4,11 +4,15 @@
       "required": true,
       "type": "string"
     },
-    "release-id": {
+    "previous-release-id": {
       "required": true,
       "type": "string"
     },
-    "rollback-digest": {
+    "previous-subject-digest": {
+      "required": true,
+      "type": "string"
+    },
+    "release-id": {
       "required": true,
       "type": "string"
     }
