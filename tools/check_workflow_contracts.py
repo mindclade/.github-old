@@ -26,7 +26,9 @@ WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CONTRACT_DIR = ROOT / "contracts" / "workflows"
 ENTRY_RE = re.compile(r"^ {6}([A-Za-z0-9_-]+):\s*$")
 ATTR_RE = re.compile(r"^ {8}(required|type|default):\s*(.*?)\s*$")
-PERMISSION_RE = re.compile(r"^ +(actions|artifact-metadata|attestations|checks|contents|deployments|discussions|id-token|issues|models|packages|pages|pull-requests|repository-projects|security-events|statuses):\s*(read|write|none)\s*(?:#.*)?$")
+PERMISSION_RE = re.compile(
+    r"^ +(actions|artifact-metadata|attestations|checks|contents|deployments|discussions|id-token|issues|models|packages|pages|pull-requests|repository-projects|security-events|statuses):\s*(read|write|none)\s*(?:#.*)?$"
+)
 JOB_RE = re.compile(r"^ {2}([A-Za-z0-9_-]+):\s*$")
 
 
@@ -82,7 +84,9 @@ def workflow_call_section(lines: list[str], section: str) -> dict[str, dict[str,
     return result
 
 
-def permissions_at(lines: list[str], marker_index: int, marker_indent: int) -> dict[str, str]:
+def permissions_at(
+    lines: list[str], marker_index: int, marker_indent: int
+) -> dict[str, str]:
     result: dict[str, str] = {}
     for line in lines[marker_index + 1 :]:
         if line and indent(line) <= marker_indent:
@@ -179,7 +183,10 @@ def check() -> int:
     for workflow in workflows:
         snapshot = contract_path(workflow)
         if not snapshot.is_file():
-            print(f"missing workflow contract: {snapshot.relative_to(ROOT)}", file=sys.stderr)
+            print(
+                f"missing workflow contract: {snapshot.relative_to(ROOT)}",
+                file=sys.stderr,
+            )
             errors += 1
             continue
         actual = render(extract(workflow))
@@ -211,7 +218,9 @@ def check() -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--update", action="store_true", help="rewrite snapshots from current workflows")
+    parser.add_argument(
+        "--update", action="store_true", help="rewrite snapshots from current workflows"
+    )
     args = parser.parse_args()
     return update() if args.update else check()
 

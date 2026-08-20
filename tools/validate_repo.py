@@ -62,8 +62,22 @@ REQUIRED = {
 }
 
 TEXT_SUFFIXES = {
-    "", ".css", ".go", ".html", ".json", ".json5", ".lock", ".md", ".nix",
-    ".py", ".rs", ".svg", ".toml", ".txt", ".yaml", ".yml",
+    "",
+    ".css",
+    ".go",
+    ".html",
+    ".json",
+    ".json5",
+    ".lock",
+    ".md",
+    ".nix",
+    ".py",
+    ".rs",
+    ".svg",
+    ".toml",
+    ".txt",
+    ".yaml",
+    ".yml",
 }
 TEMPLATE_RENDER_BASES = {
     "docs/templates/documentation-home.md": ROOT / "docs",
@@ -81,8 +95,7 @@ def fail(errors: list[str], message: str) -> None:
 
 def iter_files() -> list[Path]:
     return sorted(
-        path for path in ROOT.rglob("*")
-        if path.is_file() and ".git" not in path.parts
+        path for path in ROOT.rglob("*") if path.is_file() and ".git" not in path.parts
     )
 
 
@@ -125,7 +138,10 @@ def main() -> int:
             if "v1.0.0" in text:
                 fail(errors, f"stale v1 release reference in {name}")
             if "sigstore/cosign" in text or "cosign attest" in text:
-                fail(errors, f"legacy public-Sigstore/cosign path in {name}; use GitHub attestations")
+                fail(
+                    errors,
+                    f"legacy public-Sigstore/cosign path in {name}; use GitHub attestations",
+                )
         if path.suffix.lower() in {".yml", ".yaml"} and not text.startswith("---\n"):
             fail(errors, f"YAML document must start with '---': {name}")
 
@@ -155,10 +171,16 @@ def main() -> int:
                 continue
             if target.startswith(f"{ORG}/.github/.github/workflows/"):
                 if not SEMVER_RE.fullmatch(ref_value):
-                    fail(errors, f"internal reusable workflow lacks full semver in {rel(path)}: {use}")
+                    fail(
+                        errors,
+                        f"internal reusable workflow lacks full semver in {rel(path)}: {use}",
+                    )
                 continue
             if not SHA_RE.fullmatch(ref_value):
-                fail(errors, f"third-party action is not SHA-pinned in {rel(path)}: {use}")
+                fail(
+                    errors,
+                    f"third-party action is not SHA-pinned in {rel(path)}: {use}",
+                )
 
     templates = ROOT / "workflow-templates"
     for template in sorted(templates.glob("*.yml")):
@@ -166,28 +188,52 @@ def main() -> int:
         if not sidecar.is_file():
             fail(errors, f"workflow template lacks sidecar: {rel(template)}")
         text = template.read_text(encoding="utf-8")
-        refs = [use for use in USES_RE.findall(text) if use.startswith(f"{ORG}/.github/")]
+        refs = [
+            use for use in USES_RE.findall(text) if use.startswith(f"{ORG}/.github/")
+        ]
         if not refs:
-            fail(errors, f"workflow template does not call mindclade/.github: {rel(template)}")
+            fail(
+                errors,
+                f"workflow template does not call mindclade/.github: {rel(template)}",
+            )
         for use in refs:
             target, _, version = use.rpartition("@")
             if version != RELEASE:
-                fail(errors, f"starter template must pin {RELEASE}: {rel(template)} uses {version}")
+                fail(
+                    errors,
+                    f"starter template must pin {RELEASE}: {rel(template)} uses {version}",
+                )
             prefix = f"{ORG}/.github/"
             local = target.removeprefix(prefix)
             if not (ROOT / local).is_file():
                 fail(errors, f"starter template references missing workflow: {local}")
 
-    build_workflow = (workflow_dir / "reusable-oci-build.yml").read_text(encoding="utf-8")
-    signer_workflow = (workflow_dir / "reusable-binauthz-sign.yml").read_text(encoding="utf-8")
-    terraform_plan_workflow = (workflow_dir / "reusable-tf-plan.yml").read_text(encoding="utf-8")
+    build_workflow = (workflow_dir / "reusable-oci-build.yml").read_text(
+        encoding="utf-8"
+    )
+    signer_workflow = (workflow_dir / "reusable-binauthz-sign.yml").read_text(
+        encoding="utf-8"
+    )
+    terraform_plan_workflow = (workflow_dir / "reusable-tf-plan.yml").read_text(
+        encoding="utf-8"
+    )
     if "-lock-timeout=20m" not in terraform_plan_workflow:
         fail(errors, "reusable Terraform plans must wait for the backend state lock")
     if "binauthz attestations sign-and-create" in build_workflow:
-        fail(errors, "OCI builder must not create Binary Authorization deployment attestations")
-    for legacy_input in ("      attestor:\n", "      attestor-project:\n", "      attestor-key:\n"):
+        fail(
+            errors,
+            "OCI builder must not create Binary Authorization deployment attestations",
+        )
+    for legacy_input in (
+        "      attestor:\n",
+        "      attestor-project:\n",
+        "      attestor-key:\n",
+    ):
         if legacy_input in build_workflow:
-            fail(errors, f"OCI builder retains forbidden signing input: {legacy_input.strip()}")
+            fail(
+                errors,
+                f"OCI builder retains forbidden signing input: {legacy_input.strip()}",
+            )
     signer_requirements = {
         "    environment: release": "protected release environment",
         "vars.WIF_PROVIDER_SIGNER": "governed signer WIF provider",
@@ -204,14 +250,20 @@ def main() -> int:
         "gcloud beta container binauthz attestations sign-and-create": "documented KMS Binary Authorization signing operation",
         "--validate": "post-signature attestor validation",
         ":validateAttestationOccurrence": "cryptographic upstream-attestation validation",
-        ".result == \"VERIFIED\"": "fail-closed signature-verification result check",
+        '.result == "VERIFIED"': "fail-closed signature-verification result check",
     }
     for needle, control in signer_requirements.items():
         if needle not in signer_workflow:
             fail(errors, f"Binary Authorization signer lacks {control}")
-    for caller_selected_input in ("      service-account:\n", "      workload-identity-provider:\n"):
+    for caller_selected_input in (
+        "      service-account:\n",
+        "      workload-identity-provider:\n",
+    ):
         if caller_selected_input in signer_workflow:
-            fail(errors, f"Binary Authorization signer exposes forbidden caller input: {caller_selected_input.strip()}")
+            fail(
+                errors,
+                f"Binary Authorization signer exposes forbidden caller input: {caller_selected_input.strip()}",
+            )
     for forbidden_authority in (
         "gh attestation",
         "--signer-workflow",
@@ -221,25 +273,41 @@ def main() -> int:
         "vars.BINAUTHZ_ATTESTOR_KEY_VERSION",
     ):
         if forbidden_authority in signer_workflow:
-            fail(errors, f"Binary Authorization signer retains forbidden/ambiguous trust authority: {forbidden_authority}")
+            fail(
+                errors,
+                f"Binary Authorization signer retains forbidden/ambiguous trust authority: {forbidden_authority}",
+            )
     if "gcloud container binauthz attestations sign-and-create" in signer_workflow:
-        fail(errors, "Binary Authorization signer uses the unsupported stable-track spelling")
+        fail(
+            errors,
+            "Binary Authorization signer uses the unsupported stable-track spelling",
+        )
 
     for markdown in sorted(ROOT.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")
         link_base = TEMPLATE_RENDER_BASES.get(rel(markdown), markdown.parent)
         for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
             destination = match.group(1).split("#", 1)[0]
-            if not destination or "://" in destination or destination.startswith("mailto:"):
+            if (
+                not destination
+                or "://" in destination
+                or destination.startswith("mailto:")
+            ):
                 continue
             target = (link_base / destination).resolve()
             try:
                 target.relative_to(ROOT)
             except ValueError:
-                fail(errors, f"markdown link escapes repository in {rel(markdown)}: {destination}")
+                fail(
+                    errors,
+                    f"markdown link escapes repository in {rel(markdown)}: {destination}",
+                )
                 continue
             if not target.exists():
-                fail(errors, f"broken local markdown link in {rel(markdown)}: {destination}")
+                fail(
+                    errors,
+                    f"broken local markdown link in {rel(markdown)}: {destination}",
+                )
 
     contract_check = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "check_workflow_contracts.py")],
