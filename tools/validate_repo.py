@@ -144,6 +144,8 @@ def main() -> int:
     workflow_dir = ROOT / ".github" / "workflows"
     for path in sorted(workflow_dir.glob("*.yml")):
         text = path.read_text(encoding="utf-8")
+        if "-lock=false" in text:
+            fail(errors, f"Terraform state locking is disabled in {rel(path)}")
         for use in USES_RE.findall(text):
             if use.startswith("./"):
                 continue
@@ -178,6 +180,9 @@ def main() -> int:
 
     build_workflow = (workflow_dir / "reusable-oci-build.yml").read_text(encoding="utf-8")
     signer_workflow = (workflow_dir / "reusable-binauthz-sign.yml").read_text(encoding="utf-8")
+    terraform_plan_workflow = (workflow_dir / "reusable-tf-plan.yml").read_text(encoding="utf-8")
+    if "-lock-timeout=20m" not in terraform_plan_workflow:
+        fail(errors, "reusable Terraform plans must wait for the backend state lock")
     if "binauthz attestations sign-and-create" in build_workflow:
         fail(errors, "OCI builder must not create Binary Authorization deployment attestations")
     for legacy_input in ("      attestor:\n", "      attestor-project:\n", "      attestor-key:\n"):
@@ -196,7 +201,10 @@ def main() -> int:
         "vars.BINAUTHZ_DEPLOYMENT_ATTESTOR_KEY_VERSION": "immutable deployment signing key version",
         "build, qualification, and deployment attestors must be distinct": "three distinct evidence roots",
         'version: "580.0.0"': "exact Google Cloud CLI version",
-        "gcloud container binauthz attestations sign-and-create": "stable Binary Authorization signing operation",
+        "gcloud beta container binauthz attestations sign-and-create": "documented KMS Binary Authorization signing operation",
+        "--validate": "post-signature attestor validation",
+        ":validateAttestationOccurrence": "cryptographic upstream-attestation validation",
+        ".result == \"VERIFIED\"": "fail-closed signature-verification result check",
     }
     for needle, control in signer_requirements.items():
         if needle not in signer_workflow:
@@ -214,8 +222,8 @@ def main() -> int:
     ):
         if forbidden_authority in signer_workflow:
             fail(errors, f"Binary Authorization signer retains forbidden/ambiguous trust authority: {forbidden_authority}")
-    if "gcloud beta container binauthz attestations sign-and-create" in signer_workflow:
-        fail(errors, "Binary Authorization signer must not depend on the beta gcloud command")
+    if "gcloud container binauthz attestations sign-and-create" in signer_workflow:
+        fail(errors, "Binary Authorization signer uses the unsupported stable-track spelling")
 
     for markdown in sorted(ROOT.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")

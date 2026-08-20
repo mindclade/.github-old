@@ -8,7 +8,7 @@ on:
         description: Repository-relative header-check script.
         required: false
         type: string
-        default: scripts/license-header-check.sh
+        default: scripts/license-header-check.py
       runs-on:
         required: false
         type: string
@@ -31,4 +31,4 @@ jobs:
         run: |
           set -euo pipefail
           test -f "$SCRIPT"
-          bash "$SCRIPT" --check
+          python3 "$SCRIPT" --check

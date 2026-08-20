@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
 """Detect breaking API drift in versioned reusable GitHub workflows.
 
 The parser is intentionally narrow and dependency-free: it reads only the stable workflow_call

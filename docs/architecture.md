@@ -43,7 +43,11 @@ those workflows.
 
 ## Component model
 
+The diagram shows how workflow source, compatibility evidence, immutable releases, governance,
+and consumers remain separate but connected.
+
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
 flowchart LR
     WF["Reusable workflows<br/>.github/workflows/reusable-*.yml"]
     CK["Contract validator<br/>tools/check_workflow_contracts.py"]
@@ -62,9 +66,9 @@ flowchart LR
     ST -->|bootstraps| CR
     GC -->|governs| CR
 
-    classDef shared fill:#0b1f33,color:#ffffff,stroke:#3aa3ff,stroke-width:2px;
-    classDef evidence fill:#e8f4ff,color:#0b1f33,stroke:#1677b8,stroke-width:1.5px;
-    classDef consumer fill:#f4f7fa,color:#0b1f33,stroke:#66788a,stroke-width:1.5px;
+    classDef shared fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:2px;
+    classDef evidence fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
+    classDef consumer fill:#FBFAF7,color:#423D48,stroke:#5B5660,stroke-width:1.5px;
     class WF,RL shared;
     class CK,CT,GC evidence;
     class ST,CR consumer;

@@ -29,13 +29,14 @@ Describe the problem this system solves and its place in the platform.
 The diagram shows <the single relationship the reader should understand>.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
 flowchart LR
     SOURCE["<Source>"] -->|"<reviewed change>"| CONTROL["<Authoritative control>"]
     CONTROL -->|"<applied state>"| TARGET["<Managed target>"]
 
-    classDef authority fill:#0b1f33,color:#ffffff,stroke:#3aa3ff,stroke-width:2px;
-    classDef managed fill:#e8f4ff,color:#0b1f33,stroke:#1677b8,stroke-width:1.5px;
-    classDef external fill:#f4f7fa,color:#0b1f33,stroke:#66788a,stroke-width:1.5px;
+    classDef authority fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:2px;
+    classDef managed fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
+    classDef external fill:#FBFAF7,color:#423D48,stroke:#5B5660,stroke-width:1.5px;
     class CONTROL authority;
     class TARGET managed;
     class SOURCE external;

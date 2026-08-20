@@ -1,5 +1,15 @@
 <!-- mindclade-doc-template: repository-home@1 -->
 
+<!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/mono-wordmark-dark-1080w.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/brand/mono-wordmark-1080w.png">
+    <img alt="Mindclade." src="docs/assets/brand/mono-wordmark-1080w.png" width="360">
+  </picture>
+</p>
+
 # Mindclade · <Repository name>
 
 > **Platform Foundation · <Trust ring or system position>**  
@@ -65,4 +75,3 @@ new contributor needs. Link to procedures rather than duplicating them.
 Name repository-specific sensitive material and link to `SECURITY.md`. Do not publish secret
 values, customer data, private model artifacts, restricted biological data, or raw sensitive
 plan/state output.
-

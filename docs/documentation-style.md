@@ -15,6 +15,47 @@ decorative badges or color-dependent meaning.
 Write directly to the reader. Prefer “Run `make validate`” to “Validation can be performed.”
 Use `Mindclade`, American English for new pages, and the exact product names used in code.
 
+### Brand assets and typography
+
+Use the MONO identity for engineering surfaces: repositories, package pages, command-line
+tools, developer documentation, and README headers. Use one identity family per page; do not
+mix MONO and CAPS artwork. The canonical source is
+`mindclade/.github-private/mindclade-brand-assets`.
+
+Every root README must use the shared repository-home template's centered `<picture>` header.
+Vendor the flattened light and dark PNG wordmarks at these repository-relative paths:
+
+- `docs/assets/brand/mono-wordmark-1080w.png`; and
+- `docs/assets/brand/mono-wordmark-dark-1080w.png`.
+
+The `.github-private` brand-source repository is the sole exception: its root README links
+directly to the canonical files under `mindclade-brand-assets/png/` instead of duplicating
+them.
+
+Use the dark wordmark when `prefers-color-scheme: dark` matches, retain the light wordmark as
+the fallback, set the rendered width to `360`, and provide meaningful alt text. Use PNGs in
+GitHub Markdown because the source SVG wordmarks contain live font-dependent text. Do not
+stretch, recolor, shadow, outline, or recreate the wordmark.
+
+GitHub Markdown does not load repository-provided CSS or web fonts. Let GitHub render body
+copy in its native interface font; the flattened wordmark preserves the approved MONO
+typography. Documentation sites that control their CSS may self-host the brand-kit fonts:
+Instrument Sans for headings and body copy, and JetBrains Mono for code, labels, and the MONO
+identity. Do not substitute a font inside brand artwork.
+
+Use only the canonical brand tokens in diagrams and custom documentation surfaces:
+
+| Token | Value | Use |
+| --- | --- | --- |
+| Ink | `#201C24` | Primary text and authoritative controls |
+| Clay | `#B5673F` | Primary accent and boundaries |
+| Clay light | `#D68A61` | High-contrast accent on ink |
+| Bone | `#FBFAF7` | Light surfaces |
+| Bone warm | `#F2EFE8` | Managed surfaces and reversed text |
+| Body | `#423D48` | Secondary text |
+| Muted | `#5B5660` | External or secondary boundaries |
+| Rule | `#E2DED4` | Quiet grouping boundaries |
+
 ## Information architecture
 
 Keep one primary reader need per page:
@@ -71,11 +112,26 @@ Use these class colors consistently:
 
 | Role | Fill | Text | Stroke |
 | --- | --- | --- | --- |
-| Shared or authoritative control | `#0b1f33` | `#ffffff` | `#3aa3ff` |
-| Managed component or reviewed stage | `#e8f4ff` | `#0b1f33` | `#1677b8` |
-| External dependency or source | `#f4f7fa` | `#0b1f33` | `#66788a` |
-| Caution or approval boundary | `#fff4d6` | `#0b1f33` | `#b7791f` |
-| Failure or stop condition | `#fde8e8` | `#5f1717` | `#c53030` |
+| Shared or authoritative control | `#201C24` | `#F2EFE8` | `#D68A61` |
+| Managed component or reviewed stage | `#F2EFE8` | `#201C24` | `#B5673F` |
+| External dependency or source | `#FBFAF7` | `#423D48` | `#5B5660` |
+| Caution or approval boundary | `#FBFAF7` | `#201C24` | `#B5673F` |
+| Failure or stop condition | `#201C24` | `#F2EFE8` | `#B5673F` |
+
+Give caution and failure nodes an explicit label, distinct shape, or dashed stroke in addition
+to color. Style Mermaid subgraphs with bone fill and rule-colored boundaries so renderer
+defaults cannot introduce off-brand colors.
+
+Start every Mermaid diagram with the shared base-theme directive so unclassified nodes,
+connectors, edge labels, and subgraphs also use brand tokens:
+
+```text
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
+```
+
+Do not set `fontFamily` in Mermaid embedded on GitHub: the server-side renderer cannot load
+the private font files and may choose an unsuitable fallback. A controlled documentation site
+may set Instrument Sans after it loads the self-hosted WOFF2 asset.
 
 Do not add a diagram when a sentence or compact table communicates the same information more
 precisely. Validate Mermaid fences and syntax in the documentation build before merge.
@@ -97,5 +153,6 @@ Before merge, confirm:
 4. local links and anchors resolve;
 5. procedures include verification and recovery;
 6. headings and link text are accessible; and
-7. diagrams follow the Mermaid conventions and retain a text equivalent; and
-8. no generated output or unrelated formatting churn is included.
+7. diagrams follow the Mermaid conventions and retain a text equivalent;
+8. root READMEs use the approved responsive MONO wordmark; and
+9. no generated output or unrelated formatting churn is included.

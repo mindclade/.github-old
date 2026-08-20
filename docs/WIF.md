@@ -10,15 +10,15 @@ anchor is provisioned in `bootstrap`; normal workload identities live in
 |---|---|
 | `bootstrap` | Root Workload Identity Pool/provider, bootstrap/recovery identity, minimum durable IAM needed to avoid circular dependency |
 | `infrastructure-live` | Normal plan/apply, artifact-publisher, deployment and other workload service accounts/IAM |
-| `github-config` | Actions policy, environments, variables, immutable GitHub organization ID, repository custom properties, OIDC property inclusion |
+| `github-config` | Actions policy, environments, variables, immutable GitHub organization/repository IDs, and GitHub OIDC subject mode |
 | `.github` | Authenticate inside each cloud job and provide a WIF preflight/diagnostic workflow |
 
 No repository stores a long-lived GCP service-account JSON key.
 
 ## GitHub claims to map
 
-Map the minimum claims needed for policy decisions from the GitHub OIDC assertion into the
-GCP provider. A representative Terraform shape is:
+Map only claims that exist on every job through the repository-local providers. The concrete
+bootstrap mapping is equivalent to:
 
 ```hcl
 attribute_mapping = {
@@ -26,53 +26,79 @@ attribute_mapping = {
   "attribute.repository"            = "assertion.repository"
   "attribute.repository_id"         = "assertion.repository_id"
   "attribute.repository_owner_id"   = "assertion.repository_owner_id"
-  "attribute.repository_visibility" = "assertion.repository_visibility"
-  "attribute.job_workflow_ref"      = "assertion.job_workflow_ref"
-  "attribute.job_workflow_sha"      = "assertion.job_workflow_sha"
-  "attribute.cloud_access"          = "assertion.repo_property_cloud_access"
-  "attribute.deployment_tier"       = "assertion.repo_property_deployment_tier"
-  "attribute.workload_class"        = "assertion.repo_property_workload_class"
+  "attribute.ref"                   = "assertion.ref"
+  "attribute.workflow_ref"          = "assertion.workflow_ref"
+  "attribute.workflow_sha"          = "assertion.workflow_sha"
+  "attribute.event_name"            = "assertion.event_name"
 }
 ```
 
-`github-config` must configure `cloud_access`, `deployment_tier`, and `workload_class` as
-organization/enterprise repository custom properties and include those properties in Actions
-OIDC tokens before GCP conditions depend on them.
+`job_workflow_ref` and `job_workflow_sha` exist only for jobs executing a called reusable
+workflow. Map them only on the dedicated monorepo signer provider, which requires those claims.
+Mapping them on direct-workflow providers can make otherwise valid tokens fail evaluation.
+
+Mindclade does not currently authorize GCP access from repository custom-property claims.
+`github-config` custom properties classify and target governance policy; they are not cloud
+credentials and are not included in the active OIDC subject template.
+
+## Immutable default subject
+
+The active contract keeps every managed repository on GitHub's default subject and requires
+the immutable ID-bearing form introduced for repositories created, renamed, or transferred
+after 2026-07-15:
+
+```text
+repo:OWNER@OWNER-ID/REPO@REPO-ID:environment:ENVIRONMENT-NAME
+```
+
+Older repositories must be explicitly opted into immutable default subjects before bootstrap
+WIF is activated. A legacy name-only subject is deliberately rejected. Resetting a repository
+to `use_default = true` removes a custom template; by itself it does not prove that a
+pre-cutover repository uses the immutable default.
 
 ## Trust conditions
 
-Prefer immutable IDs and the called reusable workflow over mutable names. For example, the
-Terraform-plan provider should conceptually require all of the following:
+Prefer immutable IDs, an explicit provider audience, and the narrowest workflow/environment
+identity. A direct Terraform plan path conceptually requires all of the following:
 
 ```text
 repository_owner_id == <immutable Mindclade organization ID>
-repository_visibility is internal or private
-job_workflow_ref == mindclade/.github/.github/workflows/reusable-tf-plan.yml@refs/tags/v3.0.0
-cloud_access == enabled
-workload_class == infrastructure
+repository_id == <immutable repository ID>
+repository == mindclade/<repository>
+aud == <exact provider audience>
+sub == repo:mindclade@<owner-id>/<repository>@<repository-id>:environment:plan
 ```
 
-Use an equivalent CEL expression in the GCP Workload Identity Provider, for example:
+Use equivalent CEL in the repository-specific GCP Workload Identity Provider, for example:
 
 ```hcl
 attribute_condition = join(" && ", [
   format("assertion.repository_owner_id == '%s'", var.mindclade_github_org_id),
-  "(assertion.repository_visibility == 'internal' || assertion.repository_visibility == 'private')",
-  "assertion.job_workflow_ref == 'mindclade/.github/.github/workflows/reusable-tf-plan.yml@refs/tags/v3.0.0'",
-  "assertion.repo_property_cloud_access == 'enabled'",
-  "assertion.repo_property_workload_class == 'infrastructure'",
+  format("assertion.repository_id == '%s'", var.repository_id),
+  format("assertion.repository == 'mindclade/%s'", var.repository),
+  format("assertion.aud == '%s'", var.provider_audience),
+  format(
+    "assertion.sub == 'repo:mindclade@%s/%s@%s:environment:plan'",
+    var.mindclade_github_org_id,
+    var.repository,
+    var.repository_id,
+  ),
 ])
 ```
 
 The snippet is a policy contract, not a module copied into this repository. `bootstrap` /
 `infrastructure-live` own the concrete provider resources and substitute the immutable
-organization ID. Because `v3.0.0` is protected by GitHub immutable releases/tag policy, the
-workflow ref is a stable trust anchor. `job_workflow_sha` is still mapped for audit evidence
-and may be bound as an additional control where automatic IAM updates are acceptable.
+organization and repository IDs. Service-account bindings further narrow direct apply and
+scheduled read paths to an exact `workflow_ref` on `refs/heads/main`.
 
-For production deployment identities, additionally bind a protected GitHub environment and
-an appropriate `deployment_tier` repository property. Plan/read-only identities should be
-separate from apply/deployment identities.
+The production signer is the exception: its dedicated provider maps `job_workflow_ref` and
+requires the exact released
+`mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0`, the immutable
+monorepo IDs, the `release` environment subject, and the exact audience. Publish and protect
+that immutable release before activating this trust. Never move the tag.
+
+For production deployment identities, additionally bind a protected GitHub environment.
+Plan/read-only identities remain separate from apply/deployment identities.
 
 ## Runtime rules
 
@@ -95,22 +121,24 @@ files are runner-local and disappear when the called job ends. `reusable-wif-aut
 therefore diagnostic only. It safely reports selected OIDC claims, optionally validates the
 immutable owner ID, performs federation, and verifies that GCP accepts an access token.
 
-## Recommended GitHub properties
+## Repository governance properties
 
-Use a small typed vocabulary in `github-config`:
+`github-config` uses typed `mindclade_*` properties for ruleset selection and governance:
 
 | Property | Example values | Purpose |
 |---|---|---|
-| `cloud_access` | `disabled`, `enabled` | Coarse ability to receive any cloud identity |
-| `workload_class` | `application`, `infrastructure`, `release`, `gitops` | Selects allowed identity family |
-| `deployment_tier` | `none`, `dev`, `staging`, `production` | Narrows environment-sensitive roles |
+| `mindclade_repository_class` | `enterprise-control`, `production-control` | Selects governance/ruleset class |
+| `mindclade_owner_team` | `platform`, `infrastructure`, `security` | Records accountable owner |
+| `mindclade_production_authority` | `true`, `false` | Classifies production control-plane authority |
+| `mindclade_ci_profile` | `terraform-control`, `gitops-control` | Selects the required CI profile |
 
-Do not encode secrets, service-account emails, project IDs, or authorization grants in custom
-properties. They are policy labels, not a credential store.
+Do not encode secrets, service-account emails, project IDs, or authorization grants in these
+properties. They are policy labels, not a credential store or an active WIF input.
 
 ## Qualification
 
 Before enabling a new identity, invoke `reusable-wif-auth.yml` with the exact provider and
 service account the workload will use. Pass the immutable GitHub organization ID from an
-organization variable when available. Verify that the summary shows the expected repository,
-visibility, reusable workflow ref/SHA, and repository-property claims.
+organization variable when available. Verify that the summary shows the expected immutable
+owner/repository IDs, ID-bearing subject, audience, workflow/ref, and—only for the signer—the
+expected reusable workflow ref/SHA.

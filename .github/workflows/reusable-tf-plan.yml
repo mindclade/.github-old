@@ -139,7 +139,10 @@ jobs:
         name: Plan
         run: |
           set -euo pipefail
-          args=(-input=false -no-color -lock=false -out=tfplan)
+          # Speculative plans still participate in backend locking. GCS plans create a
+          # short-lived `.tflock` object; the plan identity is granted only conditioned
+          # create/delete access to that lock object, never state-write access.
+          args=(-input=false -no-color -lock-timeout=20m -out=tfplan)
           if [ -n "${{ inputs.var-file }}" ]; then args+=(-var-file="${{ inputs.var-file }}"); fi
           set +e
           terraform plan -detailed-exitcode "${args[@]}"

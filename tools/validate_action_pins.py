@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
 """Require immutable external action refs and controlled Mindclade workflow releases."""
 from __future__ import annotations
 import re

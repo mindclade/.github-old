@@ -137,13 +137,20 @@ After both Buildkite build/provenance and qualification attestations exist,
 - accepts only the digest from the caller;
 - obtains identity, attestors, and KMS key version from governance-managed variables;
 - runs behind the caller repository's protected `release` environment;
-- verifies the distinct Buildkite build/provenance and qualification attestors;
+- cryptographically validates the distinct Buildkite build/provenance and qualification
+  occurrences against their attestors (list results alone are not trusted);
 - authenticates as a dedicated signer service account; and
 - creates or verifies the deployment attestation idempotently.
+
+Google Cloud CLI 580.0.0 still exposes KMS `sign-and-create` in the beta track. The workflow
+pins that CLI version and passes `--validate`; re-qualify the command before every CLI upgrade
+or before switching to a future stable-track spelling.
 
 Bind the signer service account's WIF grant to the exact released `job_workflow_ref`, the
 monorepo's immutable repository identifiers, and the `release` environment subject. Do not
 grant either Buildkite evidence identity access to the signer key or deployment attestor.
+Grant the signer `roles/binaryauthorization.attestorsVerifier`, not the list-only
+`attestorsViewer`, on the three attestor projects.
 The three governed roots use explicit `BINAUTHZ_BUILD_*`, `BINAUTHZ_QUALIFICATION_*`, and
 `BINAUTHZ_DEPLOYMENT_*` variables; do not reuse an attestor across roles.
 
@@ -152,22 +159,26 @@ The three governed roots use explicit `BINAUTHZ_BUILD_*`, `BINAUTHZ_QUALIFICATIO
 `bootstrap` owns root WIF trust. `infrastructure-live` owns normal workload identities.
 `github-config` owns the GitHub-side policy/metadata consumed by those trust conditions.
 
-Define repository custom properties such as:
+Define repository governance properties such as:
 
-- `cloud_access`: `disabled` / `enabled`
-- `workload_class`: `application` / `infrastructure` / `release` / `gitops`
-- `deployment_tier`: `none` / `dev` / `staging` / `production`
+- `mindclade_repository_class`: `enterprise-control` / `production-control` / `source-monorepo`
+- `mindclade_owner_team`: `platform` / `infrastructure` / `security` / domain teams
+- `mindclade_production_authority`: `true` / `false`
+- `mindclade_ci_profile`: `terraform-control` / `terragrunt-control` / `gitops-control`
 
-Configure these properties for inclusion in GitHub Actions OIDC tokens. GCP trust should bind:
+Use them for catalog validation and ruleset targeting; they are not active cloud-authority
+claims. Keep managed repositories on GitHub's immutable default OIDC subject. GCP trust binds:
 
-- immutable `repository_owner_id` rather than only the `Mindclade` string;
-- repository visibility (`internal` or `private`);
-- exact approved `job_workflow_ref` at an immutable release ref;
-- relevant repository custom-property claims;
+- the ID-bearing immutable default `sub` with owner and repository IDs;
+- separately mapped immutable `repository_owner_id` and `repository_id`;
+- the exact repository and provider audience;
+- exact direct `workflow_ref`/ref bindings for repository-local jobs;
+- exact approved `job_workflow_ref` at an immutable release ref for the dedicated signer only;
 - protected environment for apply/deploy identities where applicable.
 
-Map `job_workflow_sha` for evidence and optional stricter binding. Keep plan/read-only,
-apply/deployment, artifact-publisher, and bootstrap/recovery identities separate.
+Map `job_workflow_ref`/`job_workflow_sha` only on providers dedicated to reusable-workflow
+jobs; direct jobs do not carry those optional claims. Keep plan/read-only, apply/deployment,
+artifact-publisher, and bootstrap/recovery identities separate.
 
 See [`WIF.md`](WIF.md) for the concrete claim contract.
 

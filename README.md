@@ -1,5 +1,15 @@
 <!-- mindclade-doc: repository-home@1 -->
 
+<!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/mono-wordmark-dark-1080w.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/brand/mono-wordmark-1080w.png">
+    <img alt="Mindclade." src="docs/assets/brand/mono-wordmark-1080w.png" width="360">
+  </picture>
+</p>
+
 # Mindclade · GitHub Platform
 
 > **Platform Foundation · Shared automation and organization policy**
@@ -26,8 +36,12 @@ organization.
 
 ## Position in the repository estate
 
+The diagram shows the source, governance, trust, and deployment relationships between the
+platform repositories.
+
 ```mermaid
-flowchart LR
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
+flowchart TD
     GH[".github<br/>workflow APIs and contributor UX"]
     GHP[".github-private<br/>member organization profile"]
     GC["github-config<br/>GitHub desired state"]
@@ -49,9 +63,9 @@ flowchart LR
     IL -->|cluster and cloud prerequisites| GO
     MO -->|immutable source and release evidence| GO
 
-    classDef shared fill:#0b1f33,color:#ffffff,stroke:#3aa3ff,stroke-width:2px;
-    classDef control fill:#e8f4ff,color:#0b1f33,stroke:#1677b8,stroke-width:1.5px;
-    classDef source fill:#f4f7fa,color:#0b1f33,stroke:#66788a,stroke-width:1.5px;
+    classDef shared fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:2px;
+    classDef control fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
+    classDef source fill:#FBFAF7,color:#423D48,stroke:#5B5660,stroke-width:1.5px;
     class GH,GHP shared;
     class GC,BS,IL,GO control;
     class MO source;
@@ -105,7 +119,7 @@ second is the directory inside it.
 | `reusable-uv-ci.yml` | Locked uv sync, Ruff, Pyright, pytest |
 | `reusable-rust-ci.yml` | rustfmt, locked metadata, Clippy, tests, cargo-deny |
 | `reusable-codeql.yml` | Matrix CodeQL analysis |
-| `reusable-tf-plan.yml` | WIF auth, fmt/init/validate, TFLint, Checkov, non-retained plan review |
+| `reusable-tf-plan.yml` | WIF auth, fmt/init/validate, bounded state locking, TFLint, Checkov, non-retained plan review |
 | `reusable-oci-build.yml` | Docker/Bazel OCI build, SBOM, GitHub SLSA provenance + SBOM attestations, and linked-artifact record; cannot issue a deployment attestation |
 | `reusable-binauthz-sign.yml` | Release-gated deployment attestation after distinct Buildkite build/provenance and qualification evidence |
 | `reusable-wif-auth.yml` | OIDC-claim/WIF preflight; credentials intentionally do not escape its job |
@@ -145,12 +159,13 @@ comments are enabled) `pull-requests: write`; OCI publication callers additional
 
 `bootstrap` creates the root GitHub↔GCP trust anchor. `infrastructure-live` creates normal
 workload-specific identities. `github-config` publishes provider/service-account identifiers,
-repository custom properties, environments, and OIDC claim policy. These workflows consume
-that trust.
+immutable repository metadata, protected environments, and OIDC subject policy. These
+workflows consume that trust.
 
-GCP conditions should bind immutable `repository_owner_id`, private/internal visibility,
-`job_workflow_ref` for the approved released workflow, and repository custom-property claims
-such as `cloud_access`. See [`docs/WIF.md`](docs/WIF.md).
+GCP conditions bind the ID-bearing immutable default subject, immutable owner/repository IDs,
+an explicit provider audience, and exact workflow/ref constraints. The dedicated production
+signer additionally binds `job_workflow_ref` for the approved released workflow. See
+[`docs/WIF.md`](docs/WIF.md).
 
 ## Workflow contracts
 

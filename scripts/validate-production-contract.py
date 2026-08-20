@@ -23,7 +23,16 @@ def repository_paths() -> list[Path]:
     """Return version-controlled paths in a checkout, or all paths in an exported tree."""
     if (ROOT / ".git").exists():
         result = subprocess.run(
-            ["git", "-C", str(ROOT), "ls-files", "-z"],
+            [
+                "git",
+                "-C",
+                str(ROOT),
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "-z",
+            ],
             check=True,
             capture_output=True,
         )
@@ -43,6 +52,8 @@ def tracked_prefix_exists(relative: str) -> bool:
     return prefix in TRACKED_RELATIVE or any(path.startswith(prefix + "/") for path in TRACKED_RELATIVE)
 
 repository_contract = (ROOT / "contracts/repository.yaml").read_text("utf-8", errors="ignore")
+if "repository_class: enterprise-control" not in repository_contract or "merge_queue: false" not in repository_contract:
+    error("enterprise-control repository contract must not claim merge-queue enforcement")
 for canonical_url in (
     "https://github.com/enterprises/mindclade",
     "https://github.com/mindclade",

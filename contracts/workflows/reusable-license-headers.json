@@ -6,7 +6,7 @@
       "type": "string"
     },
     "script": {
-      "default": "scripts/license-header-check.sh",
+      "default": "scripts/license-header-check.py",
       "required": false,
       "type": "string"
     }
