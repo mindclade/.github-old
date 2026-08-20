@@ -17,10 +17,19 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   Existing v4 tags and callers remain immutable until an explicitly reviewed v5 release is
   published and consumers update their pins.
 
+## v4.1.0
+
+### Added
+
+- Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
+- Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
+
 ## v4.0.0
 
 ### Added
 
+- Added the reusable Nix qualification contract with locked x86_64-linux checks, internal
+  change detection, isolated CI-shell validation, and an always-present verdict job.
 - Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
   disaster-recovery evidence workflows with versioned machine contracts.
 - Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for

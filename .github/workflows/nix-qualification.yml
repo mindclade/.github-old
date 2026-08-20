@@ -1,0 +1,27 @@
+---
+name: Nix qualification
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+  schedule:
+    - cron: '11 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-qualification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nix:
+    name: nix
+    uses: ./.github/workflows/reusable-nix-qualification.yml
+    with:
+      watch-path-regex: '(^|/)(flake\.nix|flake\.lock|[^/]+\.nix)$|^\.github/workflows/.*nix.*\.ya?ml$|^contracts/workflows/reusable-nix-qualification\.json$|^tools/check_workflow_contracts\.py$'
+      ci-command: make validate
+      enable-aarch64-linux: true
+      enable-aarch64-darwin: true
+      reproducibility-targets: .#packages.x86_64-linux.actionlint

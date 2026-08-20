@@ -61,6 +61,7 @@ REQUIRED = {
     "BLUEPRINT.md",
     ".github/workflows/reusable-license-headers.yml",
     ".github/workflows/reusable-nix-flake.yml",
+    ".github/workflows/reusable-nix-qualification.yml",
     ".github/workflows/reusable-terraform-validate.yml",
     ".github/workflows/reusable-terragrunt-plan.yml",
     ".github/workflows/reusable-artifact-verification.yml",
