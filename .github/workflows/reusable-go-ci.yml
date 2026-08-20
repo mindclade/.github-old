@@ -99,6 +99,20 @@ jobs:
           awk -v p="$pct" -v t="${{ inputs.coverage-threshold }}" \
             'BEGIN { if (p+0 < t+0) { printf "::error::coverage %.1f%% is below threshold %s%%\n", p, t; exit 1 } }'
 
+      - name: Derive portable coverage artifact name
+        id: coverage-artifact
+        if: always()
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        run: |
+          set -euo pipefail
+          if [ "${WORKING_DIRECTORY}" = "." ]; then
+            suffix="root"
+          else
+            suffix="$(printf '%s' "${WORKING_DIRECTORY}" | tr -c 'A-Za-z0-9._-' '-')"
+          fi
+          printf 'name=go-coverage-%s\n' "${suffix}" >> "${GITHUB_OUTPUT}"
+
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         if: always()
         with:
@@ -106,7 +120,7 @@ jobs:
           # constant, so a monorepo caller invoking this twice for two modules produced two
           # uploads named identically — which upload-artifact v4+ rejects outright rather
           # than merging. Slashes are not legal in an artifact name.
-          name: go-coverage-${{ inputs.working-directory == '.' && 'root' || inputs.working-directory }}
+          name: ${{ steps.coverage-artifact.outputs.name }}
           path: ${{ inputs.working-directory }}/coverage.out
           retention-days: 7
           if-no-files-found: ignore
