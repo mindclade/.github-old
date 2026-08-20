@@ -320,6 +320,55 @@ def main() -> int:
             fail(errors, f"{name} does not perform an exact source checkout")
         if "ref: ${{ github.sha }}" not in arc_workflows[name]:
             fail(errors, f"{name} does not pin checkout to the platform SHA")
+        if (
+            "cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342"
+            not in arc_workflows[name]
+            or "install_options: --no-daemon" not in arc_workflows[name]
+        ):
+            fail(errors, f"{name} does not provision pinned Nix for its ARC container")
+
+    expected_arc_runner_labels = {
+        "reusable-arc-wif-canary.yml": "mindclade-arc-canary",
+        "reusable-arc-oci-build.yml": "mindclade-arc-build-cpu",
+        "reusable-arc-oci-qualify.yml": "mindclade-arc-qualify-cpu",
+        "reusable-arc-qualification-attest.yml": "mindclade-arc-qualify-cpu",
+    }
+    for name, runner_label in expected_arc_runner_labels.items():
+        if f"runs-on: {runner_label}" not in arc_workflows[name]:
+            fail(
+                errors,
+                f"{name} does not use its provisioned ARC scale-set label: {runner_label}",
+            )
+
+    builder_workflow = arc_workflows["reusable-arc-oci-build.yml"]
+    for required_builder_value in (
+        "vars.ARTIFACT_REGISTRY_HOST",
+        "vars.CI_PROJECT_ID",
+        "vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT",
+        "vars.BINAUTHZ_BUILD_ATTESTOR",
+        "vars.BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION",
+        'gcloud auth configure-docker "$ARTIFACT_REGISTRY_HOST" --quiet',
+    ):
+        if required_builder_value not in builder_workflow:
+            fail(
+                errors,
+                "ARC builder does not export/configure required immutable release value: "
+                f"{required_builder_value}",
+            )
+
+    promoter_workflow = arc_workflows["reusable-gitops-promote.yml"]
+    for required_promoter_value in (
+        "[ \"$GITHUB_REPOSITORY\" = mindclade/mindclade-internal-monorepo ]",
+        "google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db",
+        'version: "580.0.0"',
+        "cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342",
+        "nix develop .#ci --command python3 scripts/create-release-promotion.py",
+    ):
+        if required_promoter_value not in promoter_workflow:
+            fail(
+                errors,
+                f"GitOps promoter lacks an exact runtime prerequisite: {required_promoter_value}",
+            )
 
     for markdown in sorted(ROOT.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")

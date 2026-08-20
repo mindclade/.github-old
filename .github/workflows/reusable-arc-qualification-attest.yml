@@ -20,7 +20,10 @@ permissions:
 
 jobs:
   attest:
-    runs-on: mindclade-arc-qualify-attest
+    # Qualification and qualification-attestation share the isolated CPU scale set; their
+    # cloud authorities remain separate because each reusable workflow has an exact WIF
+    # provider, subject prefix, job_workflow_ref, and service account.
+    runs-on: mindclade-arc-qualify-cpu
     timeout-minutes: 20
     permissions:
       actions: read
@@ -41,6 +44,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          install_options: --no-daemon
 
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5
         with:

@@ -35,6 +35,10 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          install_options: --no-daemon
+
       - name: Verify exact checkout before cloud authentication
         env:
           EXPECTED_SHA: ${{ github.sha }}

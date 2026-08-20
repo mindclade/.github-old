@@ -58,6 +58,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          # ARC runners are ephemeral containers without an init system.
+          install_options: --no-daemon
+
       - name: Verify exact checkout before cloud authentication
         env:
           EXPECTED_SHA: ${{ github.sha }}
@@ -93,9 +98,25 @@ jobs:
         with:
           version: "580.0.0"
 
+      - name: Configure the exact Artifact Registry credential helper
+        env:
+          ARTIFACT_REGISTRY_HOST: ${{ vars.ARTIFACT_REGISTRY_HOST }}
+        run: |
+          set -euo pipefail
+          [[ "$ARTIFACT_REGISTRY_HOST" =~ ^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev$ ]] || {
+            echo "::error::ARTIFACT_REGISTRY_HOST is absent or malformed"
+            exit 1
+          }
+          gcloud auth configure-docker "$ARTIFACT_REGISTRY_HOST" --quiet
+
       - name: Build, publish, and attest candidate
         env:
           REQUEST_PATH: ${{ inputs.request-path }}
+          ARTIFACT_REGISTRY_HOST: ${{ vars.ARTIFACT_REGISTRY_HOST }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          BINAUTHZ_BUILD_ATTESTOR_PROJECT: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT }}
+          BINAUTHZ_BUILD_ATTESTOR: ${{ vars.BINAUTHZ_BUILD_ATTESTOR }}
+          BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION: ${{ vars.BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION }}
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/release-candidate"

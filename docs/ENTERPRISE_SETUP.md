@@ -190,6 +190,11 @@ Publish only identity references and non-secret configuration as variables, for 
 - `WIF_PROVIDER_PLAN`
 - `SA_TF_PLAN`
 - `WIF_PROVIDER_SIGNER` and `SA_ARTIFACT_SIGNER`
+- `WIF_PROVIDER_ARC_CANARY` and `SA_ARC_CANARY`
+- `WIF_PROVIDER_ARC_BUILDER` and `SA_ARTIFACT_BUILDER`
+- `WIF_PROVIDER_ARC_QUALIFICATION_READER` and `SA_ARTIFACT_QUALIFICATION_READER`
+- `WIF_PROVIDER_ARC_QUALIFIER` and `SA_ARTIFACT_QUALIFIER`
+- `WIF_PROVIDER_ARC_PROMOTER` and `SA_ARTIFACT_PROMOTER`
 - qualification and deployment attestor projects/names plus an immutable KMS key version
 - environment-specific Artifact Registry and Binary Authorization identifiers
 
@@ -203,6 +208,14 @@ The optional consumer-pin audit uses a GitHub App:
 When those values are absent, the optional audit skips cleanly.
 
 Never store a GCP service-account key.
+
+Create runner group `mindclade-arc-artifact-authority` as selected/private, allow only
+`mindclade-internal-monorepo`, and restrict it to
+`mindclade/mindclade-internal-monorepo/.github/workflows/release.yml@refs/heads/main`. Install
+the `mindclade-arc` GitHub App only on that repository with organization self-hosted-runners
+write and repository Actions/metadata read. Install `mindclade-release-promoter` only on
+`gitops` with contents and pull-requests write plus metadata read. These installations are
+connected controls and must be verified against `github-config` before enabling WIF.
 
 ## 10. Inheritance boundaries
 
