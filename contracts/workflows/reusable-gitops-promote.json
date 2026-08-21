@@ -1,5 +1,9 @@
 {
   "inputs": {
+    "application": {
+      "required": true,
+      "type": "string"
+    },
     "image-ref": {
       "required": true,
       "type": "string"
@@ -22,6 +26,10 @@
     },
     "rollback-digest": {
 >>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
+      "required": true,
+      "type": "string"
+    },
+    "release-kind": {
       "required": true,
       "type": "string"
     }

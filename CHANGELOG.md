@@ -14,7 +14,9 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 - **Breaking (publish as v5.0.0):** `reusable-gitops-promote.yml` replaces the ambiguous
   `rollback-digest` input with the exact `previous-release-id` and
-  `previous-subject-digest` lineage pair required by the GitOps v1beta1 promotion contract.
+  `previous-subject-digest` lineage pair, and requires the closed-catalog `application` and
+  `release-kind` identity required by the GitOps v1beta1 promotion contract. The workflow
+  rejects a previous release that is not numerically older than the candidate.
   Existing v4 tags and callers remain immutable until an explicitly reviewed v5 release is
   published and consumers update their pins.
 
