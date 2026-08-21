@@ -37,7 +37,6 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   disaster-recovery evidence workflows with versioned machine contracts.
 - Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for
   the production artifact-authority path.
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 
 ### Changed
 

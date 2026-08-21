@@ -92,7 +92,6 @@ The snippet is a policy contract, not a module copied into this repository. `boo
 organization and repository IDs. Service-account bindings further narrow direct apply and
 scheduled read paths to an exact `workflow_ref` on `refs/heads/main`.
 
-<<<<<<< HEAD
 The production ARC lane uses one provider per capability: canary, builder,
 qualification-reader, qualifier, signer, and promoter. Every provider requires the immutable
 monorepo IDs, the exact `release.yml@refs/heads/main` caller, `push`, protected main, its own
@@ -100,19 +99,6 @@ provider audience, and its exact `.github` v4 reusable workflow. The signer and 
 require the protected `release` environment subject. Non-signer capability subjects are
 prefixed in `google.subject` so the same GitHub token subject cannot collide across providers.
 Publish and protect v4.0.0 before activating any provider; never move the tag.
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-The production signer is the exception: its dedicated provider maps `job_workflow_ref` and
-requires the exact released
-`mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0`, the immutable
-monorepo IDs, the `release` environment subject, and the exact audience. Publish and protect
-that immutable release before activating this trust. Never move the tag.
-=======
-The production signer is the exception: its dedicated provider maps `job_workflow_ref` and
-requires the exact released
-`mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0`, the immutable
-monorepo IDs, the `release` environment subject, and the exact audience. Publish and protect
-that immutable release before activating this trust. Never move the tag.
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 
 For production deployment identities, additionally bind a protected GitHub environment.
 Plan/read-only identities remain separate from apply/deployment identities.
