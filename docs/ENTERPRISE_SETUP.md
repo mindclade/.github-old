@@ -231,7 +231,7 @@ duplicate the profile body in this repository.
 `CODEOWNERS`, rulesets, environments, variables, secrets, repository custom properties, and
 required checks do not inherit from this repository; `github-config` owns them.
 
-## 11. Initial production release
+## 11. Deferred v4 production release
 
 From a clean checkout:
 
@@ -242,24 +242,11 @@ nix develop .#ci --command actionlint -color
 nix develop .#ci --command yamllint --strict .
 ```
 
-Push `main`, enable rulesets/immutable releases, let repository workflows pass, then create the
-first production contract:
-
-```sh
-release_sha="$(python3 -c 'import json,pathlib
-print(json.loads(pathlib.Path("contracts/releases/v4.0.0.json").read_text())["source_commit"])')"
-test "${#release_sha}" -eq 40
-git merge-base --is-ancestor "${release_sha}" origin/main
-git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4" "${release_sha}"
-git push origin v4.0.0
-```
-
-The tag names the manifest's `source_commit` explicitly. Tagging the checkout instead publishes
-whichever tree `main` currently holds, which is not necessarily the reviewed one.
-
-Starter workflows intentionally reference `v4.0.0`; they become usable after this release.
-Do not create the tag before `main` protection and organization immutable-release enforcement
-are active.
+The v4 production contract is not published. Starter workflows and active policy remain pinned
+to `v3.0.0`. A separate coordinated release PR must record evidence for the final protected-main
+commit before an authorized operator creates any v4 tag. Follow
+[Workflow release bootstrap](workflow-release-bootstrap.md); never use an intermediate branch
+commit as release evidence.
 
 ## 12. Operational prerequisites
 
