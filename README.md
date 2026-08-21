@@ -106,14 +106,8 @@ flowchart LR
 Treat reusable workflow inputs, secrets, outputs, job IDs, and permissions as public APIs.
 Update the matching contract snapshot and changelog for intentional interface changes, pass
 offline and smoke qualification, then let an operator publish a new immutable full-semver
-<<<<<<< HEAD
 release. Reusable-workflow consumers adopt its full-semver tag; composite-action consumers use
 the full commit SHA behind that release. Both move through separately reviewed pin updates.
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-See [`docs/ENTERPRISE_SETUP.md`](docs/ENTERPRISE_SETUP.md) before the initial push/release.
-=======
-release. Consumers adopt it through separately reviewed pin updates.
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 
 ## Documentation and support
 

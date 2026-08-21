@@ -125,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           branch="promotion/${RELEASE_ID}-${SOURCE_SHA:0:12}"
-          python3 scripts/create-release-promotion.py \
+          nix develop .#ci --command python3 scripts/create-release-promotion.py \
             --release-id "$RELEASE_ID" \
             --application "$APPLICATION" \
             --release-kind "$RELEASE_KIND" \
