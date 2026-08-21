@@ -4,7 +4,6 @@
       "required": true,
       "type": "string"
     },
-<<<<<<< HEAD
     "previous-release-id": {
       "required": true,
       "type": "string"
@@ -14,14 +13,6 @@
       "type": "string"
     },
     "release-id": {
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-    "release-id": {
-      "required": true,
-      "type": "string"
-    },
-    "rollback-digest": {
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
       "required": true,
       "type": "string"
     }

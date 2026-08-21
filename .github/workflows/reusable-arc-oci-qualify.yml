@@ -35,7 +35,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-<<<<<<< HEAD
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
           install_options: --no-daemon
@@ -49,17 +48,6 @@ jobs:
           [ "$GITHUB_EVENT_NAME" = push ] || exit 1
           [ "$GITHUB_REF" = refs/heads/main ] || exit 1
           [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-      - name: Verify exact checkout before cloud authentication
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          [ "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_SHA" ] || exit 1
-          [ "$GITHUB_EVENT_NAME" = push ] || exit 1
-          [ "$GITHUB_REF" = refs/heads/main ] || exit 1
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5
         with:

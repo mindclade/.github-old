@@ -10,7 +10,6 @@ on:
       release-id:
         required: true
         type: string
-<<<<<<< HEAD
       previous-release-id:
         required: true
         type: string
@@ -114,96 +113,6 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --previous-release-id "$PREVIOUS_RELEASE_ID" \
             --previous-subject-digest "$PREVIOUS_SUBJECT_DIGEST"
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-      rollback-digest:
-        required: true
-        type: string
-
-permissions:
-  contents: read
-
-jobs:
-  promote:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    environment: release
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Validate immutable promotion input
-        env:
-          IMAGE_REF: ${{ inputs.image-ref }}
-          RELEASE_ID: ${{ inputs.release-id }}
-          ROLLBACK_DIGEST: ${{ inputs.rollback-digest }}
-        run: |
-          set -euo pipefail
-          [[ "$IMAGE_REF" =~ @sha256:[0-9a-f]{64}$ ]] || exit 1
-          [[ "$RELEASE_ID" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-          [[ "$ROLLBACK_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
-          [ "$GITHUB_EVENT_NAME" = push ] || exit 1
-          [ "$GITHUB_REF" = refs/heads/main ] || exit 1
-
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
-        with:
-          workload_identity_provider: ${{ vars.WIF_PROVIDER_ARC_PROMOTER }}
-          service_account: ${{ vars.SA_ARTIFACT_PROMOTER }}
-          project_id: ${{ vars.CI_PROJECT_ID }}
-          create_credentials_file: true
-          export_environment_variables: true
-
-      - id: promoter-key
-        name: Read the one authorized promoter App key version
-        env:
-          PROJECT: ${{ vars.ARC_PROMOTER_SECRET_PROJECT }}
-          SECRET: ${{ vars.ARC_PROMOTER_PRIVATE_KEY_SECRET }}
-          VERSION: ${{ vars.ARC_PROMOTER_PRIVATE_KEY_VERSION }}
-        run: |
-          set -euo pipefail
-          key="$(gcloud secrets versions access "$VERSION" \
-            --project="$PROJECT" --secret="$SECRET")"
-          [ -n "$key" ] || { echo "::error::promoter App key is empty"; exit 1; }
-          echo "::add-mask::$key"
-          {
-            echo 'private-key<<MINDCLADE_APP_KEY'
-            printf '%s\n' "$key"
-            echo 'MINDCLADE_APP_KEY'
-          } >> "$GITHUB_OUTPUT"
-
-      - id: app-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
-        with:
-          app-id: ${{ vars.ARC_PROMOTER_APP_ID }}
-          private-key: ${{ steps.promoter-key.outputs.private-key }}
-          owner: mindclade
-          repositories: gitops
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          repository: mindclade/gitops
-          ref: main
-          path: gitops
-          token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: true
-
-      - name: Open a review-only promotion pull request
-        working-directory: gitops
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          IMAGE_REF: ${{ inputs.image-ref }}
-          RELEASE_ID: ${{ inputs.release-id }}
-          ROLLBACK_DIGEST: ${{ inputs.rollback-digest }}
-          SOURCE_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          branch="promotion/${RELEASE_ID}-${SOURCE_SHA:0:12}"
-          python3 scripts/create-release-promotion.py \
-            --release-id "$RELEASE_ID" \
-            --image-ref "$IMAGE_REF" \
-            --source-sha "$SOURCE_SHA" \
-            --rollback-digest "$ROLLBACK_DIGEST"
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
           git config user.name 'mindclade-release-promoter[bot]'
           git config user.email 'mindclade-release-promoter[bot]@users.noreply.github.com'
           git switch -c "$branch"

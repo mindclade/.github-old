@@ -11,28 +11,12 @@
     { nixpkgs, ... }:
     let
       # The shared-workflow repository is developed on Apple Silicon and executes on
-<<<<<<< HEAD
       # Linux/amd64 in GitHub Actions. Keep the production-qualified native ARM systems
       # evaluable for consumers as well.
       systems = [
         "x86_64-linux"
         "aarch64-linux"
         "aarch64-darwin"
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-=======
-      # Linux/amd64 in GitHub Actions. Keep the other Nixpkgs-supported systems evaluable so
-      # consumers can lint workflow changes from Linux/arm64 and Intel macOS through the final
-      # supported Nixpkgs release for that platform.
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       perSystem =

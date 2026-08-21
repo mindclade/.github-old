@@ -45,11 +45,7 @@ REQUIRED = {
     "actions/validate-repository-home/action.yml",
     "actions/validate-repository-home/README.md",
     "actions/validate-repository-home/validate.py",
-<<<<<<< HEAD
     "contracts/releases/v4.0.0.json",
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
@@ -78,14 +74,9 @@ REQUIRED = {
     ".github/workflows/reusable-dr-evidence.yml",
     "schemas/drill-report-v2.schema.json",
     "tools/validate_drill_report.py",
-<<<<<<< HEAD
     "tools/validate_release_readiness.py",
     "tests/test_drill_report.py",
     "tests/test_release_readiness.py",
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-    "tests/test_drill_report.py",
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 }
 
 TEXT_SUFFIXES = {
@@ -328,7 +319,6 @@ def main() -> int:
         for required_claim in ("= push ]", "= refs/heads/main ]"):
             if required_claim not in text:
                 fail(errors, f"{name} lacks trusted-main runtime check: {required_claim}")
-<<<<<<< HEAD
         if "mindclade/mindclade-internal-monorepo" not in text:
             fail(errors, f"{name} lacks the exact artifact-authority repository check")
         if "workflow_dispatch:" in text or "repository_dispatch:" in text:
@@ -392,21 +382,6 @@ def main() -> int:
                 errors,
                 f"GitOps promoter lacks an exact runtime prerequisite: {required_promoter_value}",
             )
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-        if "workflow_dispatch:" in text or "repository_dispatch:" in text:
-            fail(errors, f"{name} exposes a manual/API authority trigger")
-
-    for name in (
-        "reusable-arc-oci-build.yml",
-        "reusable-arc-oci-qualify.yml",
-        "reusable-arc-qualification-attest.yml",
-    ):
-        if "actions/checkout@" not in arc_workflows[name]:
-            fail(errors, f"{name} does not perform an exact source checkout")
-        if "ref: ${{ github.sha }}" not in arc_workflows[name]:
-            fail(errors, f"{name} does not pin checkout to the platform SHA")
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 
     for markdown in sorted(ROOT.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")
