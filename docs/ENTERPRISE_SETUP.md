@@ -246,7 +246,12 @@ Push `main`, enable rulesets/immutable releases, let repository workflows pass, 
 first production contract:
 
 ```sh
-git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4"
+release_sha="$(
+  python3 -c 'import json; print(json.load(open("contracts/releases/v4.0.0.json"))["source_commit"])'
+)"
+test "${#release_sha}" -eq 40
+git merge-base --is-ancestor "${release_sha}" origin/main
+git tag -a v4.0.0 "${release_sha}" -m "Mindclade ARC artifact-authority workflow foundation v4"
 git push origin v4.0.0
 ```
 
