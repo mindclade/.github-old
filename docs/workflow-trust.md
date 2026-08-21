@@ -15,7 +15,7 @@ credential path.
 
 | Control | Required behavior | Evidence |
 | --- | --- | --- |
-| Release identity | Consumer pins an immutable full semantic version such as `v4.0.0` | Protected tag and immutable GitHub Release |
+| Release identity | Consumer pins an existing immutable full semantic version such as `v3.0.0` | Protected tag and immutable GitHub Release |
 | Caller permissions | Caller grants only the permissions the called job needs | Caller job and workflow contract snapshot |
 | Third-party actions | Every external action uses a full commit SHA | Pin validator and organization Actions policy |
 | Cloud authentication | Job exchanges GitHub OIDC through the approved WIF provider | Exact repository, workflow, ref, environment, and audience conditions |

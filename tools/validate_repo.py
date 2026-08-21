@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 ORG = "mindclade"
-RELEASE = "v4.0.0"
+RELEASE = "v3.0.0"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SEMVER_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", re.MULTILINE)
@@ -45,7 +45,6 @@ REQUIRED = {
     "actions/validate-repository-home/action.yml",
     "actions/validate-repository-home/README.md",
     "actions/validate-repository-home/validate.py",
-    "contracts/releases/v4.0.0.json",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
@@ -74,9 +73,7 @@ REQUIRED = {
     ".github/workflows/reusable-dr-evidence.yml",
     "schemas/drill-report-v2.schema.json",
     "tools/validate_drill_report.py",
-    "tools/validate_release_readiness.py",
     "tests/test_drill_report.py",
-    "tests/test_release_readiness.py",
 }
 
 TEXT_SUFFIXES = {
@@ -419,17 +416,6 @@ def main() -> int:
     if contract_check.returncode != 0:
         detail = contract_check.stderr.strip() or contract_check.stdout.strip()
         fail(errors, f"workflow contract validation failed: {detail}")
-
-    release_check = subprocess.run(
-        [sys.executable, str(ROOT / "tools" / "validate_release_readiness.py")],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if release_check.returncode != 0:
-        detail = release_check.stderr.strip() or release_check.stdout.strip()
-        fail(errors, f"release readiness validation failed: {detail}")
 
     if errors:
         print("repository validation failed:", file=sys.stderr)

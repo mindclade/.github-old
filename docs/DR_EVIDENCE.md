@@ -32,7 +32,8 @@ record; GCS is the durable archive.
 ---
 jobs:
   evidence:
-    uses: mindclade/.github/.github/workflows/reusable-dr-evidence.yml@v4.0.0
+    # Replace only after a coordinated immutable release publishes this workflow.
+    uses: mindclade/.github/.github/workflows/reusable-dr-evidence.yml@<published-release-tag>
     with:
       report-path: drills/reports/staging-gke-20260820.json
       environment: staging

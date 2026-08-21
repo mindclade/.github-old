@@ -15,7 +15,8 @@
 - Create the `platform` and `security` teams before enabling CODEOWNERS enforcement.
 - Keep consumer repositories pinned to their existing workflow release until qualification is
   complete.
-- Do not create `v4.0.0` before tag protection and immutable-release enforcement are active.
+- Do not create a v4 tag before the coordinated release-evidence review, tag protection, and
+  immutable-release enforcement are complete.
 
 ## Import and validate
 
@@ -46,14 +47,14 @@ required WIF negative authorization tests are qualified.
 
 ## Publish the first production contract
 
-Follow [Workflow release bootstrap](workflow-release-bootstrap.md). The current first
-production contract is `v4.0.0`; the older `v1` bootstrap language is obsolete.
+Continue using the published `v3.0.0` contract. The v4 source on main is quarantined until the
+separate process in [Workflow release bootstrap](workflow-release-bootstrap.md) completes.
 
 ## Verify
 
-- `v4.0.0` points to the reviewed `main` commit and is an annotated tag.
-- The GitHub Release is published and protected by immutable-release policy.
-- Starter workflows reference `@v4.0.0`.
+- `v3.0.0` remains the active immutable consumer contract.
+- No v4 tag or release manifest exists before connected qualification.
+- Starter workflows reference `@v3.0.0`.
 - `python3 tools/check_workflow_contracts.py` still matches every checked-in snapshot.
 - A representative consumer can call a non-cloud reusable workflow from the release.
 

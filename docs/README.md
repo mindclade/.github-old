@@ -14,7 +14,7 @@
 | Consume or change a reusable workflow | [Workflow contracts](WORKFLOW_CONTRACTS.md) | Preserve caller-visible APIs and choose the correct release level |
 | Configure cloud federation | [OIDC and WIF contract](WIF.md) | Bind workflow identity to narrowly scoped Google Cloud access |
 | Publish disaster-recovery evidence | [DR evidence contract](DR_EVIDENCE.md) | Validate a measured report and retain immutable GCS and GitHub copies |
-| Publish the ARC production contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify and publish the immutable `v4.0.0` baseline |
+| Prepare the deferred ARC contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify a future immutable v4 release without treating source as published |
 
 ## Getting started
 

@@ -53,9 +53,10 @@ request with the intended semver release documented in `CHANGELOG.md`.
 
 ## Release references
 
-Starter workflows intentionally pin `v4.0.0`, the ARC artifact-authority contract of this
-repository. Subsequent consumers may be upgraded by Renovate, but moving an existing release
-tag is forbidden. Publish a new patch/minor/major release instead.
+Starter workflows intentionally remain pinned to the published `v3.0.0` contract. The ARC
+artifact-authority work is candidate source only; no caller may adopt it until a separate,
+reviewed v4 release is published from the final protected-main commit. Moving an existing
+release tag is forbidden. Publish a new patch/minor/major release instead.
 
 The unreleased GitOps promoter interface is a planned `v5.0.0` breaking change: callers provide
 `application`, `release-kind`, `previous-release-id`, and `previous-subject-digest`. The exact
@@ -71,12 +72,12 @@ infrastructure WIF workflow identity has been reviewed.
 `nix / verdict`. Pull requests without Nix-owned changes still reach that verdict, while
 merge queues, manual runs, and weekly schedules always execute qualification.
 
-The v4.0 `reusable-nix-flake.yml` contract establishes a locked, runner-selectable flake
-check. The v4.1 `reusable-nix-qualification.yml` contract adds internal change detection,
+The draft v4.0 `reusable-nix-flake.yml` contract establishes a locked, runner-selectable flake
+check. The draft v4.1 `reusable-nix-qualification.yml` contract adds internal change detection,
 isolated CI-shell validation, an always-present verdict, native aarch64-linux and
 aarch64-darwin runners, and two independent x86_64-linux rebuilds whose derivations, store
 paths, and SRI output hashes must agree.
-Consumers must move to `@v4.1.0` only after an operator publishes that immutable release;
+Consumers may move to `@v4.1.0` only after an operator publishes that immutable release;
 neither this documentation nor a branch commit creates or moves a release tag.
 
 Nix owns host tooling and reproducibility evidence. Bazel remains authoritative for the
