@@ -92,13 +92,10 @@ The snippet is a policy contract, not a module copied into this repository. `boo
 organization and repository IDs. Service-account bindings further narrow direct apply and
 scheduled read paths to an exact `workflow_ref` on `refs/heads/main`.
 
-The production ARC lane uses one provider per capability: canary, builder,
-qualification-reader, qualifier, signer, and promoter. Every provider requires the immutable
-monorepo IDs, the exact `release.yml@refs/heads/main` caller, `push`, protected main, its own
-provider audience, and its exact `.github` v4 reusable workflow. The signer and promoter also
-require the protected `release` environment subject. Non-signer capability subjects are
-prefixed in `google.subject` so the same GitHub token subject cannot collide across providers.
-Publish and protect v4.0.0 before activating any provider; never move the tag.
+The proposed ARC lane remains quarantined until its coordinated v4 release. Its capability
+providers, reusable-workflow identities, and protected-environment subjects are design inputs,
+not active trust. Publish and protect an independently qualified v4 release before introducing
+or activating any of those providers; never bind cloud IAM to unpublished workflow source.
 
 For production deployment identities, additionally bind a protected GitHub environment.
 Plan/read-only identities remain separate from apply/deployment identities.

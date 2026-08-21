@@ -47,9 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Release-readiness manifests intentionally attest a prior source commit. A
-          # depth-one PR merge checkout contains neither that commit nor its tree.
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Validate repository structure and pins

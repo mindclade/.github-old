@@ -16,10 +16,10 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   `previous-subject-digest` lineage pair, and requires the closed-catalog `application` and
   `release-kind` identity required by the GitOps v1beta1 promotion contract. The workflow
   rejects a previous release that is not numerically older than the candidate.
-  Existing v4 tags and callers remain immutable until an explicitly reviewed v5 release is
-  published and consumers update their pins.
+  The planned v4 contract remains unpublished; no consumer may adopt this change until an
+  explicitly reviewed immutable release is published.
 
-## v4.1.0
+## Unreleased v4.1.0 draft
 
 ### Added
 
@@ -28,7 +28,7 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
 - Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
 
-## v4.0.0
+## Unreleased v4.0.0 draft
 
 ### Added
 

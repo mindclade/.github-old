@@ -82,7 +82,7 @@
               echo "  actionlint         # what hygiene.yml runs"
               echo "  yamllint ."
               echo
-              echo "  Reusable workflows here are consumed BY TAG (@v4.0.0). Changing one and"
+              echo "  Reusable workflows here are consumed BY TAG (currently @v3.0.0). Changing one and"
               echo "  not cutting a tag changes nothing for any consumer."
             '';
           };
