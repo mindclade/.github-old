@@ -19,6 +19,10 @@
     "release-id": {
       "required": true,
       "type": "string"
+    },
+    "release-kind": {
+      "required": true,
+      "type": "string"
     }
   },
   "job_permissions": {
