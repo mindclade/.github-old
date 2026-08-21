@@ -43,6 +43,23 @@ The operating invariant is:
 
 > **The monorepo produces immutable artifacts. Bootstrap establishes durable trust. Infrastructure-live produces cloud infrastructure. GitOps declares what runs. Argo CD reconciles it. GitHub-config governs who and what may change the system. The `.github` repository provides shared workflow implementations without becoming a second policy source. The private member profile provides navigation without becoming a control plane.**
 
+### 1.1 U.S. residency profile
+
+The approved deployment profile is `us-only-v1`. It fixes the primary regional control and data
+plane to `us-central1`, the zonal GPU contract to `us-central1-b`, and the independent recovery
+plane to `us-east4` with optional recovery GPU capacity in `us-east4-b`. Terraform state uses the
+`US` multi-region with an independent `us-east4` recovery copy. Primary and recovery artifact
+registries are `us-central1-docker.pkg.dev` and `us-east4-docker.pkg.dev`.
+
+`infrastructure-live` owns the organization-level `gcp.resourceLocations` allowlist using
+`in:us-locations`. Service configuration uses region-local CMEKs and source validation rejects
+deployable non-U.S. locations. Global control resources are permitted only where the Google API
+does not support a regional placement; they do not authorize non-U.S. workload or dataset copies.
+
+This source contract is not proof of residency or disaster recovery. Activation requires
+credentialed plans, Policy Simulator evidence, service-location verification, replication and
+restore drills, DNS delegation/failover evidence, and retained audit records.
+
 This is a production target, not a requirement to deploy every scale feature immediately. The architecture defines the stable boundaries now so Mindclade can grow without later repository ownership surgery.
 
 ---

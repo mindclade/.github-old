@@ -1,0 +1,143 @@
+---
+# Publishing is deliberately separate from tag creation and draft assembly. The protected
+# environment supplies the two-person gate after connected qualification of the exact tag.
+name: Publish workflow release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated full-semver tag whose draft is already assembled.
+        required: true
+        type: string
+      qualification-evidence-digest:
+        description: SHA-256 digest of the immutable connected qualification bundle.
+        required: true
+        type: string
+      qualification-run-id:
+        description: Successful exact-tag Nix qualification workflow run ID.
+        required: true
+        type: string
+      change-ticket:
+        description: Approved protected change ticket.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish qualified immutable release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: workflow-release
+    concurrency:
+      group: workflow-release-${{ inputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate protected publication inputs
+        env:
+          TAG: ${{ inputs.tag }}
+          EVIDENCE_DIGEST: ${{ inputs.qualification-evidence-digest }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification-run-id }}
+          CHANGE_TICKET: ${{ inputs.change-ticket }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$EVIDENCE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$QUALIFICATION_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CHANGE_TICKET" =~ ^[A-Z][A-Z0-9]+-[1-9][0-9]*$ ]]
+          [ "$EVIDENCE_DIGEST" != "sha256:$(printf '0%.0s' {1..64})" ]
+          [ "$(git cat-file -t "$TAG")" = tag ]
+          git merge-base --is-ancestor "${TAG}^{}" origin/main
+          python3 tools/validate-release-spec.py "contracts/releases/${TAG}.json"
+
+      - name: Verify connected exact-tag qualification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          EVIDENCE_DIGEST: ${{ inputs.qualification-evidence-digest }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification-run-id }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          source_commit="$(git rev-parse --verify "${TAG}^{}")"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${QUALIFICATION_RUN_ID}" \
+            > "$work/run.json"
+          run_attempt="$(jq -r .run_attempt "$work/run.json")"
+          jq -e \
+            --arg source "$source_commit" \
+            '.event == "workflow_dispatch"
+              and .conclusion == "success"
+              and .head_sha == $source
+              and .path == ".github/workflows/nix-qualification.yml"' \
+            "$work/run.json" >/dev/null
+          gh run download "$QUALIFICATION_RUN_ID" \
+            --name "workflow-release-qualification-${QUALIFICATION_RUN_ID}-${run_attempt}" \
+            --dir "$work/evidence"
+          (cd "$work/evidence" && sha256sum --check qualification-evidence.json.sha256)
+          actual_digest="sha256:$(sha256sum "$work/evidence/qualification-evidence.json" \
+            | awk '{print $1}')"
+          [ "$actual_digest" = "$EVIDENCE_DIGEST" ]
+          jq -e \
+            --arg tag "$TAG" \
+            --arg source "$source_commit" \
+            --argjson run_id "$QUALIFICATION_RUN_ID" \
+            --argjson run_attempt "$run_attempt" \
+            '.schema_version == 1
+              and .tag == $tag
+              and .source_commit == $source
+              and .workflow_sha == $source
+              and .run_id == $run_id
+              and .run_attempt == $run_attempt' \
+            "$work/evidence/qualification-evidence.json" >/dev/null
+          gh release upload "$TAG" \
+            "$work/evidence/qualification-evidence.json" \
+            "$work/evidence/qualification-evidence.json.sha256" \
+            --clobber=false
+
+      - name: Verify assembled draft and source manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          gh release view "$TAG" --json isDraft,tagName > "$work/release.json"
+          jq -e --arg tag "$TAG" '.isDraft == true and .tagName == $tag' \
+            "$work/release.json" >/dev/null
+          gh release download "$TAG" --dir "$work" \
+            --pattern 'attested-release-manifest.json*'
+          (cd "$work" && sha256sum --check attested-release-manifest.json.sha256)
+          python3 tools/validate-release-spec.py \
+            "contracts/releases/${TAG}.json" \
+            --verify-attestation "$work/attested-release-manifest.json" \
+            --expected-source "$(git rev-parse --verify "${TAG}^{}")"
+
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          EVIDENCE_DIGEST: ${{ inputs.qualification-evidence-digest }}
+          CHANGE_TICKET: ${{ inputs.change-ticket }}
+        run: |
+          set -euo pipefail
+          notes="$(mktemp)"
+          trap 'rm -f "$notes"' EXIT
+          gh release view "$TAG" --json body --jq .body > "$notes"
+          printf '\n\nConnected qualification: %s\nProtected change: %s\n' \
+            "$EVIDENCE_DIGEST" "$CHANGE_TICKET" >> "$notes"
+          gh release edit "$TAG" \
+            --notes-file "$notes" \
+            --draft=false

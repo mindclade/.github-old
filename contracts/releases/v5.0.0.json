@@ -1,0 +1,44 @@
+{
+  "change_class": "major",
+  "contract_major": 5,
+  "publication": {
+    "draft_on_tag": true,
+    "protected_environment": "workflow-release",
+    "required_approvals": 2
+  },
+  "qualification": {
+    "connected_exact_tag": true,
+    "independent_linux_rebuilds": 2,
+    "native_systems": [
+      "aarch64-darwin",
+      "aarch64-linux",
+      "x86_64-linux"
+    ]
+  },
+  "release_tag": "v5.0.0",
+  "required_workflows": [
+    "reusable-arc-oci-build.yml",
+    "reusable-arc-oci-qualify.yml",
+    "reusable-arc-qualification-attest.yml",
+    "reusable-arc-wif-canary.yml",
+    "reusable-artifact-verification.yml",
+    "reusable-binauthz-sign.yml",
+    "reusable-codeql.yml",
+    "reusable-dr-evidence.yml",
+    "reusable-gitops-promote.yml",
+    "reusable-go-ci.yml",
+    "reusable-license-headers.yml",
+    "reusable-nix-flake.yml",
+    "reusable-nix-qualification.yml",
+    "reusable-oci-build.yml",
+    "reusable-repo-hygiene.yml",
+    "reusable-rust-ci.yml",
+    "reusable-subtree-mirror.yml",
+    "reusable-terraform-validate.yml",
+    "reusable-terragrunt-plan.yml",
+    "reusable-tf-plan.yml",
+    "reusable-uv-ci.yml",
+    "reusable-wif-auth.yml"
+  ],
+  "schema_version": 1
+}

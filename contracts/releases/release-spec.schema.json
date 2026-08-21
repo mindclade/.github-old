@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.internal/workflow-release-spec.schema.json",
+  "additionalProperties": false,
+  "properties": {
+    "change_class": {"const": "major"},
+    "contract_major": {"const": 5},
+    "publication": {
+      "additionalProperties": false,
+      "properties": {
+        "draft_on_tag": {"const": true},
+        "protected_environment": {"const": "workflow-release"},
+        "required_approvals": {"const": 2}
+      },
+      "required": ["draft_on_tag", "protected_environment", "required_approvals"],
+      "type": "object"
+    },
+    "qualification": {
+      "additionalProperties": false,
+      "properties": {
+        "connected_exact_tag": {"const": true},
+        "independent_linux_rebuilds": {"const": 2},
+        "native_systems": {
+          "const": ["aarch64-darwin", "aarch64-linux", "x86_64-linux"],
+          "type": "array"
+        }
+      },
+      "required": ["connected_exact_tag", "independent_linux_rebuilds", "native_systems"],
+      "type": "object"
+    },
+    "release_tag": {"const": "v5.0.0"},
+    "required_workflows": {
+      "items": {"pattern": "^reusable-[a-z0-9-]+\\.yml$", "type": "string"},
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {"const": 1}
+  },
+  "required": [
+    "schema_version",
+    "release_tag",
+    "contract_major",
+    "change_class",
+    "required_workflows",
+    "qualification",
+    "publication"
+  ],
+  "type": "object"
+}
