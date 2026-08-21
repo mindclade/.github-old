@@ -40,9 +40,15 @@ merely so the generic smoke suite can run.
 Create an annotated full-semver tag on the reviewed commit:
 
 ```sh
-git tag -a vX.Y.Z -m "Mindclade shared workflow contract vX.Y.Z"
+release_sha="$(python3 -c 'import json,pathlib
+print(json.loads(pathlib.Path("contracts/releases/vX.Y.Z.json").read_text())["source_commit"])')"
+git merge-base --is-ancestor "${release_sha}" origin/main
+git tag -a vX.Y.Z -m "Mindclade shared workflow contract vX.Y.Z" "${release_sha}"
 git push origin vX.Y.Z
 ```
+
+The commit operand is not optional. Without it the tag lands on the checkout, which after a
+squash or rebase merge is a different commit than the one that was reviewed and attested.
 
 `release.yml` validates the tag and changelog, creates a draft GitHub Release, and publishes
 it. Organization immutable-release enforcement then protects the release/tag and produces
