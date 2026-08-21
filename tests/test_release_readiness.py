@@ -12,6 +12,10 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RELEASE_GUIDES = (
+    ROOT / "docs" / "ENTERPRISE_SETUP.md",
+    ROOT / "docs" / "workflow-release-bootstrap.md",
+)
 SPEC = importlib.util.spec_from_file_location(
     "validate_release_readiness", ROOT / "tools" / "validate_release_readiness.py"
 )
@@ -47,6 +51,20 @@ class ReleaseReadinessTest(unittest.TestCase):
             "connected evidence must remain required and enumerate every release gate",
             errors,
         )
+
+    def test_release_guides_tag_the_manifest_source_commit(self) -> None:
+        unsafe_command = 'git tag -a v4.0.0 -m'
+        explicit_command = (
+            'git tag -a v4.0.0 "${release_sha}" -m '
+            '"Mindclade ARC artifact-authority workflow foundation v4"'
+        )
+        for guide in RELEASE_GUIDES:
+            with self.subTest(guide=guide.relative_to(ROOT)):
+                content = guide.read_text(encoding="utf-8")
+                self.assertNotIn(unsafe_command, content)
+                self.assertIn("contracts/releases/v4.0.0.json", content)
+                self.assertIn('["source_commit"]', content)
+                self.assertIn(explicit_command, content)
 
 
 if __name__ == "__main__":
