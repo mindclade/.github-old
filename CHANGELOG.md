@@ -7,7 +7,7 @@ release is published and the consumer updates its `uses:` reference.
 The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
 outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
 
-## Unreleased
+## v5.0.0
 
 ### Changed
 

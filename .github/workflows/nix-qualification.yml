@@ -25,3 +25,111 @@ jobs:
       enable-aarch64-linux: true
       enable-aarch64-darwin: true
       reproducibility-targets: .#packages.x86_64-linux.actionlint
+
+  release-evidence:
+    name: Exact-tag release evidence
+    needs: nix
+    if: >-
+      always() &&
+      needs.nix.result == 'success' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify the exact annotated release tag
+        env:
+          TAG: ${{ github.ref_name }}
+          EXPECTED_SOURCE: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [ "$(git cat-file -t "$TAG")" = tag ]
+          source_commit="$(git rev-parse --verify "${TAG}^{}")"
+          [ "$source_commit" = "$EXPECTED_SOURCE" ]
+          git merge-base --is-ancestor "$source_commit" origin/main
+          python3 tools/validate-release-spec.py "contracts/releases/${TAG}.json"
+
+      - name: Download independent rebuild evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" \
+            --name "nix-repro-a-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --dir rebuild-a
+          gh run download "$GITHUB_RUN_ID" \
+            --name "nix-repro-b-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --dir rebuild-b
+          diff -u rebuild-a/metadata.tsv rebuild-b/metadata.tsv
+          diff -u rebuild-a/evidence.tsv rebuild-b/evidence.tsv
+
+      - name: Assemble connected qualification evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          gh api --paginate \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
+            --jq '.jobs[]' | jq -s '.' > run-jobs.json
+          required_jobs='[
+            "nix / detect",
+            "nix / x86_64-linux",
+            "nix / aarch64-linux",
+            "nix / aarch64-darwin",
+            "nix / rebuild-a",
+            "nix / rebuild-b",
+            "nix / compare-rebuilds",
+            "nix / verdict"
+          ]'
+          jq -e --argjson required "$required_jobs" '
+            [.[] | select(.name as $name | $required | index($name))
+              | {name, conclusion}] as $observed
+            | ($observed | length) == ($required | length)
+              and all($observed[]; .conclusion == "success")
+          ' run-jobs.json >/dev/null
+
+          rebuild_digest="sha256:$(sha256sum rebuild-a/evidence.tsv | awk '{print $1}')"
+          metadata_digest="sha256:$(sha256sum rebuild-a/metadata.tsv | awk '{print $1}')"
+          jq -n -S \
+            --arg tag "$TAG" \
+            --arg source_commit "$SOURCE_COMMIT" \
+            --arg workflow_ref "$WORKFLOW_REF" \
+            --arg workflow_sha "$WORKFLOW_SHA" \
+            --argjson run_id "$GITHUB_RUN_ID" \
+            --argjson run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg rebuild_digest "$rebuild_digest" \
+            --arg metadata_digest "$metadata_digest" \
+            --argjson required_jobs "$required_jobs" \
+            '{
+              schema_version: 1,
+              tag: $tag,
+              source_commit: $source_commit,
+              workflow_ref: $workflow_ref,
+              workflow_sha: $workflow_sha,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              required_jobs: $required_jobs,
+              rebuild_evidence_digest: $rebuild_digest,
+              rebuild_metadata_digest: $metadata_digest
+            }' > qualification-evidence.json
+          sha256sum qualification-evidence.json > qualification-evidence.json.sha256
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        with:
+          name: workflow-release-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qualification-evidence.json*
+          if-no-files-found: error
+          retention-days: 30

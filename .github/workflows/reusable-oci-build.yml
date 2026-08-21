@@ -10,7 +10,7 @@ on:
   workflow_call:
     inputs:
       image:
-        description: Full Artifact Registry path without a tag, e.g. europe-west4-docker.pkg.dev/prj/repo/name
+        description: Full Artifact Registry path without a tag, e.g. us-central1-docker.pkg.dev/prj/repo/name
         required: true
         type: string
       builder:
