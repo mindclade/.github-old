@@ -9,14 +9,11 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ## Unreleased
 
-<<<<<<< HEAD
 ### Changed
 
 - **Breaking (publish as v5.0.0):** `reusable-gitops-promote.yml` replaces the ambiguous
   `rollback-digest` input with the exact `previous-release-id` and
-  `previous-subject-digest` lineage pair, and requires the closed-catalog `application` and
-  `release-kind` identity required by the GitOps v1beta1 promotion contract. The workflow
-  rejects a previous release that is not numerically older than the candidate.
+  `previous-subject-digest` lineage pair required by the GitOps v1beta1 promotion contract.
   Existing v4 tags and callers remain immutable until an explicitly reviewed v5 release is
   published and consumers update their pins.
 
@@ -34,18 +31,6 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 ### Added
 
 - Added the `reusable-nix-flake.yml` baseline with a locked, runner-selectable flake check.
-- Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
-  disaster-recovery evidence workflows with versioned machine contracts.
-- Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for
-  the production artifact-authority path.
-- Added the `validate-repository-home` composite action with optional byte-parity enforcement for
-  offline consumer mirrors.
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-## v4.0.0
-
-### Added
-
 - Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
   disaster-recovery evidence workflows with versioned machine contracts.
 - Added exact digest, attestor occurrence, GitOps promotion, and immutable evidence outputs for

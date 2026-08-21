@@ -45,11 +45,7 @@ REQUIRED = {
     "actions/validate-repository-home/action.yml",
     "actions/validate-repository-home/README.md",
     "actions/validate-repository-home/validate.py",
-<<<<<<< HEAD
     "contracts/releases/v4.0.0.json",
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
@@ -78,14 +74,9 @@ REQUIRED = {
     ".github/workflows/reusable-dr-evidence.yml",
     "schemas/drill-report-v2.schema.json",
     "tools/validate_drill_report.py",
-<<<<<<< HEAD
     "tools/validate_release_readiness.py",
     "tests/test_drill_report.py",
     "tests/test_release_readiness.py",
-||||||| parent of 0ed0a1a (feat(ci): harden enterprise workflow platform)
-=======
-    "tests/test_drill_report.py",
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
 }
 
 TEXT_SUFFIXES = {

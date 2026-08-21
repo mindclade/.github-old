@@ -16,7 +16,6 @@ on:
       release-id:
         required: true
         type: string
-<<<<<<< HEAD
       previous-release-id:
         required: true
         type: string
@@ -51,13 +50,7 @@ jobs:
           [[ "$RELEASE_KIND" =~ ^(application|bundle|dataset|model|pipeline|platform)$ ]] || exit 1
           [[ "$RELEASE_ID" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
           [[ "$PREVIOUS_RELEASE_ID" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-          IFS=. read -r candidate_major candidate_minor candidate_patch <<< "${RELEASE_ID#v}"
-          IFS=. read -r previous_major previous_minor previous_patch <<< "${PREVIOUS_RELEASE_ID#v}"
-          ((
-            10#$previous_major < 10#$candidate_major ||
-            (10#$previous_major == 10#$candidate_major && 10#$previous_minor < 10#$candidate_minor) ||
-            (10#$previous_major == 10#$candidate_major && 10#$previous_minor == 10#$candidate_minor && 10#$previous_patch < 10#$candidate_patch)
-          )) || exit 1
+          [ "$PREVIOUS_RELEASE_ID" != "$RELEASE_ID" ] || exit 1
           [[ "$PREVIOUS_SUBJECT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
           [ "$PREVIOUS_SUBJECT_DIGEST" != "sha256:$(printf '0%.0s' {1..64})" ] || exit 1
           [ "$GITHUB_EVENT_NAME" = push ] || exit 1
@@ -213,7 +206,8 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           IMAGE_REF: ${{ inputs.image-ref }}
           RELEASE_ID: ${{ inputs.release-id }}
-          ROLLBACK_DIGEST: ${{ inputs.rollback-digest }}
+          PREVIOUS_RELEASE_ID: ${{ inputs.previous-release-id }}
+          PREVIOUS_SUBJECT_DIGEST: ${{ inputs.previous-subject-digest }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -222,8 +216,8 @@ jobs:
             --release-id "$RELEASE_ID" \
             --image-ref "$IMAGE_REF" \
             --source-sha "$SOURCE_SHA" \
-            --rollback-digest "$ROLLBACK_DIGEST"
->>>>>>> 0ed0a1a (feat(ci): harden enterprise workflow platform)
+            --previous-release-id "$PREVIOUS_RELEASE_ID" \
+            --previous-subject-digest "$PREVIOUS_SUBJECT_DIGEST"
           git config user.name 'mindclade-release-promoter[bot]'
           git config user.email 'mindclade-release-promoter[bot]@users.noreply.github.com'
           git switch -c "$branch"

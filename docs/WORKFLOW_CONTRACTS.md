@@ -58,12 +58,10 @@ repository. Subsequent consumers may be upgraded by Renovate, but moving an exis
 tag is forbidden. Publish a new patch/minor/major release instead.
 
 The unreleased GitOps promoter interface is a planned `v5.0.0` breaking change: callers provide
-`application`, `release-kind`, `previous-release-id`, and `previous-subject-digest`. The exact
-identity is validated against the GitOps closed package catalog, while the exact lineage pair
-replaces the v4 `rollback-digest` input and proves the rollback target rather than merely naming
-an otherwise-unattributed digest. The previous release must be numerically older than the
-candidate. Do not point a caller at v5 until that immutable release exists and its corresponding
-infrastructure WIF workflow identity has been reviewed.
+both `previous-release-id` and `previous-subject-digest`. This exact pair replaces the v4
+`rollback-digest` input and lets the GitOps v1beta1 proposal prove rollback lineage instead of
+merely naming an otherwise-unattributed digest. Do not point a caller at v5 until that immutable
+release exists and its corresponding infrastructure WIF workflow identity has been reviewed.
 
 ## Nix qualification releases
 
