@@ -33,27 +33,29 @@ Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same
 
 ## Create the immutable release
 
+Tag the commit the manifest attests, never whatever `main` happens to point at. A squash or
+rebase merge leaves that commit reachable only from stale branches, so `git tag -a v4.0.0 -m …`
+with no commit operand tags a different tree and nothing reports it.
+
 ```sh
 git switch main
 git pull --ff-only
-release_sha="$(
-  python3 -c 'import json; print(json.load(open("contracts/releases/v4.0.0.json"))["source_commit"])'
-)"
+release_sha="$(python3 -c 'import json,pathlib
+print(json.loads(pathlib.Path("contracts/releases/v4.0.0.json").read_text())["source_commit"])')"
 test "${#release_sha}" -eq 40
 git merge-base --is-ancestor "${release_sha}" origin/main
-git tag -a v4.0.0 "${release_sha}" -m "Mindclade ARC artifact-authority workflow foundation v4"
+
+git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4" "${release_sha}"
 git push origin v4.0.0
 ```
 
 Confirm `release.yml` publishes the draft and the organization immutable-release policy locks
 the release and tag.
 
-Capture the commit behind the annotated release tag for composite-action consumers:
+Confirm the annotated tag peels back to the same commit before consumers pin it:
 
 ```sh
-release_sha="$(git rev-parse 'v4.0.0^{}')"
-test "${#release_sha}" -eq 40
-git merge-base --is-ancestor "${release_sha}" origin/main
+test "$(git rev-parse 'v4.0.0^{}')" = "${release_sha}"
 ```
 
 ## Verify

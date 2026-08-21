@@ -40,8 +40,43 @@ def git(root: Path, *arguments: str, check: bool = True) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def resolve_mainline(root: Path, preferred: str = "") -> str:
+    """The ref the release lineage must descend from, or "" if none is present.
+
+    A remote-tracking main is preferred over a local one: it is what a fresh clone and a
+    `fetch-depth: 0` checkout both have, and it cannot be moved by local work.
+    """
+    candidates = (preferred,) if preferred else ("refs/remotes/origin/main", "refs/heads/main")
+    for ref in candidates:
+        if ref and git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False):
+            return ref
+    return ""
+
+
+def lineage_status(root: Path, commit: str, mainline: str) -> str:
+    """Whether `commit` is still reachable from `mainline`.
+
+    Object existence is not reachability. A squash or rebase merge leaves the attested commit
+    in the object database — held alive by a stale local branch, a preserved rescue tag, or a
+    PR head ref — while main no longer descends from it. Checking only `cat-file -e` therefore
+    passes in the workspace that did the merge and fails in every fresh clone, which is the one
+    place the release contract has to hold.
+    """
+    if not mainline:
+        return "unverified"
+    result = subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", commit, mainline],
+        check=False,
+        capture_output=True,
+    )
+    return "ancestor" if result.returncode == 0 else "diverged"
+
+
 def validate_manifest(
-    manifest: dict[str, Any], root: Path, require_local_tag: bool = False
+    manifest: dict[str, Any],
+    root: Path,
+    require_local_tag: bool = False,
+    mainline_ref: str = "",
 ) -> tuple[list[str], str]:
     errors: list[str] = []
     release = manifest.get("release")
@@ -78,6 +113,15 @@ def validate_manifest(
 
     try:
         git(root, "cat-file", "-e", f"{commit}^{{commit}}")
+
+        mainline = resolve_mainline(root, mainline_ref)
+        if lineage_status(root, commit, mainline) == "diverged":
+            errors.append(
+                f"source_commit {commit} is not an ancestor of {mainline}; the release "
+                "lineage was rewritten by a squash or rebase merge and cannot be "
+                "reproduced from a fresh clone"
+            )
+
         actual_tree = git(root, "rev-parse", f"{commit}^{{tree}}")
         if actual_tree != source_tree:
             errors.append(
@@ -152,6 +196,11 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--require-local-tag", action="store_true")
+    parser.add_argument(
+        "--mainline-ref",
+        default="",
+        help="ref the release commit must descend from (default: origin/main, then main)",
+    )
     args = parser.parse_args()
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -159,9 +208,15 @@ def main() -> int:
         print(f"release readiness failed: cannot read manifest: {error}", file=sys.stderr)
         return 1
 
+    root = args.root.resolve()
     errors, tag_status = validate_manifest(
-        manifest, args.root.resolve(), require_local_tag=args.require_local_tag
+        manifest,
+        root,
+        require_local_tag=args.require_local_tag,
+        mainline_ref=args.mainline_ref,
     )
+    mainline = resolve_mainline(root, args.mainline_ref)
+    lineage = lineage_status(root, str(manifest.get("source_commit", "")), mainline)
     if errors:
         print("release readiness failed:", file=sys.stderr)
         for error in errors:
@@ -169,6 +224,7 @@ def main() -> int:
         return 1
     print(
         "v4.0.0 source evidence passed; "
+        f"lineage={lineage}{f' ({mainline})' if mainline else ''}; "
         f"local tag={tag_status}; connected tag/release qualification remains required"
     )
     return 0

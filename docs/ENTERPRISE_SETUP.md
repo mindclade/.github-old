@@ -246,14 +246,16 @@ Push `main`, enable rulesets/immutable releases, let repository workflows pass, 
 first production contract:
 
 ```sh
-release_sha="$(
-  python3 -c 'import json; print(json.load(open("contracts/releases/v4.0.0.json"))["source_commit"])'
-)"
+release_sha="$(python3 -c 'import json,pathlib
+print(json.loads(pathlib.Path("contracts/releases/v4.0.0.json").read_text())["source_commit"])')"
 test "${#release_sha}" -eq 40
 git merge-base --is-ancestor "${release_sha}" origin/main
-git tag -a v4.0.0 "${release_sha}" -m "Mindclade ARC artifact-authority workflow foundation v4"
+git tag -a v4.0.0 -m "Mindclade ARC artifact-authority workflow foundation v4" "${release_sha}"
 git push origin v4.0.0
 ```
+
+The tag names the manifest's `source_commit` explicitly. Tagging the checkout instead publishes
+whichever tree `main` currently holds, which is not necessarily the reviewed one.
 
 Starter workflows intentionally reference `v4.0.0`; they become usable after this release.
 Do not create the tag before `main` protection and organization immutable-release enforcement
