@@ -74,8 +74,9 @@ merge queues, manual runs, and weekly schedules always execute qualification.
 The v5 `reusable-nix-flake.yml` contract establishes a locked, runner-selectable flake check.
 The v5 `reusable-nix-qualification.yml` contract adds internal change detection,
 isolated CI-shell validation, an always-present verdict, native aarch64-linux and
-aarch64-darwin runners, and two independent x86_64-linux rebuilds whose derivations, store
-paths, and SRI output hashes must agree.
+aarch64-darwin runners, and two independent x86_64-linux rebuilds on Ubuntu 24.04 and 22.04.
+The workflow records both host-image versions, rejects identical image evidence, and requires
+the derivations, store paths, and SRI output hashes to agree across those environments.
 Consumers may move to `@v5.0.0` only after an operator publishes that immutable release;
 neither this documentation nor a branch commit creates or moves a release tag.
 

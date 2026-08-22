@@ -239,10 +239,14 @@ jobs:
 
           test -s "${evidence}"
           LC_ALL=C sort -o "${evidence}" "${evidence}"
+          . /etc/os-release
+          test "${ID}" = ubuntu
+          test "${VERSION_ID}" = 24.04
           {
             printf 'schema\tnix-reproducibility-evidence-v1\n'
             printf 'commit\t%s\n' "${GITHUB_SHA}"
             printf 'flake-lock\t%s\n' "$(nix hash file --sri flake.lock)"
+            printf 'runner-image\t%s-%s\n' "${ID}" "${VERSION_ID}"
           } > "${evidence_dir}/metadata.tsv"
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
         with:
@@ -255,7 +259,9 @@ jobs:
     name: rebuild-b
     needs: detect
     if: needs.detect.outputs.should-run == 'true' && inputs.reproducibility-targets != ''
-    runs-on: ubuntu-24.04
+    # A distinct GitHub-hosted image detects undeclared host dependencies rather than merely
+    # repeating the same build on an identical runner template.
+    runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -300,10 +306,14 @@ jobs:
 
           test -s "${evidence}"
           LC_ALL=C sort -o "${evidence}" "${evidence}"
+          . /etc/os-release
+          test "${ID}" = ubuntu
+          test "${VERSION_ID}" = 22.04
           {
             printf 'schema\tnix-reproducibility-evidence-v1\n'
             printf 'commit\t%s\n' "${GITHUB_SHA}"
             printf 'flake-lock\t%s\n' "$(nix hash file --sri flake.lock)"
+            printf 'runner-image\t%s-%s\n' "${ID}" "${VERSION_ID}"
           } > "${evidence_dir}/metadata.tsv"
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
         with:
@@ -338,15 +348,27 @@ jobs:
       - name: Compare independent rebuild evidence
         run: |
           set -euo pipefail
+          image_a="$(awk -F '\t' '$1 == "runner-image" {print $2}' \
+            "${RUNNER_TEMP}/rebuild-a/metadata.tsv")"
+          image_b="$(awk -F '\t' '$1 == "runner-image" {print $2}' \
+            "${RUNNER_TEMP}/rebuild-b/metadata.tsv")"
+          test "${image_a}" = ubuntu-24.04
+          test "${image_b}" = ubuntu-22.04
+          test "${image_a}" != "${image_b}"
+          grep -v $'^runner-image\t' \
+            "${RUNNER_TEMP}/rebuild-a/metadata.tsv" > "${RUNNER_TEMP}/metadata-a-common.tsv"
+          grep -v $'^runner-image\t' \
+            "${RUNNER_TEMP}/rebuild-b/metadata.tsv" > "${RUNNER_TEMP}/metadata-b-common.tsv"
           diff -u \
-            "${RUNNER_TEMP}/rebuild-a/metadata.tsv" \
-            "${RUNNER_TEMP}/rebuild-b/metadata.tsv"
+            "${RUNNER_TEMP}/metadata-a-common.tsv" \
+            "${RUNNER_TEMP}/metadata-b-common.tsv"
           diff -u \
             "${RUNNER_TEMP}/rebuild-a/evidence.tsv" \
             "${RUNNER_TEMP}/rebuild-b/evidence.tsv"
           {
             echo '### Independent Nix rebuilds agree'
             echo
+            printf -- '- Runner images: `%s` and `%s`\n\n' "${image_a}" "${image_b}"
             echo '```text'
             cat "${RUNNER_TEMP}/rebuild-a/evidence.tsv"
             echo '```'

@@ -37,6 +37,9 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ### Changed
 
+- Run the two x86_64-linux reproducibility rebuilds on Ubuntu 24.04 and 22.04, record the exact
+  OS evidence, and reject identical runner images before comparing derivations, store paths, and
+  output hashes.
 - **Breaking (publish as v5.0.0):** `reusable-gitops-promote.yml` replaces the ambiguous
   `rollback-digest` input with the exact `previous-release-id` and
   `previous-subject-digest` lineage pair, and requires the closed-catalog `application` and
