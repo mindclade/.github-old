@@ -9,6 +9,14 @@ release is published and the consumer updates its `uses:` reference.
 The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
 outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
 
+## Policy bundle 2026.08.21.3 (candidate; not published)
+
+### Security
+
+- Parse README URLs and require the exact `img.shields.io` hostname when rejecting remote
+  Shields badges; deceptive lookalike hosts, userinfo prefixes, and redirect parameters do not
+  satisfy the hostname check.
+
 ## v5.0.0 (planned; not published)
 
 ### Changed
@@ -23,7 +31,7 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - **Breaking (publish as v5.0.0):** `reusable-oci-build.yml` now enriches every SPDX 2.3
   SBOM with the complete proprietary `LicenseRef`, a digest-bound first-party package, and
   reviewed third-party notice coverage before upload or attestation. Callers must first
-  synchronize policy bundle `2026.08.21.2`, including both SBOM/notice tools and their
+  synchronize policy bundle `2026.08.21.3`, including both SBOM/notice tools and their
   repository-specific provenance contract.
 
 ## Unreleased v4.1.0 draft

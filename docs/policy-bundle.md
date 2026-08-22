@@ -2,7 +2,7 @@
 
 # Signed policy bundle and acceptance evidence
 
-> **Audience:** Legal, Security, Platform, release engineering, and repository owners  
+> **Audience:** Legal, Security, Platform, release engineering, and repository owners
 > **Outcome:** Change, publish, distribute, and reference one versioned policy set without
 > weakening independent review or confusing source text with executed agreements.
 
@@ -32,7 +32,7 @@ Verify the source and reproduce the archive locally:
 ```sh
 python3 tools/policy_bundle.py verify
 python3 tools/policy_bundle.py build \
-  --output dist/mindclade-policy-bundle-2026.08.21.2.tar.gz
+  --output dist/mindclade-policy-bundle-2026.08.21.3.tar.gz
 ```
 
 Before relying on a bundle, verify the archive checksum and its GitHub attestation against
