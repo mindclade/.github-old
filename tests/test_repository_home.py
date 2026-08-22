@@ -261,6 +261,40 @@ Do not commit secrets.
         self.assertTrue(any("remote README image" in error for error in errors))
         self.assertTrue(any("Shields" in error for error in errors))
 
+    def test_shields_reference_requires_exact_hostname(self) -> None:
+        self.assertTrue(
+            repository_home.has_remote_shields_reference(
+                "![build](https://img.shields.io/badge/build-passing.svg)"
+            )
+        )
+        self.assertTrue(
+            repository_home.has_remote_shields_reference(
+                "![build](https://IMG.SHIELDS.IO/badge/build-passing.svg)"
+            )
+        )
+        self.assertFalse(
+            repository_home.has_remote_shields_reference(
+                "![build](https://img.shields.io.evil.example/badge/build-passing.svg)"
+            )
+        )
+        self.assertFalse(
+            repository_home.has_remote_shields_reference(
+                "[redirect](https://example.test/?next=https://img.shields.io/badge/build-passing.svg)"
+            )
+        )
+
+    def test_all_remote_images_remain_denied_for_shields_lookalike_hosts(self) -> None:
+        root = self.fixture()
+        readme = root / "README.md"
+        readme.write_text(
+            readme.read_text(encoding="utf-8")
+            + '\n![lookalike](https://img.shields.io.evil.example/badge/a-b-c.svg)\n',
+            encoding="utf-8",
+        )
+        errors = repository_home.validate(root)
+        self.assertTrue(any("remote README image" in error for error in errors))
+        self.assertFalse(any("remote Shields" in error for error in errors))
+
     def test_reader_success_path_is_required(self) -> None:
         root = self.fixture()
         readme = root / "README.md"
