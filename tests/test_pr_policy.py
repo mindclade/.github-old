@@ -47,6 +47,14 @@ class PullRequestPolicyTests(unittest.TestCase):
 """
         self.assertEqual(self.errors(body), [])
 
+    def test_checked_authorization_without_inline_code_backticks_passes(self) -> None:
+        body = """
+- [x] I am authorized under a current written agreement with Mindclade, LLC. to submit.
+- [x] I identified every third-party component, dataset, model, font, media, and source.
+- [x] I updated LICENSE, NOTICE, the SBOM, or other license evidence as needed.
+"""
+        self.assertEqual(self.errors(body), [])
+
     def test_drafts_do_not_block_on_incomplete_template(self) -> None:
         self.assertEqual(self.errors("DO NOT MERGE", draft=True), [])
 
