@@ -37,6 +37,8 @@ REQUIRED = {
     ".github/ISSUE_TEMPLATE/config.yml",
     ".github/PULL_REQUEST_TEMPLATE.md",
     ".github/workflows/hygiene.yml",
+    ".github/workflows/estate-status.yml",
+    ".github/workflows/ref-janitor.yml",
     ".github/workflows/required-repository-policy.yml",
     ".github/workflows/required-security-baseline.yml",
     ".github/workflows/release.yml",
@@ -92,6 +94,14 @@ REQUIRED = {
     "contracts/policy-bundle/adoption-record.schema.json",
     "contracts/policy-bundle/manifest.json",
     "contracts/policy-bundle/policy-bundle.schema.json",
+    "contracts/evidence/common.schema.json",
+    "contracts/evidence/deployment-bundle.schema.json",
+    "contracts/evidence/eligibility-decision.schema.json",
+    "contracts/evidence/evidence-claim.schema.json",
+    "contracts/evidence/evidence-exception.schema.json",
+    "contracts/evidence/evidence-verification.schema.json",
+    "contracts/evidence/production-controls.json",
+    "contracts/evidence/production-controls.schema.json",
     "contracts/third-party-materials.json",
     "THIRD_PARTY_NOTICES.md",
     "tools/policy_bundle.py",
@@ -104,6 +114,12 @@ REQUIRED = {
     "tests/test_policy_adoption.py",
     "tests/test_pr_policy.py",
     "tests/test_workflow_security.py",
+    "tests/test_evidence_contracts.py",
+    "tests/test_estate_automation.py",
+    "tools/estate_status.py",
+    "tools/github_api.py",
+    "tools/ref_janitor.py",
+    "tools/validate_evidence_contracts.py",
 }
 
 TEXT_SUFFIXES = {
@@ -234,11 +250,34 @@ def main() -> int:
         "nix-qualification.yml": "python3 tools/verify_release_tag.py",
         "publish-release.yml": "python3 tools/verify_release_tag.py",
         "release.yml": "python3 tools/verify_release_tag.py",
-        "synchronize-policy-bundle.yml": "python3 source/tools/verify_release_tag.py",
+        "synchronize-policy-bundle.yml": "python3 release-source/tools/verify_release_tag.py",
     }
     for name, call in release_tag_verifier_calls.items():
         if call not in (workflow_dir / name).read_text(encoding="utf-8"):
             fail(errors, f"{name} does not verify the connected signed release tag")
+
+    policy_sync_workflow = (
+        workflow_dir / "synchronize-policy-bundle.yml"
+    ).read_text(encoding="utf-8")
+    policy_sync_requirements = {
+        "ref: ${{ github.sha }}": "exact protected source checkout",
+        "path: release-source": "isolated immutable release checkout",
+        "refs/tags/v5.0.0": "immutable adoption-validator release",
+        "git -C release-source rev-parse": "release checkout identity check",
+        "[ \"$source_commit\" = \"$GITHUB_SHA\" ]": "source commit identity check",
+        "actions: read": "workflow publication lookup permission",
+        "attestations: read": "artifact attestation verification permission",
+        "publish-policy-bundle.yml/runs": "exact publication workflow lookup",
+        "cmp \"$work/expected.tar.gz\" \"$archive\"": "reproducible archive comparison",
+        "gh attestation verify \"$archive\"": "cryptographic bundle verification",
+        "--signer-workflow mindclade/.github/.github/workflows/publish-policy-bundle.yml": "exact publication signer identity",
+        "--source-digest \"$source_commit\"": "exact publication source digest",
+        "--source-ref refs/heads/main": "protected publication source ref",
+        "--deny-self-hosted-runners": "GitHub-hosted publication runner enforcement",
+    }
+    for needle, control in policy_sync_requirements.items():
+        if needle not in policy_sync_workflow:
+            fail(errors, f"policy synchronization lacks {control}")
 
     templates = ROOT / "workflow-templates"
     for template in sorted(templates.glob("*.yml")):
@@ -462,6 +501,17 @@ def main() -> int:
     if contract_check.returncode != 0:
         detail = contract_check.stderr.strip() or contract_check.stdout.strip()
         fail(errors, f"workflow contract validation failed: {detail}")
+
+    evidence_check = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "validate_evidence_contracts.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if evidence_check.returncode != 0:
+        detail = evidence_check.stderr.strip() or evidence_check.stdout.strip()
+        fail(errors, f"evidence contract validation failed: {detail}")
 
     if errors:
         print("repository validation failed:", file=sys.stderr)

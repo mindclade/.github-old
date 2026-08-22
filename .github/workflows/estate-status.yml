@@ -1,0 +1,68 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Estate status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "11 12 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: estate-status
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: repository-observability
+    steps:
+      - name: Reject untrusted source refs
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REPOSITORY" = mindclade/.github ]
+          [ "$GITHUB_REF" = refs/heads/main ]
+
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
+        id: observer-token
+        with:
+          app-id: ${{ vars.ESTATE_OBSERVER_APP_ID }}
+          private-key: ${{ secrets.ESTATE_OBSERVER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github,.github-private,bootstrap,github-config,gitops,infrastructure-live,mindclade-internal-monorepo
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: dashboard
+        name: Build estate dashboard
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.observer-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          python3 tools/estate_status.py --json dist/estate-status.json --markdown dist/estate-status.md
+
+      - name: Publish job summary
+        if: always()
+        run: cat dist/estate-status.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        if: always()
+        with:
+          name: estate-status
+          path: dist/estate-status.*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce estate status
+        if: steps.dashboard.outcome == 'failure'
+        run: exit 1

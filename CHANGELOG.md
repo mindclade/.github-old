@@ -2,6 +2,13 @@
 
 # Changelog
 
+## Policy bundle 2026.08.22.1 (planned with v5.0.0; not published)
+
+- Add sealed evidence claim, verification, deployment-bundle, exception, eligibility-decision,
+  and production-control contracts for synchronized fleet adoption.
+- Define the initial ten-control production-eligibility policy with bounded freshness and
+  explicit exception eligibility.
+
 All notable changes to the versioned reusable-workflow contract are recorded here. Consumers
 pin immutable full-semver releases, so a merged change reaches a consumer only after a new
 release is published and the consumer updates its `uses:` reference.
