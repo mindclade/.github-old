@@ -50,13 +50,14 @@
               platforms = [ system ];
             };
           };
+          python = pkgs.python3.withPackages (pythonPackages: [ pythonPackages.pyyaml ]);
 
           ciShell = pkgs.mkShell {
             packages = with pkgs; [
               actionlintLatest
               git
               gnumake
-              python3
+              python
               shellcheck
               yamllint
             ];
@@ -72,7 +73,7 @@
               gh
               gnumake
               pre-commit
-              python3
+              python
               bashInteractive
             ];
 

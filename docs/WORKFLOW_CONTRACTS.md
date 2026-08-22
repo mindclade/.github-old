@@ -26,7 +26,8 @@ Run:
 python3 tools/check_workflow_contracts.py
 ```
 
-The checker is intentionally dependency-free and parses only the narrow YAML surface above.
+The checker uses the pinned PyYAML runtime with a GitHub-compatible safe loader and projects only
+the narrow YAML surface above. It rejects duplicate keys and malformed permission contracts.
 `tools/validate_repo.py` invokes it too, and `hygiene.yml` runs both commands explicitly.
 
 A mismatch fails with a unified diff between the checked-in contract and the current workflow.
