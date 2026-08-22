@@ -9,6 +9,7 @@ import importlib.util
 import json
 import re
 import shlex
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -87,6 +88,32 @@ class PolicyBundleSynchronizationTest(unittest.TestCase):
             payload.write_text(json.dumps({"workflow_runs": []}), encoding="utf-8")
             with self.assertRaisesRegex(selector.SelectionError, "workflow_run_pages_invalid"):
                 selector.load_pages(payload)
+
+            payload.write_bytes(b"\xff")
+            with self.assertRaisesRegex(
+                selector.SelectionError, "workflow_runs_invalid_encoding"
+            ):
+                selector.load_pages(payload)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(TOOL),
+                    "--runs",
+                    str(payload),
+                    "--source-commit",
+                    self.source_commit,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(
+                result.stderr,
+                "policy bundle run selection failed: workflow_runs_invalid_encoding\n",
+            )
 
     def test_workflow_invokes_the_selector_with_exact_inputs(self) -> None:
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
