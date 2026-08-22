@@ -5,9 +5,9 @@
 # merge to main reaches nobody until a tag exists and each consumer bumps. This workflow does
 # the two things that step needs and a human reliably forgets.
 #
-# It does NOT create or move tags. tag-protection in github-config makes `v*` immutable with
-# no bypass, which is the property the whole pinning model rests on. This only reacts to a tag
-# that a human already pushed.
+# It does NOT create or move tags. github-config restricts creation to Release in one ruleset
+# and makes existing `v*` identities immutable with no bypass in a separate ruleset. This only
+# reacts to a tag that an authorized human already pushed.
 name: Assemble workflow release
 
 on:

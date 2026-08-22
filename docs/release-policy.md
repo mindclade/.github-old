@@ -43,7 +43,10 @@ merely so the generic smoke suite can run.
 
 ## Publish
 
-Create an annotated full-semver tag on the reviewed commit:
+First verify that `github-config` has applied both organization tag rules: the no-bypass
+`tag-protection` rule and the separate `release-tag-creation` rule whose only always-bypass
+actor is the Release team. A Release-team operator then creates an annotated full-semver tag on
+the reviewed commit:
 
 ```sh
 release_sha="<reviewed-merged-commit-sha>"
@@ -53,6 +56,11 @@ git show "${release_sha}:contracts/releases/vX.Y.Z.json" >/dev/null
 git tag -a vX.Y.Z -m "Mindclade shared workflow contract vX.Y.Z" "${release_sha}"
 git push origin vX.Y.Z
 ```
+
+The creation bypass belongs only to the separate creation rule. Never add it to
+`tag-protection`: Release may mint a new identity, but nobody may move or delete one. A tag by
+itself assembles only a draft; managed policy synchronization additionally requires a published,
+non-prerelease, GitHub-immutable release and the exact source attestation.
 
 The commit operand is not optional. Without it the tag lands on the checkout, which after a
 squash or rebase merge is a different commit than the one that was reviewed and attested.
