@@ -88,3 +88,13 @@ positive and negative tests. Existing target tags are never repaired or replaced
 Nix owns host tooling and reproducibility evidence. Bazel remains authoritative for the
 monorepo build/test graph and application container images, and this workflow does not create
 parallel NixOS, nix-darwin, Home Manager, or Nix container-image authority.
+
+`reusable-nix-cache-populate.yml` is a separate, activation-blocked publication API. It accepts
+only the canonical monorepo's protected-main `nix-cache.yml` caller and only push, schedule, or
+manually approved dispatch events. Its protected `nix-cache-publication` job receives one
+cache-scoped write token from that environment, never from `workflow_call`; it receives no cloud
+credential, cache-administration token, server JWT key, or Nix signing key. The called repository's
+machine contract remains disabled until the
+private Attic endpoint, public key, read authentication, GCS/HMAC boundary, database recovery,
+token claims, and cold/warm/tamper tests have connected evidence. No v5 tag or merged source alone
+activates the workflow because no caller is present while that contract is blocked.
