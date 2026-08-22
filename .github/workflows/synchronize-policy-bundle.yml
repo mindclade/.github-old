@@ -114,7 +114,11 @@ jobs:
           gh api --paginate \
             "/repos/mindclade/.github/actions/workflows/publish-policy-bundle.yml/runs?branch=main&event=workflow_dispatch&status=success&per_page=100" \
             --slurp > "$runs"
-          run_id="$(jq -er --arg sha "$source_commit" '[.[][] | select(.head_sha == $sha)] | sort_by(.run_number) | last | .id' "$runs")"
+          run_id="$(
+            python3 source/tools/select_policy_bundle_run.py \
+              --runs "$runs" \
+              --source-commit "$source_commit"
+          )"
           gh api "/repos/mindclade/.github/actions/runs/${run_id}/artifacts?per_page=100" > "$work/artifacts.json"
           artifact_id="$(jq -er --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | select(length == 1) | .[0].id' "$work/artifacts.json")"
           gh api "/repos/mindclade/.github/actions/artifacts/${artifact_id}/zip" > "$work/artifact.zip"
