@@ -57,7 +57,10 @@ jobs:
           trap 'rm -rf "$work"' EXIT
           gh api "/repos/mindclade/.github/releases/tags/${TAG}" > "$work/release.json"
           jq -e --arg tag "$TAG" \
-            '.tag_name == $tag and .draft == false and .prerelease == false' \
+            '.tag_name == $tag
+              and .draft == false
+              and .prerelease == false
+              and .immutable == true' \
             "$work/release.json" >/dev/null
           [ "$(git -C source cat-file -t "$TAG")" = tag ]
           release_commit="$(git -C source rev-parse --verify "${TAG}^{commit}")"
