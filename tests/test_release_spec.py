@@ -29,6 +29,8 @@ class ReleaseSpecTests(unittest.TestCase):
         self.assertIn("actions/validate-repository-home/validate.py", files)
         self.assertIn(".github/workflows/required-repository-policy.yml", files)
         self.assertIn("contracts/policy-bundle/manifest.json", files)
+        self.assertIn("tools/validate-release-spec.py", files)
+        self.assertIn("tools/verify_release_tag.py", files)
 
     def test_attestation_binds_exact_source_and_recursive_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

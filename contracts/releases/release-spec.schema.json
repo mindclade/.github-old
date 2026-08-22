@@ -34,6 +34,13 @@
     "release_surfaces": {
       "additionalProperties": false,
       "properties": {
+        "release_tools": {
+          "const": [
+            "tools/validate-release-spec.py",
+            "tools/verify_release_tag.py"
+          ],
+          "type": "array"
+        },
         "policy_manifest": {
           "const": ["contracts/policy-bundle"],
           "type": "array"
@@ -83,6 +90,7 @@
         "workflow_contracts",
         "required_workflows",
         "repository_home_action",
+        "release_tools",
         "policy_tools",
         "policy_manifest"
       ],

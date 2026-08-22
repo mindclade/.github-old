@@ -26,6 +26,7 @@ SURFACE_KEYS = {
     "workflow_contracts",
     "required_workflows",
     "repository_home_action",
+    "release_tools",
     "policy_tools",
     "policy_manifest",
 }
@@ -34,6 +35,10 @@ REQUIRED_WORKFLOWS = [
     ".github/workflows/required-security-baseline.yml",
 ]
 REPOSITORY_HOME_ACTION = ["actions/validate-repository-home"]
+RELEASE_TOOLS = [
+    "tools/validate-release-spec.py",
+    "tools/verify_release_tag.py",
+]
 POLICY_TOOLS = [
     "tools/enrich_spdx_license.py",
     "tools/policy_adoption.py",
@@ -175,6 +180,7 @@ def validate_spec(path: Path) -> dict[str, Any]:
         "workflow_contracts": contracts,
         "required_workflows": REQUIRED_WORKFLOWS,
         "repository_home_action": REPOSITORY_HOME_ACTION,
+        "release_tools": RELEASE_TOOLS,
         "policy_tools": POLICY_TOOLS,
         "policy_manifest": POLICY_MANIFEST,
     }

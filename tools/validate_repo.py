@@ -85,7 +85,9 @@ REQUIRED = {
     "contracts/releases/retired/v4.0.0.json",
     "contracts/releases/v5.0.0.json",
     "tools/validate-release-spec.py",
+    "tools/verify_release_tag.py",
     "tests/test_release_spec.py",
+    "tests/test_release_tag.py",
     "contracts/policy-bundle/acceptance-record.schema.json",
     "contracts/policy-bundle/adoption-record.schema.json",
     "contracts/policy-bundle/manifest.json",
@@ -226,6 +228,16 @@ def main() -> int:
                     errors,
                     f"third-party action is not SHA-pinned in {rel(path)}: {use}",
                 )
+
+    release_tag_verifier_calls = {
+        "nix-qualification.yml": "python3 tools/verify_release_tag.py",
+        "publish-release.yml": "python3 tools/verify_release_tag.py",
+        "release.yml": "python3 tools/verify_release_tag.py",
+        "synchronize-policy-bundle.yml": "python3 source/tools/verify_release_tag.py",
+    }
+    for name, call in release_tag_verifier_calls.items():
+        if call not in (workflow_dir / name).read_text(encoding="utf-8"):
+            fail(errors, f"{name} does not verify the connected signed release tag")
 
     templates = ROOT / "workflow-templates"
     for template in sorted(templates.glob("*.yml")):

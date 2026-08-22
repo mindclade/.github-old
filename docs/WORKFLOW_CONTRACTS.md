@@ -78,6 +78,12 @@ paths, and SRI output hashes must agree.
 Consumers may move to `@v5.0.0` only after an operator publishes that immutable release;
 neither this documentation nor a branch commit creates or moves a release tag.
 
+The subtree mirror may destructively refresh its documented target branch, but its App-backed
+tagger is not a qualified cryptographic signer. Every nonempty `tag` input therefore fails before
+the branch is rewritten. Target-tag activation remains blocked until a separate signed release
+authority can bind the exact source, split, subtree, and workflow provenance and pass connected
+positive and negative tests. Existing target tags are never repaired or replaced.
+
 Nix owns host tooling and reproducibility evidence. Bazel remains authoritative for the
 monorepo build/test graph and application container images, and this workflow does not create
 parallel NixOS, nix-darwin, Home Manager, or Nix container-image authority.

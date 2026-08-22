@@ -45,8 +45,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify the exact annotated release tag
+      - name: Verify the exact signed annotated release tag
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           EXPECTED_SOURCE: ${{ github.sha }}
         run: |
@@ -56,6 +57,10 @@ jobs:
           source_commit="$(git rev-parse --verify "${TAG}^{}")"
           [ "$source_commit" = "$EXPECTED_SOURCE" ]
           git merge-base --is-ancestor "$source_commit" origin/main
+          python3 tools/verify_release_tag.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$TAG" \
+            --expected-source "$source_commit"
           python3 tools/validate-release-spec.py "contracts/releases/${TAG}.json"
 
       - name: Download independent rebuild evidence

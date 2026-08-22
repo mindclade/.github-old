@@ -47,9 +47,10 @@ For this repository's `main` branch require:
 - force pushes and branch deletion blocked;
 - bypass restricted to a time-bounded break-glass role with audit evidence.
 
-Protect tags matching `v*`: only annotated full-semver `vX.Y.Z` release tags are allowed and
-tag update/deletion is blocked. Tag rules protect creation/update before release publication;
-organization immutable-release enforcement protects the published release/tag afterward.
+Protect tags matching `v*`: only GitHub-verified signed annotated full-semver `vX.Y.Z` release
+tags are allowed and tag update/deletion is blocked. Tag rules protect creation/update before
+release publication; organization immutable-release enforcement protects the published
+release/tag afterward.
 
 ## 4. Organization ruleset workflow
 
@@ -104,9 +105,11 @@ and every repository publishing versioned artifacts.
 
 Immutable release publication:
 
-1. `release.yml` validates the annotated semver tag and changelog.
+1. `release.yml` verifies the signed annotated semver tag through GitHub's Git Data API and
+   validates its changelog and source manifest.
 2. It creates a GitHub Release as a draft.
-3. It publishes the completed draft.
+3. Exact-tag qualification succeeds and `publish-release.yml` crosses the platform and security
+   protected environments before publishing the completed draft.
 4. GitHub immutable-release enforcement locks the tag/assets and automatically creates the
    release attestation.
 

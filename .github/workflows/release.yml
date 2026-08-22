@@ -32,6 +32,7 @@ jobs:
 
       - name: Validate the tag
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
@@ -44,16 +45,20 @@ jobs:
             exit 1
           fi
 
-          # An annotated tag carries an author and a message; a lightweight one carries
-          # neither, and the release notes below would be empty.
+          # A signed annotated tag carries a verified release identity, author, and message;
+          # a lightweight one carries neither identity nor release notes.
           if [ "$(git cat-file -t "${TAG}")" != "tag" ]; then
-            echo "::error::'${TAG}' is a lightweight tag. Cut releases with 'git tag -a'."
+            echo "::error::'${TAG}' is a lightweight tag. Cut releases with 'git tag -s'."
             exit 1
           fi
           if ! git merge-base --is-ancestor "${TAG}^{}" origin/main; then
             echo "::error::'${TAG}' does not point to a commit reachable from origin/main."
             exit 1
           fi
+          python3 tools/verify_release_tag.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$TAG" \
+            --expected-source "$(git rev-parse --verify "${TAG}^{commit}")"
 
       - name: Require a changelog entry
         env:
