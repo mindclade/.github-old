@@ -3,7 +3,10 @@
   "contract_major": 5,
   "publication": {
     "draft_on_tag": true,
-    "protected_environment": "workflow-release",
+    "protected_environments": [
+      "workflow-release-platform",
+      "workflow-release-security"
+    ],
     "required_approvals": 2
   },
   "qualification": {

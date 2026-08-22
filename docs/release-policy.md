@@ -50,9 +50,14 @@ git push origin vX.Y.Z
 The commit operand is not optional. Without it the tag lands on the checkout, which after a
 squash or rebase merge is a different commit than the one that was reviewed and attested.
 
-`release.yml` validates the tag and changelog, creates a draft GitHub Release, and publishes
-it. Organization immutable-release enforcement then protects the release/tag and produces
-release evidence.
+`release.yml` validates the tag, changelog, and tracked release specification; creates a draft;
+and attaches an exact source/file-digest manifest. It never publishes. After connected
+qualification of that exact tag, an operator dispatches `publish-release.yml` with the immutable
+evidence digest and protected change ticket. Publication first crosses the
+`workflow-release-platform` environment and then the `workflow-release-security` environment;
+each has one exact reviewer team and prevents self-review. This enforces two distinct protected
+approval boundaries before organization immutable-release enforcement protects the release and
+tag.
 
 Never publish from an unreviewed local commit. Never move or reuse an existing release tag.
 

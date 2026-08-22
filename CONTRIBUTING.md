@@ -1,11 +1,15 @@
-# Contributing
+<!-- mindclade-doc: contributing@1 -->
 
-Org-wide default, inherited by every repository that does not carry its own
-`CONTRIBUTING.md`. A repository that does carry one overrides this entirely, and takes on the
-job of keeping it current — `mindclade-internal-monorepo` does, deliberately.
+# Contributing to Mindclade
 
-Prefer inheriting. A copy made "so we can tweak one line" is the usual way an estate ends up
-with six divergent contribution guides and no way to tell which is authoritative.
+This is the canonical organization contribution policy. GitHub does not inherit community
+files from an internal `.github` repository, so every governed repository carries a local
+`CONTRIBUTING.md`. Each local file preserves the authorization and intellectual-property
+terms below and adds only the workflow, risk, and validation facts specific to that repository.
+
+Change an organization-wide rule here first, version the common-document contract, and migrate
+all local files in reviewed pull requests. Repository-specific guidance changes in its owning
+repository and must not silently weaken the common terms.
 
 ## Before you start
 
@@ -84,3 +88,32 @@ tell what actually stands between them and merge.
 - A vulnerability → [`SECURITY.md`](SECURITY.md), never an issue
 - How the org is governed → [`GOVERNANCE.md`](GOVERNANCE.md)
 - Anything else → [`SUPPORT.md`](SUPPORT.md)
+
+
+## Contributor authorization and intellectual property
+
+A contribution may be submitted only by a person authorized under a current
+written employment, contractor, assignment, or other contribution agreement
+with Mindclade, LLC. Before opening or updating a pull request, the contributor
+must confirm that:
+
+- they have the right and authority to submit every part of the contribution;
+- first-party work is covered by the contributor's controlling written
+  agreement with Mindclade, LLC.;
+- third-party code, data, models, media, fonts, specifications, and generated
+  material are identified with their source, version, license, provenance, and
+  required notices;
+- the contribution contains no material whose confidentiality, license,
+  consent, acceptable-use terms, export controls, or other restrictions
+  prohibit submission; and
+- the change description and validation evidence are complete and accurate.
+
+By submitting or updating a pull request, the contributor represents that these
+statements are true. Submission is not acceptance and does not by itself alter
+ownership, grant a license, or replace the controlling written agreement.
+Signed commits establish source identity and integrity; they are not a
+substitute for the required written agreement.
+
+If authorization or ownership is unclear, stop before submission and use the
+legal or contract channel named in the applicable agreement. Do not place
+confidential material in a public issue or an unapproved email.

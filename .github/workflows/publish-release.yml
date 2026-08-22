@@ -27,11 +27,21 @@ permissions:
   contents: read
 
 jobs:
+  platform-approval:
+    name: Platform release approval
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: workflow-release-platform
+    steps:
+      - name: Record platform approval
+        run: echo 'Platform approved protected workflow publication.'
+
   publish:
+    needs: platform-approval
     name: Publish qualified immutable release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    environment: workflow-release
+    environment: workflow-release-security
     concurrency:
       group: workflow-release-${{ inputs.tag }}
       cancel-in-progress: false

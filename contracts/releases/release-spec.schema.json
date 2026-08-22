@@ -9,10 +9,13 @@
       "additionalProperties": false,
       "properties": {
         "draft_on_tag": {"const": true},
-        "protected_environment": {"const": "workflow-release"},
+        "protected_environments": {
+          "const": ["workflow-release-platform", "workflow-release-security"],
+          "type": "array"
+        },
         "required_approvals": {"const": 2}
       },
-      "required": ["draft_on_tag", "protected_environment", "required_approvals"],
+      "required": ["draft_on_tag", "protected_environments", "required_approvals"],
       "type": "object"
     },
     "qualification": {

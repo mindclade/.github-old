@@ -1,3 +1,5 @@
+<!-- mindclade-doc: changelog@1 -->
+
 # Changelog
 
 All notable changes to the versioned reusable-workflow contract are recorded here. Consumers
@@ -7,7 +9,7 @@ release is published and the consumer updates its `uses:` reference.
 The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
 outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
 
-## v5.0.0
+## v5.0.0 (planned; not published)
 
 ### Changed
 

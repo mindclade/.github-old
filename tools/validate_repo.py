@@ -48,7 +48,10 @@ REQUIRED = {
     "actions/validate-repository-home/validate.py",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
+    "CHANGELOG.md",
     "GOVERNANCE.md",
+    "LICENSE",
+    "NOTICE",
     "README.md",
     "SECURITY.md",
     "SUPPORT.md",
@@ -57,6 +60,7 @@ REQUIRED = {
     "docs/WIF.md",
     "docs/WORKFLOW_CONTRACTS.md",
     "docs/ACTIONS_SECURITY.md",
+    "docs/common-document-contract.md",
     "profile/README.md",
     "BLUEPRINT.md",
     ".github/workflows/reusable-license-headers.yml",
@@ -155,8 +159,10 @@ def main() -> int:
                 fail(errors, f"legacy organization slug in {name}")
             if MARKER_RE.search(text):
                 fail(errors, f"unresolved marker in {name}")
-            if "v1.0.0" in text:
-                fail(errors, f"stale v1 release reference in {name}")
+            # v1.0.0 remains a valid first application release ID in rollback-lineage
+            # contracts. Reject only stale shared-workflow pins, not that domain value.
+            if re.search(r"@(?:refs/tags/)?v1\.0\.0\b", text):
+                fail(errors, f"stale v1 workflow release pin in {name}")
             if "sigstore/cosign" in text or "cosign attest" in text:
                 fail(
                     errors,

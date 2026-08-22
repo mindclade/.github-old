@@ -1,4 +1,4 @@
-# .github production blueprint
+# Mindclade · `.github` production blueprint
 
 **Repository class:** `enterprise-control`  
 **Visibility:** `internal`  

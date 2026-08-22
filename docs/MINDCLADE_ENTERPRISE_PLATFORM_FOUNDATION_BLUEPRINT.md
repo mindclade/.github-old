@@ -370,9 +370,16 @@ It does not own:
 ├── docs/
 │   ├── workflow-contracts.md
 │   └── actions-security.md
+├── AGENTS.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── SECURITY.md
+├── GOVERNANCE.md
+├── LEGAL.md
 ├── LICENSE
+├── NOTICE
+├── SECURITY.md
+├── SUPPORT.md
 └── README.md
 ```
 
@@ -484,9 +491,16 @@ github-config/
 ├── flake.nix
 ├── flake.lock
 ├── renovate.json5
+├── AGENTS.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── SECURITY.md
+├── GOVERNANCE.md
+├── LEGAL.md
 ├── LICENSE
+├── NOTICE
+├── SECURITY.md
+├── SUPPORT.md
 ├── README.md
 └── BLUEPRINT.md
 ```
@@ -642,9 +656,16 @@ bootstrap/
 ├── flake.nix
 ├── flake.lock
 ├── renovate.json5
+├── AGENTS.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── SECURITY.md
+├── GOVERNANCE.md
+├── LEGAL.md
 ├── LICENSE
+├── NOTICE
+├── SECURITY.md
+├── SUPPORT.md
 ├── README.md
 └── BLUEPRINT.md
 ```
@@ -793,9 +814,16 @@ infrastructure-live/
 ├── .terragrunt-version
 ├── .terraform.lock.hcl
 ├── renovate.json5
+├── AGENTS.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── SECURITY.md
+├── GOVERNANCE.md
+├── LEGAL.md
 ├── LICENSE
+├── NOTICE
+├── SECURITY.md
+├── SUPPORT.md
 ├── README.md
 └── BLUEPRINT.md
 ```
@@ -1155,9 +1183,16 @@ gitops/
 ├── flake.nix
 ├── flake.lock
 ├── renovate.json5
+├── AGENTS.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── SECURITY.md
+├── GOVERNANCE.md
+├── LEGAL.md
 ├── LICENSE
+├── NOTICE
+├── SECURITY.md
+├── SUPPORT.md
 ├── README.md
 └── BLUEPRINT.md
 ```

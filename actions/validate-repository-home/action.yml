@@ -3,8 +3,8 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
-name: Validate Mindclade repository home
-description: Validate a repository-home@2 README against its local repository contract.
+name: Validate Mindclade repository home and common documents
+description: Validate repository-home@2 and common-document@1 against the local contract.
 
 inputs:
   local-validator-path:

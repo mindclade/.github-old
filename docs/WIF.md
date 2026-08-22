@@ -92,9 +92,9 @@ The snippet is a policy contract, not a module copied into this repository. `boo
 organization and repository IDs. Service-account bindings further narrow direct apply and
 scheduled read paths to an exact `workflow_ref` on `refs/heads/main`.
 
-The proposed ARC lane remains quarantined until its coordinated v4 release. Its capability
+The proposed ARC lane remains quarantined until its coordinated v5 release. Its capability
 providers, reusable-workflow identities, and protected-environment subjects are design inputs,
-not active trust. Publish and protect an independently qualified v4 release before introducing
+not active trust. Publish and protect an independently qualified v5 release before introducing
 or activating any of those providers; never bind cloud IAM to unpublished workflow source.
 
 For production deployment identities, additionally bind a protected GitHub environment.

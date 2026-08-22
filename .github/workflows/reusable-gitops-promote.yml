@@ -17,9 +17,17 @@ on:
         required: true
         type: string
       previous-release-id:
-        required: true
+        default: ""
+        required: false
         type: string
       previous-subject-digest:
+        default: ""
+        required: false
+        type: string
+      producer-evidence-digest:
+        required: true
+        type: string
+      rollback-strategy:
         required: true
         type: string
 
@@ -43,22 +51,34 @@ jobs:
           RELEASE_ID: ${{ inputs.release-id }}
           PREVIOUS_RELEASE_ID: ${{ inputs.previous-release-id }}
           PREVIOUS_SUBJECT_DIGEST: ${{ inputs.previous-subject-digest }}
+          PRODUCER_EVIDENCE_DIGEST: ${{ inputs.producer-evidence-digest }}
+          ROLLBACK_STRATEGY: ${{ inputs.rollback-strategy }}
         run: |
           set -euo pipefail
           [[ "$APPLICATION" =~ ^(platform|serving|research|data|partner)-[a-z0-9][a-z0-9-]*$ ]] || exit 1
           [[ "$IMAGE_REF" =~ @sha256:[0-9a-f]{64}$ ]] || exit 1
           [[ "$RELEASE_KIND" =~ ^(application|bundle|dataset|model|pipeline|platform)$ ]] || exit 1
           [[ "$RELEASE_ID" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-          [[ "$PREVIOUS_RELEASE_ID" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-          IFS=. read -r candidate_major candidate_minor candidate_patch <<< "${RELEASE_ID#v}"
-          IFS=. read -r previous_major previous_minor previous_patch <<< "${PREVIOUS_RELEASE_ID#v}"
-          ((
-            10#$previous_major < 10#$candidate_major ||
-            (10#$previous_major == 10#$candidate_major && 10#$previous_minor < 10#$candidate_minor) ||
-            (10#$previous_major == 10#$candidate_major && 10#$previous_minor == 10#$candidate_minor && 10#$previous_patch < 10#$candidate_patch)
-          )) || exit 1
-          [[ "$PREVIOUS_SUBJECT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
-          [ "$PREVIOUS_SUBJECT_DIGEST" != "sha256:$(printf '0%.0s' {1..64})" ] || exit 1
+          [[ "$PRODUCER_EVIDENCE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+          [ "$PRODUCER_EVIDENCE_DIGEST" != "sha256:$(printf '0%.0s' {1..64})" ] || exit 1
+          if [ "$ROLLBACK_STRATEGY" = bootstrap ]; then
+            [ "$RELEASE_ID" = v1.0.0 ] || exit 1
+            [ -z "$PREVIOUS_RELEASE_ID" ] || exit 1
+            [ -z "$PREVIOUS_SUBJECT_DIGEST" ] || exit 1
+          elif [ "$ROLLBACK_STRATEGY" = previous-release ]; then
+            [[ "$PREVIOUS_RELEASE_ID" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+            IFS=. read -r candidate_major candidate_minor candidate_patch <<< "${RELEASE_ID#v}"
+            IFS=. read -r previous_major previous_minor previous_patch <<< "${PREVIOUS_RELEASE_ID#v}"
+            ((
+              10#$previous_major < 10#$candidate_major ||
+              (10#$previous_major == 10#$candidate_major && 10#$previous_minor < 10#$candidate_minor) ||
+              (10#$previous_major == 10#$candidate_major && 10#$previous_minor == 10#$candidate_minor && 10#$previous_patch < 10#$candidate_patch)
+            )) || exit 1
+            [[ "$PREVIOUS_SUBJECT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+            [ "$PREVIOUS_SUBJECT_DIGEST" != "sha256:$(printf '0%.0s' {1..64})" ] || exit 1
+          else
+            exit 1
+          fi
           [ "$GITHUB_EVENT_NAME" = push ] || exit 1
           [ "$GITHUB_REF" = refs/heads/main ] || exit 1
           [ "$GITHUB_REPOSITORY" = mindclade/mindclade-internal-monorepo ] || exit 1
@@ -121,18 +141,29 @@ jobs:
           RELEASE_ID: ${{ inputs.release-id }}
           PREVIOUS_RELEASE_ID: ${{ inputs.previous-release-id }}
           PREVIOUS_SUBJECT_DIGEST: ${{ inputs.previous-subject-digest }}
+          PRODUCER_EVIDENCE_DIGEST: ${{ inputs.producer-evidence-digest }}
+          ROLLBACK_STRATEGY: ${{ inputs.rollback-strategy }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           branch="promotion/${RELEASE_ID}-${SOURCE_SHA:0:12}"
-          nix develop .#ci --command python3 scripts/create-release-promotion.py \
-            --release-id "$RELEASE_ID" \
-            --application "$APPLICATION" \
-            --release-kind "$RELEASE_KIND" \
-            --image-ref "$IMAGE_REF" \
-            --source-sha "$SOURCE_SHA" \
-            --previous-release-id "$PREVIOUS_RELEASE_ID" \
-            --previous-subject-digest "$PREVIOUS_SUBJECT_DIGEST"
+          command=(
+            nix develop .#ci --command python3 scripts/create-release-promotion.py
+            --release-id "$RELEASE_ID"
+            --application "$APPLICATION"
+            --release-kind "$RELEASE_KIND"
+            --image-ref "$IMAGE_REF"
+            --source-sha "$SOURCE_SHA"
+            --producer-evidence-digest "$PRODUCER_EVIDENCE_DIGEST"
+            --rollback-strategy "$ROLLBACK_STRATEGY"
+          )
+          if [ "$ROLLBACK_STRATEGY" = previous-release ]; then
+            command+=(
+              --previous-release-id "$PREVIOUS_RELEASE_ID"
+              --previous-subject-digest "$PREVIOUS_SUBJECT_DIGEST"
+            )
+          fi
+          "${command[@]}"
           git config user.name 'mindclade-release-promoter[bot]'
           git config user.email 'mindclade-release-promoter[bot]@users.noreply.github.com'
           git switch -c "$branch"

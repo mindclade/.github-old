@@ -1,21 +1,22 @@
 <!-- mindclade-doc: how-to@1 -->
 
-# Publish the deferred v4 shared workflow contract
+# Publish the consolidated v5 shared workflow contract
 
 > **Audience:** Platform and security maintainers
 > **Outcome:** A future, coordinated review publishes the ARC workflow contract as an immutable
 > release that downstream repositories may adopt.
 > **Risk:** Critical—downstream CI and cloud trust may bind the released workflow identity.
 
-> **Current status:** Deferred. Main contains candidate source only. There is no v4 release
-> manifest or authorized v4 tag, and consumers must remain on `v3.0.0` until a separate release
-> PR records evidence for the final main commit.
+> **Current status:** Source candidate only. The restored v4 manifest qualifies its historical
+> protected-main source but does not create or authorize a tag. Publish and qualify v4 first for
+> consumers whose WIF contracts require it. `contracts/releases/v5.0.0.json` then defines the
+> consolidated successor; no v5 tag or release exists.
 
 ## Before you begin
 
 - `main` is protected by the required checks listed in [Enterprise setup](ENTERPRISE_SETUP.md).
 - Tags matching `v*` are protected and organization immutable releases are enabled.
-- `CHANGELOG.md` describes the final proposed v4 contract.
+- `CHANGELOG.md` describes the final proposed v5 contract.
 - Starter workflows and active WIF policy references still use the published `v3.0.0` contract.
 - `platform` and `security` reviewers have approved the release commit.
 
@@ -27,32 +28,34 @@ From a clean checkout of the reviewed `main` commit:
 nix develop .#ci --command make validate
 ```
 
-A separate release-evidence PR must record the final source commit, Git trees,
-mandatory-workflow digests, and connected qualification. The evidence must reference a commit
-reachable from protected main after merge; it must never reference an intermediate PR commit.
+The tag workflow creates a draft and attaches the exact source commit and mandatory-workflow
+digests. Connected qualification evidence must bind that tag and digest manifest; it must never
+reference an intermediate PR commit.
 
 Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same commit.
 
 ## Create the immutable release
 
 Tag the commit the manifest attests, never whatever `main` happens to point at. A squash or
-rebase merge leaves that commit reachable only from stale branches, so `git tag -a v4.0.0 -m …`
+rebase merge leaves that commit reachable only from stale branches, so `git tag -a v5.0.0 -m …`
 with no commit operand tags a different tree and nothing reports it.
 
 ```sh
 git switch main
 git pull --ff-only
-approved_tag=v4.0.0 # replace with the tag approved by the release-evidence PR
+approved_tag=v5.0.0
 approved_release_commit=FULL_PROTECTED_MAIN_SHA_FROM_RELEASE_EVIDENCE
 test "${#approved_release_commit}" -eq 40
 git merge-base --is-ancestor "$approved_release_commit" origin/main
-git tag -a "$approved_tag" -m "Mindclade ARC artifact-authority workflow foundation" \
-  "$approved_release_commit"
+git tag -a "$approved_tag" -m "Mindclade shared workflow contract v5" "$approved_release_commit"
 git push origin "$approved_tag"
 ```
 
-Confirm `release.yml` publishes the draft and the organization immutable-release policy locks
-the release and tag.
+Confirm `release.yml` leaves the release in draft state and attaches a checksum-verified source
+manifest. Run native Linux AMD64/ARM64 and Darwin qualification, both independent Linux rebuilds,
+and the connected WIF/cloud canary against the exact tag. Archive the resulting evidence bundle,
+then dispatch `publish-release.yml` with its digest and protected change ticket. Two independent
+environment approvals are mandatory.
 
 Confirm the annotated tag peels back to the same commit before consumers pin it:
 
@@ -68,7 +71,7 @@ Open a reviewed pull request in one representative consumer using an exact relea
 ```yaml
 jobs:
   ci:
-    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@<approved-v4-tag>
+    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@v5.0.0
 ```
 
 Verify the called jobs report the expected check names and permissions. For WIF-enabled

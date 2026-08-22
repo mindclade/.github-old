@@ -9,10 +9,16 @@
       "type": "string"
     },
     "previous-release-id": {
-      "required": true,
+      "default": "",
+      "required": false,
       "type": "string"
     },
     "previous-subject-digest": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
+    "producer-evidence-digest": {
       "required": true,
       "type": "string"
     },
@@ -21,6 +27,10 @@
       "type": "string"
     },
     "release-kind": {
+      "required": true,
+      "type": "string"
+    },
+    "rollback-strategy": {
       "required": true,
       "type": "string"
     }

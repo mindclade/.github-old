@@ -47,13 +47,16 @@ required WIF negative authorization tests are qualified.
 
 ## Publish the first production contract
 
-Continue using the published `v3.0.0` contract. The v4 source on main is quarantined until the
-separate process in [Workflow release bootstrap](workflow-release-bootstrap.md) completes.
+Continue using the published `v3.0.0` contract. The restored
+`contracts/releases/v5.0.0.json` binds the deferred v4 release to its exact protected-main
+ancestor, but does not authorize a tag or publication. Complete v4 connected qualification
+before the v5 process in [Workflow release bootstrap](workflow-release-bootstrap.md).
 
 ## Verify
 
 - `v3.0.0` remains the active immutable consumer contract.
-- No v4 tag or release manifest exists before connected qualification.
+- The v4 source manifest validates, while the annotated v4 tag and connected release evidence
+  remain absent until protected qualification.
 - Starter workflows reference `@v3.0.0`.
 - `python3 tools/check_workflow_contracts.py` still matches every checked-in snapshot.
 - A representative consumer can call a non-cloud reusable workflow from the release.

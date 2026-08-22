@@ -113,12 +113,15 @@ def validate_spec(path: Path) -> dict[str, Any]:
         raise SpecError("publication must be an object")
     exact_keys(
         publication,
-        {"draft_on_tag", "protected_environment", "required_approvals"},
+        {"draft_on_tag", "protected_environments", "required_approvals"},
         "publication",
     )
     if publication != {
         "draft_on_tag": True,
-        "protected_environment": "workflow-release",
+        "protected_environments": [
+            "workflow-release-platform",
+            "workflow-release-security",
+        ],
         "required_approvals": 2,
     }:
         raise SpecError("publication must remain draft-first with two protected approvals")

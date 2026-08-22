@@ -2,9 +2,9 @@ PYTHON ?= python3
 ACTIONLINT ?= actionlint
 YAMLLINT ?= yamllint
 
-.PHONY: validate lint contracts release-spec pins repository-home validate-production-contract
+.PHONY: validate lint contracts release-spec v4-release-readiness pins repository-home validate-production-contract
 
-validate: lint contracts release-spec pins repository-home validate-production-contract
+validate: lint contracts release-spec v4-release-readiness pins repository-home validate-production-contract
 	$(PYTHON) tools/validate_repo.py
 
 lint:
@@ -16,6 +16,9 @@ contracts:
 
 release-spec:
 	$(PYTHON) tools/validate-release-spec.py contracts/releases/v5.0.0.json
+
+v4-release-readiness:
+	$(PYTHON) tools/validate_release_readiness.py
 
 pins:
 	$(PYTHON) tools/validate_action_pins.py
