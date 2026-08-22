@@ -1,8 +1,18 @@
-# Governance
+<!-- mindclade-doc: governance@1 -->
 
-How decisions get made across `Mindclade`, and where each rule physically lives. A repo
-with its own `GOVERNANCE.md` overrides this — `mindclade-internal-monorepo` does, and describes
-its package-level ownership model there.
+# Mindclade governance · enterprise defaults
+
+| Document control | Value |
+| --- | --- |
+| Owner | Mindclade leadership |
+| Version | 1.0 |
+| Last reviewed | August 21, 2026 |
+| Authority | Organization-wide engineering governance defaults |
+
+How decisions get made across `Mindclade`, and where each rule physically lives. Because the
+`.github` repository is internal, every governed repository carries a local `GOVERNANCE.md`.
+The local document applies this organization policy to its declared authority boundary; it does
+not replace or weaken organization-wide controls.
 
 ## The rule: if it governs, it is code
 
@@ -17,7 +27,7 @@ drift detection is the point rather than a nicety.
 | GCP org hierarchy, state backend, WIF, break-glass | [`bootstrap`](https://github.com/mindclade/bootstrap) | Terraform, human-applied |
 | Live GCP infrastructure | [`infrastructure-live`](https://github.com/mindclade/infrastructure-live) | Terragrunt, CI-applied behind an environment gate |
 | Cluster state and admission policy | [`gitops`](https://github.com/mindclade/gitops) | ArgoCD |
-| Org-wide CI, templates, community health | [`.github`](https://github.com/mindclade/.github) | Inheritance and `uses:` |
+| Org-wide CI, templates, community policy | [`.github`](https://github.com/mindclade/.github) | Explicit local policy files and immutable `uses:` references |
 | Member-only organization profile | [`.github-private`](https://github.com/mindclade/.github-private) | GitHub member-profile rendering |
 | Package ownership and promotion policy | Monorepo `governance/` | `just policy` |
 

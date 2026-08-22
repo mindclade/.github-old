@@ -8,7 +8,7 @@
 # It does NOT create or move tags. tag-protection in github-config makes `v*` immutable with
 # no bypass, which is the property the whole pinning model rests on. This only reacts to a tag
 # that a human already pushed.
-name: Release
+name: Assemble workflow release
 
 on:
   push:
@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    name: Validate and publish release
+  draft:
+    name: Validate and assemble draft
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -67,6 +67,13 @@ jobs:
             exit 1
           fi
 
+      - name: Validate the release specification
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          python3 tools/validate-release-spec.py "contracts/releases/${TAG}.json"
+
       - name: Extract release notes
         env:
           TAG: ${{ github.ref_name }}
@@ -101,10 +108,30 @@ jobs:
             --verify-tag \
             --draft
 
-      - name: Publish immutable release
+      - name: Attach exact source manifest
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          gh release edit "${TAG}" --draft=false
+          source_commit="$(git rev-parse --verify "${TAG}^{}")"
+          python3 tools/validate-release-spec.py \
+            "contracts/releases/${TAG}.json" \
+            --attest-source "$source_commit" \
+            --output attested-release-manifest.json
+          sha256sum attested-release-manifest.json > attested-release-manifest.json.sha256
+          gh release upload "${TAG}" \
+            attested-release-manifest.json \
+            attested-release-manifest.json.sha256 \
+            --clobber=false
+
+      - name: Record the protected publication boundary
+        run: |
+          {
+            echo
+            echo '### Publication status'
+            echo
+            echo 'The release remains a draft. Publication requires the protected'
+            echo '`Publish workflow release` dispatch, connected exact-tag qualification,'
+            echo 'and two independent environment approvals.'
+          } >> "$GITHUB_STEP_SUMMARY"

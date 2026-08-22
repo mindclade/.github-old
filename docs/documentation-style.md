@@ -5,6 +5,13 @@
 > **Platform Foundation · Authoring standard**  
 > Accurate, calm, task-oriented documentation for control-plane and product repositories.
 
+Top-level policy, licensing, community, and changelog files additionally follow the
+[common-document contract](common-document-contract.md). Repository-home visual identity and
+reader-success rules remain defined here and in
+[`templates/repository-home.md`](templates/repository-home.md).
+The exact root `LEGAL.md` is the authority for documentation reliance, legal effect, and
+representation boundaries; link to it instead of duplicating or paraphrasing legal terms.
+
 ## Voice and visual identity
 
 Use `Mindclade · <System>` for repository and documentation-home titles. Follow it with a
@@ -77,10 +84,11 @@ Keep one primary reader need per page:
 Place volatile facts in one authoritative page and link to it. Preserve existing filenames and
 anchors when moving content would break links.
 
-Root READMEs follow `repository-home@2`: brand header, local badges, outcome, contract, mission,
-authority boundary, safe quick start, one highlighted estate diagram, repository map, change
-path, canonical links, and security. Keep prose at or below 850 words; a simple repository may
-be shorter rather than padded.
+Root READMEs follow `repository-home@2`: brand header, local badges, outcome, contract, primary
+readers, mission, authority boundary, safe quick start, one highlighted estate diagram,
+repository map, change path, canonical links, and security. Quick starts state prerequisites,
+an observable success signal, the first failure route, and the external-action safety boundary.
+Keep prose at or below 850 words; a simple repository may be shorter rather than padded.
 
 ## Evidence standard
 

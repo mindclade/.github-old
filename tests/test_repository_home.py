@@ -21,6 +21,7 @@ SPEC = importlib.util.spec_from_file_location("repository_home", MODULE_PATH)
 assert SPEC and SPEC.loader
 repository_home = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(repository_home)
+REPOSITORY_ROOT = MODULE_PATH.parents[2]
 
 
 class RepositoryHomeValidationTest(unittest.TestCase):
@@ -28,6 +29,7 @@ class RepositoryHomeValidationTest(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
+        (root / ".github").mkdir()
         (root / "contracts").mkdir()
         (root / "docs" / "assets" / "brand").mkdir(parents=True)
         (root / "docs" / "assets" / "badges").mkdir(parents=True)
@@ -49,6 +51,73 @@ change_model: pull-request
 """,
             encoding="utf-8",
         )
+        (root / "AGENTS.md").write_text("# Agent instructions\n", encoding="utf-8")
+        (root / ".github" / "PULL_REQUEST_TEMPLATE.md").write_text(
+            """## Contributor authorization
+
+- [ ] I am authorized under a current written agreement with Mindclade, LLC.
+- [ ] I identified third-party material and updated LICENSE and NOTICE.
+""",
+            encoding="utf-8",
+        )
+        shutil.copyfile(REPOSITORY_ROOT / "LICENSE", root / "LICENSE")
+        shutil.copyfile(
+            REPOSITORY_ROOT / "CODE_OF_CONDUCT.md", root / "CODE_OF_CONDUCT.md"
+        )
+        shutil.copyfile(REPOSITORY_ROOT / "LEGAL.md", root / "LEGAL.md")
+        common_documents = {
+            "CONTRIBUTING.md": """<!-- mindclade-doc: contributing@1 -->
+
+# Contributing to Mindclade · sample
+
+Contributors need a current written agreement and the right and authority to
+submit first-party and third-party material.
+
+By submitting or updating a pull request, the contributor represents that the
+submission is authorized. Signed commits establish integrity and are not a
+substitute for the controlling agreement.
+""",
+            "SECURITY.md": """<!-- mindclade-doc: security@1 -->
+
+# Mindclade security policy · sample
+
+Do not open a public issue. Use security@mindclade.com or
+biosecurity@mindclade.com through an approved private channel.
+Response times are operational targets, not contractual service levels. Safe
+harbor does not authorize third-party systems or excuse unlawful conduct.
+""",
+            "SUPPORT.md": """<!-- mindclade-doc: support@1 -->
+
+# Mindclade support · sample
+
+Do not report a vulnerability here; follow SECURITY.md. GitHub has no SLA.
+Customer support follows the applicable agreement.
+""",
+            "GOVERNANCE.md": """<!-- mindclade-doc: governance@1 -->
+
+# Mindclade governance · sample
+
+Changes require review and evidence.
+""",
+            "CHANGELOG.md": """<!-- mindclade-doc: changelog@1 -->
+
+# Mindclade changelog · sample
+
+## Unreleased
+""",
+            "NOTICE": """Mindclade, LLC. Proprietary and Third-Party Notice
+
+Document-Control: mindclade-notice@1
+Repository: mindclade/sample
+SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+Third-party materials retain their own terms. Those terms control.
+CODE_OF_CONDUCT.md adapts Contributor Covenant version 2.1 under Creative
+Commons Attribution 4.0.
+""",
+        }
+        for name, content in common_documents.items():
+            (root / name).write_text(content, encoding="utf-8")
         contract = repository_home.parse_contract(root / "contracts" / "repository.yaml")
         repository_home.write_badges(root, contract)
         (root / "docs" / "assets" / "badges" / "scope.svg").write_text(
@@ -78,6 +147,8 @@ change_model: pull-request
 | Visibility | `private` |
 | Change model | `pull-request` |
 | Authority | `sample-authority` |
+| Primary readers | Sample maintainers |
+| First success | [Validate the sample](#quick-start) |
 
 ## Mission
 
@@ -95,9 +166,17 @@ Orient the reader.
 
 ## Quick start
 
+Prerequisite: a local checkout.
+
 ```sh
 true
 ```
+
+**Success means:** the command exits successfully.
+
+**If it fails:** inspect the command output.
+
+**Safety boundary:** do not mutate external systems.
 
 ## Estate position
 
@@ -146,6 +225,58 @@ Do not commit secrets.
         self.assertTrue(any("Visibility" in error for error in errors))
         self.assertTrue(any("remote README image" in error for error in errors))
         self.assertTrue(any("Shields" in error for error in errors))
+
+    def test_reader_success_path_is_required(self) -> None:
+        root = self.fixture()
+        readme = root / "README.md"
+        text = readme.read_text(encoding="utf-8")
+        text = text.replace("| Primary readers | Sample maintainers |\n", "")
+        text = text.replace("**If it fails:**", "**Failure route:**")
+        readme.write_text(text, encoding="utf-8")
+        errors = repository_home.validate(root)
+        self.assertTrue(any("primary readers" in error for error in errors))
+        self.assertTrue(any("**If it fails:**" in error for error in errors))
+
+    def test_common_document_contract_is_fail_closed(self) -> None:
+        root = self.fixture()
+        (root / "LICENSE").write_text("short proprietary notice\n", encoding="utf-8")
+        notice = root / "NOTICE"
+        notice.write_text(
+            notice.read_text(encoding="utf-8").replace(
+                "Repository: mindclade/sample", "Repository: mindclade/other"
+            ),
+            encoding="utf-8",
+        )
+        contributing = root / "CONTRIBUTING.md"
+        contributing.write_text(
+            contributing.read_text(encoding="utf-8").replace("Signed commits", "Commits"),
+            encoding="utf-8",
+        )
+        errors = repository_home.validate(root)
+        self.assertTrue(any("canonical common-document@1" in error for error in errors))
+        self.assertTrue(any("Repository: mindclade/sample" in error for error in errors))
+        self.assertTrue(any("Signed commits" in error for error in errors))
+
+    def test_legal_reliance_policy_is_fail_closed(self) -> None:
+        root = self.fixture()
+        legal = root / "LEGAL.md"
+        legal.write_text(
+            legal.read_text(encoding="utf-8").replace(
+                "Documentation is not legal", "Documentation is not professional legal"
+            ),
+            encoding="utf-8",
+        )
+        errors = repository_home.validate(root)
+        self.assertTrue(any("LEGAL.md differs" in error for error in errors))
+        self.assertTrue(any("not legal, medical" in error for error in errors))
+
+    def test_duplicate_root_license_surface_fails(self) -> None:
+        root = self.fixture()
+        (root / "license-header.txt").write_text(
+            "not a standalone license\n", encoding="utf-8"
+        )
+        errors = repository_home.validate(root)
+        self.assertTrue(any("duplicate root license surface" in error for error in errors))
 
     def test_stale_version_and_broken_link_fail(self) -> None:
         root = self.fixture()

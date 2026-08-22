@@ -1,0 +1,34 @@
+{
+  "change_class": "major",
+  "contract_major": 5,
+  "publication": {
+    "draft_on_tag": true,
+    "protected_environments": [
+      "workflow-release-platform",
+      "workflow-release-security"
+    ],
+    "required_approvals": 2
+  },
+  "qualification": {
+    "connected_exact_tag": true,
+    "independent_linux_rebuilds": 2,
+    "native_systems": [
+      "aarch64-darwin",
+      "aarch64-linux",
+      "x86_64-linux"
+    ]
+  },
+  "release_tag": "v5.0.0",
+  "required_workflows": [
+    "reusable-arc-oci-build.yml",
+    "reusable-arc-oci-qualify.yml",
+    "reusable-arc-qualification-attest.yml",
+    "reusable-arc-wif-canary.yml",
+    "reusable-binauthz-sign.yml",
+    "reusable-dr-evidence.yml",
+    "reusable-gitops-promote.yml",
+    "reusable-nix-flake.yml",
+    "reusable-nix-qualification.yml"
+  ],
+  "schema_version": 1
+}

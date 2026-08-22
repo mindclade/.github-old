@@ -1,7 +1,16 @@
-# Support
+<!-- mindclade-doc: support@1 -->
 
-This file is the organization-wide default for repositories that do not provide a more specific
-support policy.
+# Mindclade support
+
+| Document control | Value |
+| --- | --- |
+| Owner | Mindclade Engineering |
+| Version | 1.0 |
+| Last reviewed | August 21, 2026 |
+
+This is the canonical organization routing policy. GitHub does not inherit community files from
+an internal `.github` repository, so every governed repository carries a local `SUPPORT.md`
+that preserves these boundaries and adds repository-specific routes.
 
 ## Routing
 

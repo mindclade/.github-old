@@ -46,6 +46,8 @@
 
 ## Authoring standards
 
+- [Common-document contract](common-document-contract.md) — required root policies, legal and
+  licensing invariants, contributor authorization, markers, and acceptance gates.
 - [Documentation style guide](documentation-style.md) — voice, evidence, safety, and review
   expectations.
 - [Documentation templates](templates/README.md) — repository home, documentation home,

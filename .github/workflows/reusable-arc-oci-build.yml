@@ -101,10 +101,15 @@ jobs:
       - name: Configure the exact Artifact Registry credential helper
         env:
           ARTIFACT_REGISTRY_HOST: ${{ vars.ARTIFACT_REGISTRY_HOST }}
+          ARTIFACT_REGISTRY_DR_HOST: ${{ vars.ARTIFACT_REGISTRY_DR_HOST }}
         run: |
           set -euo pipefail
-          [[ "$ARTIFACT_REGISTRY_HOST" =~ ^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev$ ]] || {
-            echo "::error::ARTIFACT_REGISTRY_HOST is absent or malformed"
+          [ "$ARTIFACT_REGISTRY_HOST" = us-central1-docker.pkg.dev ] || {
+            echo "::error::ARTIFACT_REGISTRY_HOST must be the U.S. primary host"
+            exit 1
+          }
+          [ "$ARTIFACT_REGISTRY_DR_HOST" = us-east4-docker.pkg.dev ] || {
+            echo "::error::ARTIFACT_REGISTRY_DR_HOST must be the U.S. recovery host"
             exit 1
           }
           gcloud auth configure-docker "$ARTIFACT_REGISTRY_HOST" --quiet

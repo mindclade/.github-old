@@ -28,6 +28,8 @@
 | Visibility | `internal` |
 | Change model | `pull-request` |
 | Authority | `shared-workflows`<br>`community-health`<br>`workflow-contracts` |
+| Primary readers | Workflow maintainers and repository integrators |
+| First success | [Run the credential-free validation](#quick-start) |
 | Start here | [`docs/README.md`](docs/README.md) |
 
 ## Mission
@@ -54,16 +56,23 @@ or cloud policy.
 
 ## Quick start
 
-Run the complete offline repository and workflow contract checks:
+Prerequisite: Nix with flakes enabled. This path needs no GitHub or cloud credentials and makes
+no external changes.
 
 ```sh
 nix develop .#ci --command make validate
 nix flake check --no-update-lock-file
 ```
 
-Expected result: workflow lint, action pins, compatibility snapshots, repository contracts,
-documentation homes, and unit tests pass. Cloud-dependent workflow qualification remains a
-separate protected lane. Do not create or move a release tag from an agent session.
+**Success means:** workflow lint, action pins, compatibility snapshots, repository contracts,
+documentation homes, and unit tests all pass.
+
+**If it fails:** start with the first named validator. Use the
+[workflow contract guide](docs/WORKFLOW_CONTRACTS.md) for interface or consumer failures and the
+[documentation home](docs/README.md) for the owning reference.
+
+**Safety boundary:** cloud-dependent workflow qualification remains a protected lane. Do not
+create or move a release tag from an ordinary development session.
 
 ## Estate position
 
@@ -114,10 +123,13 @@ the full commit SHA behind that release. Both move through separately reviewed p
 - [Documentation home](docs/README.md)
 - [Architecture](docs/architecture.md)
 - [Workflow contracts](docs/WORKFLOW_CONTRACTS.md)
+- [Common-document contract](docs/common-document-contract.md)
 - [OIDC and WIF](docs/WIF.md)
 - [Enterprise setup](docs/ENTERPRISE_SETUP.md)
 - [Contributing](CONTRIBUTING.md)
-- [Support](SUPPORT.md)
+- Policies and terms: [governance](GOVERNANCE.md) · [conduct](CODE_OF_CONDUCT.md) ·
+  [support](SUPPORT.md) · [legal](LEGAL.md) · [license](LICENSE) · [notice](NOTICE) ·
+  [changes](CHANGELOG.md)
 
 ## Security
 

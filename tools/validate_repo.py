@@ -40,6 +40,7 @@ REQUIRED = {
     ".github/workflows/required-repository-policy.yml",
     ".github/workflows/required-security-baseline.yml",
     ".github/workflows/release.yml",
+    ".github/workflows/publish-release.yml",
     ".github/workflows/smoke.yml",
     "AGENTS.md",
     "actions/validate-repository-home/action.yml",
@@ -47,7 +48,10 @@ REQUIRED = {
     "actions/validate-repository-home/validate.py",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
+    "CHANGELOG.md",
     "GOVERNANCE.md",
+    "LICENSE",
+    "NOTICE",
     "README.md",
     "SECURITY.md",
     "SUPPORT.md",
@@ -56,6 +60,7 @@ REQUIRED = {
     "docs/WIF.md",
     "docs/WORKFLOW_CONTRACTS.md",
     "docs/ACTIONS_SECURITY.md",
+    "docs/common-document-contract.md",
     "profile/README.md",
     "BLUEPRINT.md",
     ".github/workflows/reusable-license-headers.yml",
@@ -74,6 +79,10 @@ REQUIRED = {
     "schemas/drill-report-v2.schema.json",
     "tools/validate_drill_report.py",
     "tests/test_drill_report.py",
+    "contracts/releases/release-spec.schema.json",
+    "contracts/releases/v5.0.0.json",
+    "tools/validate-release-spec.py",
+    "tests/test_release_spec.py",
 }
 
 TEXT_SUFFIXES = {
@@ -150,8 +159,10 @@ def main() -> int:
                 fail(errors, f"legacy organization slug in {name}")
             if MARKER_RE.search(text):
                 fail(errors, f"unresolved marker in {name}")
-            if "v1.0.0" in text:
-                fail(errors, f"stale v1 release reference in {name}")
+            # v1.0.0 remains a valid first application release ID in rollback-lineage
+            # contracts. Reject only stale shared-workflow pins, not that domain value.
+            if re.search(r"@(?:refs/tags/)?v1\.0\.0\b", text):
+                fail(errors, f"stale v1 workflow release pin in {name}")
             if "sigstore/cosign" in text or "cosign attest" in text:
                 fail(
                     errors,
@@ -353,11 +364,14 @@ def main() -> int:
     builder_workflow = arc_workflows["reusable-arc-oci-build.yml"]
     for required_builder_value in (
         "vars.ARTIFACT_REGISTRY_HOST",
+        "vars.ARTIFACT_REGISTRY_DR_HOST",
         "vars.CI_PROJECT_ID",
         "vars.BINAUTHZ_BUILD_ATTESTOR_PROJECT",
         "vars.BINAUTHZ_BUILD_ATTESTOR",
         "vars.BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION",
         'gcloud auth configure-docker "$ARTIFACT_REGISTRY_HOST" --quiet',
+        '[ "$ARTIFACT_REGISTRY_HOST" = us-central1-docker.pkg.dev ]',
+        '[ "$ARTIFACT_REGISTRY_DR_HOST" = us-east4-docker.pkg.dev ]',
     ):
         if required_builder_value not in builder_workflow:
             fail(

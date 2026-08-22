@@ -1,4 +1,6 @@
-# Changelog
+<!-- mindclade-doc: changelog@1 -->
+
+# Mindclade changelog · shared automation
 
 All notable changes to the versioned reusable-workflow contract are recorded here. Consumers
 pin immutable full-semver releases, so a merged change reaches a consumer only after a new
@@ -7,30 +9,29 @@ release is published and the consumer updates its `uses:` reference.
 The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
 outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
 
-## Unreleased
+## v5.0.0 (planned; not published)
 
 ### Changed
 
 - **Breaking (publish as v5.0.0):** `reusable-gitops-promote.yml` replaces the ambiguous
-  `rollback-digest` input with the exact `previous-release-id` and
-  `previous-subject-digest` lineage pair, and requires the closed-catalog `application` and
-  `release-kind` identity required by the GitOps v1beta1 promotion contract. The workflow
-  rejects a previous release that is not numerically older than the candidate.
-  The planned v4 contract remains unpublished; no consumer may adopt this change until an
-  explicitly reviewed immutable release is published.
-
-## Unreleased v4.1.0 draft
+  `rollback-digest` input with `rollback-strategy`, `producer-evidence-digest`, and conditional
+  exact previous-release lineage. Bootstrap is accepted only for a first `v1.0.0` release;
+  later releases require a numerically older exact ID and nonzero subject digest.
+- Release tags now assemble a draft and exact source manifest only. A separate protected
+  publication workflow requires connected evidence and two independent approvals.
 
 ### Added
 
+- Added the estate-wide `common-document@1` contract for repository policy,
+  licensing, attribution, support, conduct, governance, and changelog files.
+- Added fail-closed validation for the shared proprietary license and required
+  top-level document markers.
+- Added the exact estate-wide `LEGAL.md` reliance policy and fail-closed digest
+  validation for the license, conduct, and legal-policy texts.
 - Added `reusable-nix-qualification.yml` with internal change detection, isolated CI-shell
   validation, and an always-present verdict job.
 - Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
 - Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
-
-## Unreleased v4.0.0 draft
-
-### Added
 
 - Added the `reusable-nix-flake.yml` baseline with a locked, runner-selectable flake check.
 - Added dedicated ARC canary, build, qualification-read, qualification-attest, promotion, and
@@ -40,13 +41,22 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ### Changed
 
+- Updated the proprietary terms to `mindclade-license@2` with the protected-
+  disclosure notice in 18 U.S.C. § 1833(b), and recorded the Contributor
+  Covenant 2.1 attribution and modification boundary.
+- Standardized the optional source-header template at
+  `.github/MINDCLADE_PROPRIETARY_SOURCE_HEADER.txt` and prohibited duplicate
+  root license surfaces.
 - **Breaking:** replaced Buildkite artifact authority with private GKE-hosted GitHub Actions
   Runner Controller and six capability-specific workload identity providers.
-- Required trusted-main callers, push-only execution, exact provider audiences, and immutable v4
+- Required trusted-main callers, push-only execution, exact provider audiences, and immutable v5
   reusable-workflow identities for production artifact operations.
 
 ### Security
 
+- Bounded vulnerability safe harbor to authorized Mindclade-controlled scope,
+  third-party permissions, and applicable law; response times remain
+  non-contractual operational targets.
 - Capability-prefixed federated subjects prevent cross-provider IAM subject collisions.
 - Production promotion remains PR-only and the builder cannot issue qualification or deployment
   authority.

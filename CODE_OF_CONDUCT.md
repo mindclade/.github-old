@@ -1,68 +1,102 @@
-# Code of conduct
+<!-- mindclade-doc: code-of-conduct@1 -->
 
-## The short version
+# Mindclade code of conduct
 
-Be someone people want to work with. Assume competence and good faith in others. Argue about
-the work, never about the person doing it.
+| Document control | Value |
+| --- | --- |
+| Owner | Mindclade leadership |
+| Enforcement channel | `conduct@mindclade.com` |
+| Version | 1.1 |
+| Effective | August 21, 2026 |
+| Applies to | Every Mindclade repository and project space |
 
 ## Our commitment
 
-We want participation in Mindclade projects to be free of harassment for everyone, regardless
-of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender
-identity and expression, level of experience, education, socio-economic status, nationality,
-personal appearance, race, caste, colour, religion, or sexual identity and orientation.
+Mindclade is committed to professional, respectful, evidence-driven, and safe
+collaboration free from harassment. This applies regardless of age, body size,
+visible or invisible disability, ethnicity, sex characteristics, gender
+identity or expression, experience, education, socioeconomic status,
+nationality, personal appearance, race, caste, color, religion, or sexual
+identity or orientation.
 
-## Expected
+Participation in Mindclade project spaces is conditioned on following this
+code, applicable workplace policies, and the terms governing the participant's
+access. This code supplements, and does not replace, applicable law or a
+controlling employment, contractor, customer, or other written agreement.
 
-- Take other people's time seriously — search before asking, and give enough context to be
-  helped on the first reply.
-- Give feedback on the change, not the author. "This drops errors on the floor" is useful;
-  "this is careless" is not.
-- Accept feedback the same way. A review that finds problems is the review working.
-- Say "I don't know" and "I was wrong" plainly. Both are cheap here and expensive elsewhere.
-- Respect a decision once it is made, even where you argued the other side. Reopen it with new
-  information, not with repetition.
+## Expected behavior
 
-## Unacceptable
+- Respect other people's time, expertise, identity, privacy, and boundaries.
+- Critique work and evidence without attacking the person who produced it.
+- Disclose uncertainty, conflicts of interest, provenance, and material risk.
+- Give and receive constructive feedback; correct mistakes transparently.
+- Protect company, customer, partner, employee, model, dataset, and security
+  information according to its classification.
+- Preserve scientific integrity, consent, licensing, privacy, safety, and
+  biosecurity controls.
+- Escalate security, safety, integrity, and conduct concerns promptly and in
+  good faith.
+- Respect a recorded decision; reopen it with new evidence rather than
+  repetition.
 
-- Sexualised language or imagery, and unwelcome sexual attention of any kind.
-- Trolling, insults, derogatory comments, and personal or political attacks.
-- Harassment, public or private, including sustained disruption of discussions.
-- Publishing others' private information — physical address, email, or anything else — without
-  explicit permission.
-- Deliberately introducing insecure or malicious code, or misrepresenting what a change does.
+## Unacceptable behavior
+
+- Harassment, discrimination, retaliation, intimidation, threats, or sustained
+  disruption in public or private.
+- Sexualized language or imagery, or unwelcome sexual attention or advances.
+- Trolling, insults, derogatory comments, or personal or political attacks.
+- Publishing another person's private information without explicit permission.
+- Deliberately introducing insecure, unsafe, deceptive, or malicious work.
+- Concealing material risk, falsifying evidence, or misrepresenting validation.
+- Misusing privileged access or confidential, restricted, or regulated data.
 
 ## Scope
 
-This applies in all project spaces — repositories, issues, pull requests, discussions — and
-whenever someone is representing the project in public.
+This code applies in repositories, issues, pull requests, reviews, discussions,
+work chat, meetings, events, and any other Mindclade project space. It also
+applies when a person is officially representing Mindclade in public.
+
+Conduct outside that scope may be addressed under another applicable workplace,
+contractual, safety, or legal process.
 
 ## Reporting
 
-Report to `conduct@mindclade.com`. Reports go to a small group and are handled privately. You
-will get an acknowledgement within 2 business days.
+Report concerns privately to `conduct@mindclade.com`. Do not open a public
+issue. Include what happened, where and when it occurred, whether it is ongoing,
+and any links or evidence that can be shared safely. Do not include secrets,
+customer data, restricted biological content, or other material the reporting
+channel is not approved to receive.
 
-Tell us what happened, where, when, and whether it is ongoing. Include links if there are any.
-You do not need to have a view on what should happen next — that is our job.
+Mindclade's operational target is to acknowledge a report within two business
+days. This target is not a contractual service level or a guarantee. Reports
+are handled by the smallest appropriate group and shared only as needed to
+investigate, protect people, preserve evidence, or meet legal obligations. If
+a report concerns someone who normally handles reports, send it directly to an
+uninvolved member of leadership.
 
-If your report concerns someone who handles reports, send it to any member of leadership
-directly instead, and it will be handled without their involvement.
-
-We will not retaliate against anyone for reporting in good faith, and we will not disclose your
-identity to the person reported without asking you first.
+Mindclade prohibits retaliation for a good-faith report or participation in an
+investigation. Knowingly false reports may themselves violate this code.
 
 ## Enforcement
 
-Consequences scale with severity and pattern, roughly:
+Mindclade may remove content, restrict access, require corrective action, issue
+a warning, suspend participation, or permanently remove a participant.
+Consequences depend on severity, impact, pattern, intent, cooperation, and risk.
+Severe behavior may skip intermediate steps.
 
-1. **A private word** — a clarification of why the behavior was a problem, with no lasting record.
-2. **A warning** — with specified consequences if it continues, and a period of no interaction
-   with the affected parties.
-3. **A temporary ban** from all project spaces.
-4. **A permanent ban.**
-
-We will skip steps for severe conduct. Harassment and threats do not get a warning first.
+Where appropriate and permitted, the affected person receives the outcome and a
+route to request review by an uninvolved decision-maker. Employment,
+contractual, security, safety, or legal processes may run separately and may
+impose additional consequences.
 
 ## Attribution
 
-Adapted from the [Contributor Covenant](https://www.contributor-covenant.org), version 2.1.
+Portions are adapted from the
+[Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/),
+copyright © 2020 Organization for Ethical Source and licensed under
+[Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
+Mindclade modified the scope, reporting, enforcement, and project-specific
+language; those changes are identified by this Mindclade version and are not
+endorsed by the upstream project. The community-impact guidance also
+acknowledges Mozilla's enforcement ladder. See [NOTICE](NOTICE) for the
+third-party attribution and license boundary.

@@ -20,6 +20,7 @@
     "qualify"
   ],
   "outputs": [
+    "producer-evidence-digest",
     "qualification-artifact"
   ],
   "permissions": {

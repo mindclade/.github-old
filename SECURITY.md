@@ -1,4 +1,13 @@
-# Security policy
+<!-- mindclade-doc: security@1 -->
+
+# Mindclade security policy
+
+| Document control | Value |
+| --- | --- |
+| Owner | Mindclade Security |
+| Version | 1.0 |
+| Last reviewed | August 21, 2026 |
+| Applies to | Mindclade-owned code, services, infrastructure, and web properties |
 
 ## Reporting a vulnerability
 
@@ -49,7 +58,16 @@ the researcher:
 - reports promptly and allows reasonable time for remediation before disclosure; and
 - complies with applicable law.
 
-Ask `security@mindclade.com` before testing when scope is unclear.
+This safe harbor applies only to the researcher's actions against systems and data controlled by
+Mindclade and within the scope stated below. It does not authorize access to third-party systems
+or data; bind a third party, service provider, law-enforcement agency, or regulator; waive rights
+Mindclade does not own; promise a bounty or payment; or excuse unlawful conduct. Mindclade cannot
+authorize activity prohibited by applicable law or by a third party that owns an affected system
+or data. Policy changes apply prospectively and do not withdraw safe harbor from research that
+qualified under the policy in effect when it was performed.
+
+Ask `security@mindclade.com` before testing when scope or ownership is unclear. Written
+authorization from Mindclade does not substitute for any permission required from a third party.
 
 ## Scope
 

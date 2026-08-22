@@ -1,10 +1,15 @@
-# Validate a Mindclade repository home
+# Validate a Mindclade repository home and common documents
 
 This no-input composite action validates the caller's checked-out `README.md` against
 `contracts/repository.yaml` and the `repository-home@2` documentation contract. It checks the
-MONO header, local badges and images, contract-table parity, required paths, local links and
-anchors, Mermaid estate diagram, version claims, and prose budget without network access or
-third-party Python packages.
+MONO header, local badges and images, contract-table parity, primary-reader and first-success
+routing, quick-start success/failure/safety labels, required paths, local links and anchors,
+Mermaid estate diagram, version claims, and prose budget without network access or third-party
+Python packages. The same action enforces `common-document@1`: the complete root policy set,
+document markers, exact proprietary license, conduct, and legal-reliance digests,
+repository-specific notice identity and attribution, contributor authorization, bounded
+security safe harbor, support boundaries, one root license surface, and the exact optional
+source-header template.
 
 ```yaml
 steps:
@@ -38,4 +43,4 @@ Keep each repository's explicit offline validation target. Where a CI job invoke
 through an aggregate `make validate`, split the non-home checks into `validate-core`: local
 `make validate` continues to include both targets, while CI runs this action followed by
 `make validate-core`. This avoids executing the mirror after the released action has already
-proved both the repository contract and byte parity.
+proved the repository home, common documents, repository contract, and byte parity.

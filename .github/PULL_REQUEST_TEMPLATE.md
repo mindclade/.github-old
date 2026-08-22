@@ -46,3 +46,14 @@ gitops:
   - [ ] `rendered/**` was produced by CI, not hand-edited.
   - [ ] Promotion PRs copy manifests bit-identically; the only diff is the namespace overlay.
 -->
+
+
+## Contributor authorization
+
+- [ ] I am authorized under a current written agreement with Mindclade, LLC. to
+      submit every part of this contribution.
+- [ ] I identified every third-party component, dataset, model, font, media,
+      specification, or generated artifact and preserved its source, license,
+      provenance, and required notices.
+- [ ] I updated `LICENSE`, `NOTICE`, the SBOM, or other license evidence when
+      the included or distributed material changed.

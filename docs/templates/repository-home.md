@@ -28,6 +28,8 @@
 | Visibility | `<visibility>` |
 | Change model | `pull-request` |
 | Authority | `<authority-one>`<br>`<authority-two>` |
+| Primary readers | <The people who use or maintain this repository> |
+| First success | [<Outcome-oriented validation label>](#quick-start) |
 | Start here | [`docs/README.md`](docs/README.md) |
 
 ## Mission
@@ -47,15 +49,20 @@ implementation and policy detail in an authoritative linked document.
 
 ## Quick start
 
-State prerequisites, then show the smallest credential-free validation path to first success.
+State prerequisites and external-access requirements, then show the smallest credential-free
+validation path to first success.
 
 ```sh
 <enter the pinned toolchain>
 <run the repository's validation command>
 ```
 
-Expected result: <specific success signal>. Name any planning, applying, deployment, or recovery
-command that must not be run casually.
+**Success means:** <Specific, observable success signal.>
+
+**If it fails:** <First diagnostic and the authoritative troubleshooting or reference page.>
+
+**Safety boundary:** <Planning, applying, deployment, promotion, or recovery action that must not
+be run casually.>
 
 ## Estate position
 
@@ -90,6 +97,9 @@ new contributor needs. Link to procedures instead of copying them into the repos
 - [Architecture](docs/architecture.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
+- Policies and terms: [governance](GOVERNANCE.md) ·
+  [conduct](CODE_OF_CONDUCT.md) · [legal](LEGAL.md) ·
+  [license](LICENSE) · [notice](NOTICE) · [changes](CHANGELOG.md)
 
 ## Security
 
