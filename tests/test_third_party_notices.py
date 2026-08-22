@@ -36,6 +36,17 @@ class ThirdPartyNoticesTests(unittest.TestCase):
         with self.assertRaisesRegex(third_party_notices.NoticeError, "normalized relative"):
             third_party_notices._safe_path(ROOT, "../escape", "fixture")
 
+    def test_repository_identity_is_independent_of_checkout_directory(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nix-build-source-") as directory:
+            root = Path(directory)
+            contract = root / "contracts" / "repository.yaml"
+            contract.parent.mkdir(parents=True)
+            contract.write_text("---\nrepository: .github-private\n", encoding="utf-8")
+            self.assertEqual(
+                third_party_notices.repository_identity(root),
+                "mindclade/.github-private",
+            )
+
     def test_spdx_package_requires_reviewed_notice_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             spdx = Path(directory) / "sbom.spdx.json"
