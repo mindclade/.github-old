@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.dev/contracts/policy-bundle/v1",
+  "title": "Mindclade signed policy bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bundleId",
+    "version",
+    "effectiveDate",
+    "canonicalRepository",
+    "licenseExpression",
+    "signature",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "bundleId": {"const": "mindclade-policy-bundle"},
+    "version": {"type": "string", "pattern": "^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$"},
+    "effectiveDate": {"type": "string", "format": "date"},
+    "canonicalRepository": {"const": "mindclade/.github"},
+    "licenseExpression": {"const": "LicenseRef-Mindclade-Proprietary"},
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "method", "workflow", "protectedEnvironment"],
+      "properties": {
+        "required": {"const": true},
+        "method": {"const": "github-artifact-attestation-sigstore"},
+        "workflow": {"const": ".github/workflows/publish-policy-bundle.yml"},
+        "protectedEnvironment": {"const": "workflow-release-security"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "source", "sha256", "mediaType", "distributions"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]+$"},
+          "source": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "mediaType": {"enum": ["text/markdown", "text/plain", "application/json", "text/x-python"]},
+          "distributions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["repository", "path"],
+              "properties": {
+                "repository": {"type": "string", "minLength": 1},
+                "path": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

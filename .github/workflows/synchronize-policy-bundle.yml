@@ -1,0 +1,108 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Synchronize policy bundle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 13 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: synchronize-policy-bundle
+  cancel-in-progress: false
+
+jobs:
+  synchronize:
+    strategy:
+      fail-fast: false
+      matrix:
+        repository:
+          - .github-private
+          - bootstrap
+          - github-config
+          - gitops
+          - infrastructure-live
+          - mindclade-internal-monorepo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: workflow-release-platform
+    steps:
+      - name: Reject untrusted source refs
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REPOSITORY" = mindclade/.github ]
+          [ "$GITHUB_REF" = refs/heads/main ]
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
+        with:
+          app-id: ${{ vars.POLICY_SYNC_APP_ID }}
+          private-key: ${{ secrets.POLICY_SYNC_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: ${{ matrix.repository }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: mindclade/${{ matrix.repository }}
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          path: target
+          fetch-depth: 1
+          persist-credentials: false
+
+      - id: synchronize
+        name: Synchronize exact declared artifacts
+        env:
+          REPOSITORY: ${{ matrix.repository }}
+        run: |
+          set -euo pipefail
+          python3 source/tools/policy_bundle.py \
+            --manifest source/contracts/policy-bundle/manifest.json \
+            --source-root source \
+            sync --repository "$REPOSITORY" --target-root target --write
+          version="$(python3 -c 'import json; print(json.load(open("source/contracts/policy-bundle/manifest.json"))["version"])')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ -n "$(git -C target status --porcelain)" ]; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update synchronization pull request
+        if: steps.synchronize.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ steps.synchronize.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="automation/policy-bundle-${VERSION}"
+          git -C target config user.name 'mindclade-policy-sync[bot]'
+          git -C target config user.email 'mindclade-policy-sync[bot]@users.noreply.github.com'
+          git -C target checkout -B "$branch"
+          git -C target add --all
+          git -C target commit -m "chore(policy): synchronize bundle ${VERSION}"
+          git -C target remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/mindclade/${REPOSITORY}.git"
+          git -C target push --force-with-lease origin "HEAD:refs/heads/${branch}"
+          existing="$(gh pr list --repo "mindclade/${REPOSITORY}" --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            gh pr create \
+              --repo "mindclade/${REPOSITORY}" \
+              --head "$branch" \
+              --base main \
+              --title "chore(policy): synchronize bundle ${VERSION}" \
+              --body "Synchronizes only artifacts declared by signed policy bundle ${VERSION}. Legal, Security, and Platform approvals remain mandatory under the legal-policy-paths ruleset."
+          fi

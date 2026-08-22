@@ -326,6 +326,29 @@ Do not commit secrets.
         self.assertTrue(any("must be relative" in error for error in absolute))
         self.assertTrue(any("escapes the workspace" in error for error in escaping))
 
+    def test_unqualified_legal_claim_fails(self) -> None:
+        root = self.fixture()
+        (root / "docs" / "claims.md").write_text(
+            "# Claims\n\nThe platform is fully compliant with every applicable standard.\n",
+            encoding="utf-8",
+        )
+        errors = repository_home.validate(root)
+        self.assertTrue(
+            any("unqualified certification or compliance claim" in error for error in errors)
+        )
+
+    def test_scoped_current_legal_claim_approval_passes(self) -> None:
+        root = self.fixture()
+        (root / "docs" / "claims.md").write_text(
+            """# Claims
+
+<!-- mindclade-legal-claim: owner=legal; evidence=LEGAL-1234; scope=specified control set; reviewed=2026-08-21; expires=2099-08-21 -->
+The platform is fully compliant within the approved evidence scope.
+""",
+            encoding="utf-8",
+        )
+        self.assertEqual(repository_home.validate(root), [])
+
 
 if __name__ == "__main__":
     unittest.main()
