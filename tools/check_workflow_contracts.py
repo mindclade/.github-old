@@ -5,15 +5,15 @@
 
 """Detect breaking API drift in versioned reusable GitHub workflows.
 
-The parser is intentionally narrow and dependency-free: it reads only the stable workflow_call
-surface (inputs/secrets/outputs), job IDs, and explicit permission maps. Runtime implementation
-steps are free to change without rewriting the contract snapshot.
+The parser reads YAML semantically but projects only the stable workflow_call surface
+(inputs/secrets/outputs), job IDs, and explicit permissions. Runtime implementation steps are
+free to change without rewriting the contract snapshot.
 """
 
 from __future__ import annotations
 
 import argparse
-import ast
+from collections.abc import Mapping
 import difflib
 import json
 import re
@@ -21,118 +21,200 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import yaml
+from yaml.constructor import ConstructorError
+from yaml.nodes import MappingNode
+from yaml.resolver import BaseResolver
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CONTRACT_DIR = ROOT / "contracts" / "workflows"
-ENTRY_RE = re.compile(r"^ {6}([A-Za-z0-9_-]+):\s*$")
-ATTR_RE = re.compile(r"^ {8}(required|type|default):\s*(.*?)\s*$")
-PERMISSION_RE = re.compile(
-    r"^ +(actions|artifact-metadata|attestations|checks|contents|deployments|discussions|id-token|issues|models|packages|pages|pull-requests|repository-projects|security-events|statuses):\s*(read|write|none)\s*(?:#.*)?$"
+ENTRY_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+CONTRACT_ATTRIBUTES = ("required", "type", "default")
+PERMISSION_LEVELS = frozenset({"read", "write", "none"})
+PERMISSION_SCALARS = frozenset({"read-all", "write-all"})
+PERMISSION_SCOPES = frozenset(
+    {
+        "actions",
+        "artifact-metadata",
+        "attestations",
+        "checks",
+        "contents",
+        "deployments",
+        "discussions",
+        "id-token",
+        "issues",
+        "models",
+        "packages",
+        "pages",
+        "pull-requests",
+        "repository-projects",
+        "security-events",
+        "statuses",
+    }
 )
-JOB_RE = re.compile(r"^ {2}([A-Za-z0-9_-]+):\s*$")
+
+_BOOL_TAG = "tag:yaml.org,2002:bool"
+_TIMESTAMP_TAG = "tag:yaml.org,2002:timestamp"
 
 
-def scalar(raw: str) -> Any:
-    raw = re.sub(r"\s+#.*$", "", raw).strip()
-    if raw in {"true", "false"}:
-        return raw == "true"
-    if re.fullmatch(r"-?[0-9]+", raw):
-        return int(raw)
-    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in {'"', "'"}:
+class WorkflowLoader(yaml.SafeLoader):
+    """Safe YAML loader aligned with GitHub's YAML 1.2 boolean behavior."""
+
+
+WorkflowLoader.yaml_implicit_resolvers = {
+    prefix: list(resolvers)
+    for prefix, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+for prefix, resolvers in WorkflowLoader.yaml_implicit_resolvers.items():
+    WorkflowLoader.yaml_implicit_resolvers[prefix] = [
+        (tag, expression)
+        for tag, expression in resolvers
+        if tag not in {_BOOL_TAG, _TIMESTAMP_TAG}
+    ]
+WorkflowLoader.add_implicit_resolver(
+    _BOOL_TAG,
+    re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"),
+    list("tTfF"),
+)
+
+
+def _construct_unique_mapping(
+    loader: WorkflowLoader, node: MappingNode, deep: bool = False
+) -> dict[Any, Any]:
+    loader.flatten_mapping(node)
+    result: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
         try:
-            return ast.literal_eval(raw)
-        except (SyntaxError, ValueError):
-            pass
-    return raw
-
-
-def indent(line: str) -> int:
-    return len(line) - len(line.lstrip(" "))
-
-
-def workflow_call_section(lines: list[str], section: str) -> dict[str, dict[str, Any]]:
-    try:
-        call = next(i for i, line in enumerate(lines) if line == "  workflow_call:")
-    except StopIteration as exc:
-        raise ValueError("missing on.workflow_call") from exc
-
-    section_line = f"    {section}:"
-    start = None
-    for i in range(call + 1, len(lines)):
-        if lines[i] == section_line:
-            start = i + 1
-            break
-        if lines[i] and indent(lines[i]) <= 2:
-            break
-    if start is None:
-        return {}
-
-    result: dict[str, dict[str, Any]] = {}
-    current: str | None = None
-    for line in lines[start:]:
-        if line and indent(line) <= 4:
-            break
-        match = ENTRY_RE.match(line)
-        if match:
-            current = match.group(1)
-            result[current] = {}
-            continue
-        match = ATTR_RE.match(line)
-        if match and current:
-            key, value = match.groups()
-            result[current][key] = scalar(value)
+            duplicate = key in result
+        except TypeError as exc:
+            raise ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                "found an unhashable key",
+                key_node.start_mark,
+            ) from exc
+        if duplicate:
+            raise ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        result[key] = loader.construct_object(value_node, deep=deep)
     return result
 
 
-def permissions_at(
-    lines: list[str], marker_index: int, marker_indent: int
-) -> dict[str, str]:
-    result: dict[str, str] = {}
-    for line in lines[marker_index + 1 :]:
-        if line and indent(line) <= marker_indent:
-            break
-        match = PERMISSION_RE.match(line)
-        if match and indent(line) == marker_indent + 2:
-            result[match.group(1)] = match.group(2)
+WorkflowLoader.add_constructor(BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
+
+
+def _mapping(value: Any, location: str) -> Mapping[Any, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{location} must be a mapping")
+    return value
+
+
+def _entry_name(value: Any, location: str) -> str:
+    if not isinstance(value, str) or not ENTRY_NAME_RE.fullmatch(value):
+        raise ValueError(f"{location} contains invalid entry name {value!r}")
+    return value
+
+
+def _contract_attribute(value: Any, attribute: str, location: str) -> Any:
+    if attribute == "required" and not isinstance(value, bool):
+        raise ValueError(f"{location}.required must be a boolean")
+    if attribute == "type" and not isinstance(value, str):
+        raise ValueError(f"{location}.type must be a string")
+    if attribute == "default" and not (
+        value is None or isinstance(value, (bool, int, float, str))
+    ):
+        raise ValueError(f"{location}.default must be a scalar")
+    return value
+
+
+def _workflow_call_section(
+    workflow_call: Mapping[Any, Any], section: str
+) -> dict[str, dict[str, Any]]:
+    raw_section = workflow_call.get(section)
+    if raw_section is None:
+        return {}
+    entries = _mapping(raw_section, f"on.workflow_call.{section}")
+    result: dict[str, dict[str, Any]] = {}
+    for raw_name, raw_attributes in entries.items():
+        name = _entry_name(raw_name, f"on.workflow_call.{section}")
+        attributes = (
+            {}
+            if raw_attributes is None
+            else _mapping(raw_attributes, f"on.workflow_call.{section}.{name}")
+        )
+        result[name] = {
+            attribute: _contract_attribute(
+                attributes[attribute], attribute, f"on.workflow_call.{section}.{name}"
+            )
+            for attribute in CONTRACT_ATTRIBUTES
+            if attribute in attributes
+        }
     return dict(sorted(result.items()))
 
 
-def extract(path: Path) -> dict[str, Any]:
-    lines = path.read_text(encoding="utf-8").splitlines()
-    if "  workflow_call:" not in lines:
-        raise ValueError("not a reusable workflow")
+def _permissions(value: Any, location: str) -> str | dict[str, str]:
+    if isinstance(value, str):
+        if value not in PERMISSION_SCALARS:
+            raise ValueError(
+                f"{location} must be read-all, write-all, or a permission mapping"
+            )
+        return value
+    permissions = _mapping(value, location)
+    result: dict[str, str] = {}
+    for raw_scope, raw_level in permissions.items():
+        if not isinstance(raw_scope, str) or raw_scope not in PERMISSION_SCOPES:
+            raise ValueError(f"{location} contains unknown permission scope {raw_scope!r}")
+        if not isinstance(raw_level, str) or raw_level not in PERMISSION_LEVELS:
+            raise ValueError(
+                f"{location}.{raw_scope} must be read, write, or none"
+            )
+        result[raw_scope] = raw_level
+    return dict(sorted(result.items()))
 
-    inputs = workflow_call_section(lines, "inputs")
-    secrets = workflow_call_section(lines, "secrets")
-    outputs = sorted(workflow_call_section(lines, "outputs"))
 
-    top_permissions: dict[str, str] = {}
-    jobs: list[str] = []
-    job_permissions: dict[str, dict[str, str]] = {}
-
-    for i, line in enumerate(lines):
-        if line == "permissions:":
-            top_permissions = permissions_at(lines, i, 0)
-            break
-
+def _load_workflow(path: Path) -> Mapping[Any, Any]:
     try:
-        jobs_index = lines.index("jobs:")
-    except ValueError as exc:
-        raise ValueError("missing jobs mapping") from exc
+        document = yaml.load(path.read_text(encoding="utf-8"), Loader=WorkflowLoader)
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        raise ValueError(f"invalid workflow YAML: {exc}") from exc
+    return _mapping(document, "workflow document")
 
-    job_starts: list[tuple[str, int]] = []
-    for i in range(jobs_index + 1, len(lines)):
-        match = JOB_RE.match(lines[i])
-        if match:
-            job_starts.append((match.group(1), i))
-    jobs = [name for name, _ in job_starts]
 
-    for pos, (job, start) in enumerate(job_starts):
-        end = job_starts[pos + 1][1] if pos + 1 < len(job_starts) else len(lines)
-        for i in range(start + 1, end):
-            if lines[i] == "    permissions:":
-                job_permissions[job] = permissions_at(lines, i, 4)
-                break
+def extract(path: Path) -> dict[str, Any]:
+    workflow = _load_workflow(path)
+    triggers = _mapping(workflow.get("on"), "on")
+    if "workflow_call" not in triggers:
+        raise ValueError("missing on.workflow_call")
+    raw_workflow_call = triggers["workflow_call"]
+    workflow_call = (
+        {} if raw_workflow_call is None else _mapping(raw_workflow_call, "on.workflow_call")
+    )
+
+    inputs = _workflow_call_section(workflow_call, "inputs")
+    secrets = _workflow_call_section(workflow_call, "secrets")
+    outputs = sorted(_workflow_call_section(workflow_call, "outputs"))
+
+    top_permissions: str | dict[str, str] = {}
+    if "permissions" in workflow:
+        top_permissions = _permissions(workflow["permissions"], "permissions")
+
+    raw_jobs = _mapping(workflow.get("jobs"), "jobs")
+    jobs: list[str] = []
+    job_permissions: dict[str, str | dict[str, str]] = {}
+    for raw_job, raw_job_contract in raw_jobs.items():
+        job = _entry_name(raw_job, "jobs")
+        job_contract = _mapping(raw_job_contract, f"jobs.{job}")
+        jobs.append(job)
+        if "permissions" in job_contract:
+            job_permissions[job] = _permissions(
+                job_contract["permissions"], f"jobs.{job}.permissions"
+            )
 
     return {
         "schema_version": 1,
