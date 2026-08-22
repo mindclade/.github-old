@@ -1,0 +1,8 @@
+{
+  "release_tag": "v4.0.0",
+  "retired_on": "2026-08-21",
+  "schema_version": 1,
+  "status": "superseded-unpublished",
+  "superseded_by": "v5.0.0",
+  "source_commit": "f4744c44959dc699870565f630dccc6f986821da"
+}

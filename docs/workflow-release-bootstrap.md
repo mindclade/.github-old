@@ -83,6 +83,7 @@ tag object ID:
 ```yaml
 - uses: mindclade/.github/actions/validate-repository-home@<release-commit-sha>
   with:
+    adoption-record-path: contracts/policy-bundle/adoption.json
     local-validator-path: scripts/validate-repository-home.py
 ```
 

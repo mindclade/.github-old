@@ -31,21 +31,72 @@
       "required": ["connected_exact_tag", "independent_linux_rebuilds", "native_systems"],
       "type": "object"
     },
-    "release_tag": {"const": "v5.0.0"},
-    "required_workflows": {
-      "items": {"pattern": "^reusable-[a-z0-9-]+\\.yml$", "type": "string"},
-      "minItems": 1,
-      "type": "array",
-      "uniqueItems": true
+    "release_surfaces": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_manifest": {
+          "const": ["contracts/policy-bundle"],
+          "type": "array"
+        },
+        "policy_tools": {
+          "const": [
+            "tools/enrich_spdx_license.py",
+            "tools/policy_adoption.py",
+            "tools/policy_bundle.py",
+            "tools/third_party_notices.py",
+            "tools/validate_pr_policy.py"
+          ],
+          "type": "array"
+        },
+        "repository_home_action": {
+          "const": ["actions/validate-repository-home"],
+          "type": "array"
+        },
+        "required_workflows": {
+          "const": [
+            ".github/workflows/required-repository-policy.yml",
+            ".github/workflows/required-security-baseline.yml"
+          ],
+          "type": "array"
+        },
+        "reusable_workflows": {
+          "items": {
+            "pattern": "^\\.github/workflows/reusable-[a-z0-9-]+\\.yml$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "workflow_contracts": {
+          "items": {
+            "pattern": "^contracts/workflows/reusable-[a-z0-9-]+\\.json$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "reusable_workflows",
+        "workflow_contracts",
+        "required_workflows",
+        "repository_home_action",
+        "policy_tools",
+        "policy_manifest"
+      ],
+      "type": "object"
     },
-    "schema_version": {"const": 1}
+    "release_tag": {"const": "v5.0.0"},
+    "schema_version": {"const": 2}
   },
   "required": [
     "schema_version",
     "release_tag",
     "contract_major",
     "change_class",
-    "required_workflows",
+    "release_surfaces",
     "qualification",
     "publication"
   ],

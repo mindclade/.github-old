@@ -21,12 +21,16 @@ SPEC.loader.exec_module(release_spec)
 
 
 class ReleaseSpecTests(unittest.TestCase):
-    def test_v5_spec_is_complete(self) -> None:
+    def test_v5_spec_covers_every_release_surface(self) -> None:
         value = release_spec.validate_spec(ROOT / "contracts/releases/v5.0.0.json")
+        files = release_spec.expand_surfaces(value)
+        self.assertEqual(value["schema_version"], 2)
         self.assertEqual(value["publication"]["required_approvals"], 2)
-        self.assertEqual(len(value["required_workflows"]), 22)
+        self.assertIn("actions/validate-repository-home/validate.py", files)
+        self.assertIn(".github/workflows/required-repository-policy.yml", files)
+        self.assertIn("contracts/policy-bundle/manifest.json", files)
 
-    def test_attestation_binds_exact_source_and_files(self) -> None:
+    def test_attestation_binds_exact_source_and_recursive_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "attestation.json"
             source = "a" * 40
@@ -34,7 +38,7 @@ class ReleaseSpecTests(unittest.TestCase):
             release_spec.attest(spec, source, output)
             release_spec.verify(spec, output, source)
             value = json.loads(output.read_text(encoding="utf-8"))
-            self.assertIn(".github/workflows/reusable-gitops-promote.yml", value["files"])
+            self.assertIn("actions/validate-repository-home/README.md", value["files"])
 
     def test_wrong_source_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -54,6 +58,28 @@ class ReleaseSpecTests(unittest.TestCase):
             output.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(release_spec.SpecError, "file map"):
                 release_spec.verify(spec, output, "a" * 40)
+
+    def test_omitted_surface_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            spec_path = Path(directory) / "releases" / "v5.0.0.json"
+            spec_path.parent.mkdir()
+            value = json.loads(
+                (ROOT / "contracts/releases/v5.0.0.json").read_text(encoding="utf-8")
+            )
+            value["release_surfaces"]["policy_tools"].pop()
+            spec_path.write_text(json.dumps(value), encoding="utf-8")
+            with self.assertRaisesRegex(release_spec.SpecError, "incomplete"):
+                release_spec.validate_spec(spec_path)
+
+    def test_unpublished_v4_is_retired_and_not_publishable(self) -> None:
+        retired = ROOT / "contracts/releases/retired/v4.0.0.json"
+        self.assertFalse((ROOT / "contracts/releases/v4.0.0.json").exists())
+        self.assertEqual(
+            json.loads(retired.read_text(encoding="utf-8"))["status"],
+            "superseded-unpublished",
+        )
+        with self.assertRaises(release_spec.SpecError):
+            release_spec.validate_spec(retired)
 
 
 if __name__ == "__main__":
