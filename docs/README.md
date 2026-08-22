@@ -14,6 +14,7 @@
 | Consume or change a reusable workflow | [Workflow contracts](WORKFLOW_CONTRACTS.md) | Preserve caller-visible APIs and choose the correct release level |
 | Configure cloud federation | [OIDC and WIF contract](WIF.md) | Bind workflow identity to narrowly scoped Google Cloud access |
 | Publish disaster-recovery evidence | [DR evidence contract](DR_EVIDENCE.md) | Validate a measured report and retain immutable GCS and GitHub copies |
+| Publish or accept central policy | [Signed policy bundle](policy-bundle.md) | Verify exact documents, protected signatures, synchronization, and acceptance evidence |
 | Prepare the deferred ARC contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify a future immutable v4 release without treating source as published |
 
 ## Getting started
@@ -48,6 +49,8 @@
 
 - [Common-document contract](common-document-contract.md) — required root policies, legal and
   licensing invariants, contributor authorization, markers, and acceptance gates.
+- [Signed policy bundle](policy-bundle.md) — versioned hashes, protected signing,
+  cross-repository synchronization, and external acceptance records.
 - [Documentation style guide](documentation-style.md) — voice, evidence, safety, and review
   expectations.
 - [Documentation templates](templates/README.md) — repository home, documentation home,

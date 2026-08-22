@@ -293,6 +293,29 @@ jobs:
           output-file: sbom.spdx.json
           upload-artifact: false
 
+      - name: Bind proprietary license and reviewed notices to SPDX SBOM
+        env:
+          ARTIFACT_DIGEST: ${{ steps.ref.outputs.digest }}
+          ARTIFACT_NAME: ${{ inputs.image }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/enrich-spdx-license.py enrich \
+            --input sbom.spdx.json \
+            --output sbom.spdx.json \
+            --repository "$REPOSITORY" \
+            --source-sha "$SOURCE_SHA" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --artifact-digest "$ARTIFACT_DIGEST"
+          python3 scripts/enrich-spdx-license.py validate \
+            --input sbom.spdx.json \
+            --repository "$REPOSITORY" \
+            --source-sha "$SOURCE_SHA" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --artifact-digest "$ARTIFACT_DIGEST"
+          python3 scripts/generate-third-party-notices.py --spdx sbom.spdx.json
+
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         with:
           name: sbom-${{ github.sha }}

@@ -1,0 +1,81 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Publish signed policy bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-policy-bundle
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: workflow-release-security
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact protected source
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REPOSITORY" = mindclade/.github ]
+          [ "$GITHUB_REF" = refs/heads/main ]
+          [ "$(git rev-parse --verify 'HEAD^{commit}')" = "$GITHUB_SHA" ]
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+
+      - id: bundle
+        name: Build deterministic bundle
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("contracts/policy-bundle/manifest.json"))["version"])')"
+          mkdir -p dist
+          archive="dist/mindclade-policy-bundle-${version}.tar.gz"
+          python3 tools/policy_bundle.py verify
+          python3 tools/policy_bundle.py build --output "$archive"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Create signed Sigstore provenance attestation
+        id: attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4
+        with:
+          subject-path: ${{ steps.bundle.outputs.archive }}
+          create-storage-record: true
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        with:
+          name: mindclade-policy-bundle-${{ steps.bundle.outputs.version }}
+          path: |
+            ${{ steps.bundle.outputs.archive }}
+            ${{ steps.bundle.outputs.archive }}.sha256
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publication summary
+        run: |
+          {
+            echo '### Signed policy bundle'
+            echo
+            echo "- Version: \`${{ steps.bundle.outputs.version }}\`"
+            echo "- Source commit: \`${GITHUB_SHA}\`"
+            echo "- Attestation: ${{ steps.attestation.outputs.attestation-url }}"
+            echo '- Signature identity: GitHub Actions OIDC through the protected security environment'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -96,6 +96,12 @@ Treat tests, executable examples, workflow definitions, public interfaces, contr
 configuration defaults as sources of truth. Verify every command, path, flag, default, and
 version against repository evidence. Narrow or qualify anything that cannot be verified.
 
+The documentation validator rejects unqualified certification, broad compliance, guarantee,
+and contractual response-time claims. An exceptional approved claim must be preceded by a
+`mindclade-legal-claim` annotation naming its accountable owner, evidence record, exact scope,
+review date, and expiry. The annotation is an auditable exception pointer, not permission to
+broaden the claim beyond its evidence.
+
 For procedures, include prerequisites, stop conditions, expected results, independent
 verification, and recovery guidance. Never make success depend on an undocumented chat,
 individual memory, or the failed runtime itself.

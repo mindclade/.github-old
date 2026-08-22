@@ -61,6 +61,7 @@ REQUIRED = {
     "docs/WORKFLOW_CONTRACTS.md",
     "docs/ACTIONS_SECURITY.md",
     "docs/common-document-contract.md",
+    "docs/policy-bundle.md",
     "profile/README.md",
     "BLUEPRINT.md",
     ".github/workflows/reusable-license-headers.yml",
@@ -83,6 +84,16 @@ REQUIRED = {
     "contracts/releases/v5.0.0.json",
     "tools/validate-release-spec.py",
     "tests/test_release_spec.py",
+    "contracts/policy-bundle/acceptance-record.schema.json",
+    "contracts/policy-bundle/manifest.json",
+    "contracts/policy-bundle/policy-bundle.schema.json",
+    "contracts/third-party-materials.json",
+    "THIRD_PARTY_NOTICES.md",
+    "tools/policy_bundle.py",
+    "tools/third_party_notices.py",
+    "tools/enrich_spdx_license.py",
+    "tests/test_third_party_notices.py",
+    "tests/test_spdx_license.py",
 }
 
 TEXT_SUFFIXES = {

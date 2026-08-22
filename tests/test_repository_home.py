@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -31,6 +33,7 @@ class RepositoryHomeValidationTest(unittest.TestCase):
         root = Path(temporary.name)
         (root / ".github").mkdir()
         (root / "contracts").mkdir()
+        (root / "scripts").mkdir()
         (root / "docs" / "assets" / "brand").mkdir(parents=True)
         (root / "docs" / "assets" / "badges").mkdir(parents=True)
         (root / "docs" / "README.md").write_text("# Documentation\n", encoding="utf-8")
@@ -65,6 +68,38 @@ change_model: pull-request
             REPOSITORY_ROOT / "CODE_OF_CONDUCT.md", root / "CODE_OF_CONDUCT.md"
         )
         shutil.copyfile(REPOSITORY_ROOT / "LEGAL.md", root / "LEGAL.md")
+        shutil.copyfile(
+            REPOSITORY_ROOT / "tools" / "third_party_notices.py",
+            root / "scripts" / "generate-third-party-notices.py",
+        )
+        shutil.copyfile(
+            REPOSITORY_ROOT / "tools" / "enrich_spdx_license.py",
+            root / "scripts" / "enrich-spdx-license.py",
+        )
+        (root / "contracts" / "third-party-materials.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "repository": "mindclade/sample",
+                    "inventorySources": [],
+                    "materials": [],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            [
+                "python3",
+                str(root / "scripts" / "generate-third-party-notices.py"),
+                "--root",
+                str(root),
+                "--write",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         common_documents = {
             "CONTRIBUTING.md": """<!-- mindclade-doc: contributing@1 -->
 
@@ -292,7 +327,7 @@ Do not commit secrets.
     def test_identical_local_validator_mirror_passes(self) -> None:
         root = self.fixture()
         mirror = root / "scripts" / "validate-repository-home.py"
-        mirror.parent.mkdir()
+        mirror.parent.mkdir(exist_ok=True)
         shutil.copyfile(MODULE_PATH, mirror)
         self.assertEqual(
             repository_home.validate_local_validator(
@@ -304,7 +339,7 @@ Do not commit secrets.
     def test_modified_local_validator_mirror_fails(self) -> None:
         root = self.fixture()
         mirror = root / "scripts" / "validate-repository-home.py"
-        mirror.parent.mkdir()
+        mirror.parent.mkdir(exist_ok=True)
         mirror.write_bytes(MODULE_PATH.read_bytes() + b"\n")
         errors = repository_home.validate_local_validator(
             MODULE_PATH, root, "scripts/validate-repository-home.py"
@@ -325,6 +360,29 @@ Do not commit secrets.
         self.assertTrue(any("does not exist" in error for error in missing))
         self.assertTrue(any("must be relative" in error for error in absolute))
         self.assertTrue(any("escapes the workspace" in error for error in escaping))
+
+    def test_unqualified_legal_claim_fails(self) -> None:
+        root = self.fixture()
+        (root / "docs" / "claims.md").write_text(
+            "# Claims\n\nThe platform is fully compliant with every applicable standard.\n",
+            encoding="utf-8",
+        )
+        errors = repository_home.validate(root)
+        self.assertTrue(
+            any("unqualified certification or compliance claim" in error for error in errors)
+        )
+
+    def test_scoped_current_legal_claim_approval_passes(self) -> None:
+        root = self.fixture()
+        (root / "docs" / "claims.md").write_text(
+            """# Claims
+
+<!-- mindclade-legal-claim: owner=legal; evidence=LEGAL-1234; scope=specified control set; reviewed=2026-08-21; expires=2099-08-21 -->
+The platform is fully compliant within the approved evidence scope.
+""",
+            encoding="utf-8",
+        )
+        self.assertEqual(repository_home.validate(root), [])
 
 
 if __name__ == "__main__":

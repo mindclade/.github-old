@@ -9,7 +9,9 @@ Python packages. The same action enforces `common-document@1`: the complete root
 document markers, exact proprietary license, conduct, and legal-reliance digests,
 repository-specific notice identity and attribution, contributor authorization, bounded
 security safe harbor, support boundaries, one root license surface, and the exact optional
-source-header template.
+source-header template. It also requires a deterministic `THIRD_PARTY_NOTICES.md`, its reviewed
+provenance contract, and byte-exact policy-bundle copies of the third-party notice validator and
+SPDX proprietary-license enricher.
 
 ```yaml
 steps:
