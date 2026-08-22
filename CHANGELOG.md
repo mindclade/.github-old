@@ -9,13 +9,22 @@ release is published and the consumer updates its `uses:` reference.
 The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
 outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
 
-## Policy bundle 2026.08.21.3 (candidate; not published)
+## Policy bundle 2026.08.21.4 (planned with v5.0.0; not published)
+
+### Added
+
+- Bind each managed consumer to the exact v5 release commit, policy-manifest digest, bundle
+  version, and repository-home validator digest through a machine-readable adoption record.
+- Enforce contributor authorization, hold-marker removal, and published policy-sync provenance
+  whenever a pull request becomes eligible to merge.
 
 ### Security
 
 - Parse README URLs and require the exact `img.shields.io` hostname when rejecting remote
   Shields badges; deceptive lookalike hosts, userinfo prefixes, and redirect parameters do not
   satisfy the hostname check.
+- Synchronize policy artifacts only from the published, source-attested v5 tag rather than from
+  mutable `main`.
 
 ## v5.0.0 (planned; not published)
 
@@ -31,8 +40,13 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - **Breaking (publish as v5.0.0):** `reusable-oci-build.yml` now enriches every SPDX 2.3
   SBOM with the complete proprietary `LicenseRef`, a digest-bound first-party package, and
   reviewed third-party notice coverage before upload or attestation. Callers must first
-  synchronize policy bundle `2026.08.21.3`, including both SBOM/notice tools and their
+  synchronize policy bundle `2026.08.21.4`, including both SBOM/notice tools and their
   repository-specific provenance contract.
+- **Breaking (publish as v5.0.0):** release attestation schema 2 covers every reusable and
+  required workflow, workflow contract, repository-home action file, policy tool, and policy
+  manifest file. Undeclared, missing, duplicate, non-regular, and symlink surfaces fail closed.
+- **Breaking (publish as v5.0.0):** the repository-home action accepts an optional adoption
+  record and verifies its full release/provenance chain before repository validation.
 
 ## Unreleased v4.1.0 draft
 
@@ -43,7 +57,7 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
 - Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
 
-## Unreleased v4.0.0 draft
+## Retired v4.0.0 draft (superseded; never published)
 
 ### Added
 

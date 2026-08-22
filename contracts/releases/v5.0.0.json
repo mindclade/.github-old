@@ -18,30 +18,73 @@
       "x86_64-linux"
     ]
   },
+  "release_surfaces": {
+    "policy_manifest": [
+      "contracts/policy-bundle"
+    ],
+    "policy_tools": [
+      "tools/enrich_spdx_license.py",
+      "tools/policy_adoption.py",
+      "tools/policy_bundle.py",
+      "tools/third_party_notices.py",
+      "tools/validate_pr_policy.py"
+    ],
+    "repository_home_action": [
+      "actions/validate-repository-home"
+    ],
+    "required_workflows": [
+      ".github/workflows/required-repository-policy.yml",
+      ".github/workflows/required-security-baseline.yml"
+    ],
+    "reusable_workflows": [
+      ".github/workflows/reusable-arc-oci-build.yml",
+      ".github/workflows/reusable-arc-oci-qualify.yml",
+      ".github/workflows/reusable-arc-qualification-attest.yml",
+      ".github/workflows/reusable-arc-wif-canary.yml",
+      ".github/workflows/reusable-artifact-verification.yml",
+      ".github/workflows/reusable-binauthz-sign.yml",
+      ".github/workflows/reusable-codeql.yml",
+      ".github/workflows/reusable-dr-evidence.yml",
+      ".github/workflows/reusable-gitops-promote.yml",
+      ".github/workflows/reusable-go-ci.yml",
+      ".github/workflows/reusable-license-headers.yml",
+      ".github/workflows/reusable-nix-flake.yml",
+      ".github/workflows/reusable-nix-qualification.yml",
+      ".github/workflows/reusable-oci-build.yml",
+      ".github/workflows/reusable-repo-hygiene.yml",
+      ".github/workflows/reusable-rust-ci.yml",
+      ".github/workflows/reusable-subtree-mirror.yml",
+      ".github/workflows/reusable-terraform-validate.yml",
+      ".github/workflows/reusable-terragrunt-plan.yml",
+      ".github/workflows/reusable-tf-plan.yml",
+      ".github/workflows/reusable-uv-ci.yml",
+      ".github/workflows/reusable-wif-auth.yml"
+    ],
+    "workflow_contracts": [
+      "contracts/workflows/reusable-arc-oci-build.json",
+      "contracts/workflows/reusable-arc-oci-qualify.json",
+      "contracts/workflows/reusable-arc-qualification-attest.json",
+      "contracts/workflows/reusable-arc-wif-canary.json",
+      "contracts/workflows/reusable-artifact-verification.json",
+      "contracts/workflows/reusable-binauthz-sign.json",
+      "contracts/workflows/reusable-codeql.json",
+      "contracts/workflows/reusable-dr-evidence.json",
+      "contracts/workflows/reusable-gitops-promote.json",
+      "contracts/workflows/reusable-go-ci.json",
+      "contracts/workflows/reusable-license-headers.json",
+      "contracts/workflows/reusable-nix-flake.json",
+      "contracts/workflows/reusable-nix-qualification.json",
+      "contracts/workflows/reusable-oci-build.json",
+      "contracts/workflows/reusable-repo-hygiene.json",
+      "contracts/workflows/reusable-rust-ci.json",
+      "contracts/workflows/reusable-subtree-mirror.json",
+      "contracts/workflows/reusable-terraform-validate.json",
+      "contracts/workflows/reusable-terragrunt-plan.json",
+      "contracts/workflows/reusable-tf-plan.json",
+      "contracts/workflows/reusable-uv-ci.json",
+      "contracts/workflows/reusable-wif-auth.json"
+    ]
+  },
   "release_tag": "v5.0.0",
-  "required_workflows": [
-    "reusable-arc-oci-build.yml",
-    "reusable-arc-oci-qualify.yml",
-    "reusable-arc-qualification-attest.yml",
-    "reusable-arc-wif-canary.yml",
-    "reusable-artifact-verification.yml",
-    "reusable-binauthz-sign.yml",
-    "reusable-codeql.yml",
-    "reusable-dr-evidence.yml",
-    "reusable-gitops-promote.yml",
-    "reusable-go-ci.yml",
-    "reusable-license-headers.yml",
-    "reusable-nix-flake.yml",
-    "reusable-nix-qualification.yml",
-    "reusable-oci-build.yml",
-    "reusable-repo-hygiene.yml",
-    "reusable-rust-ci.yml",
-    "reusable-subtree-mirror.yml",
-    "reusable-terraform-validate.yml",
-    "reusable-terragrunt-plan.yml",
-    "reusable-tf-plan.yml",
-    "reusable-uv-ci.yml",
-    "reusable-wif-auth.yml"
-  ],
-  "schema_version": 1
+  "schema_version": 2
 }

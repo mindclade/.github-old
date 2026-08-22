@@ -1,6 +1,6 @@
 # Validate a Mindclade repository home and common documents
 
-This no-input composite action validates the caller's checked-out `README.md` against
+This composite action validates the caller's checked-out `README.md` against
 `contracts/repository.yaml` and the `repository-home@2` documentation contract. It checks the
 MONO header, local badges and images, contract-table parity, primary-reader and first-success
 routing, quick-start success/failure/safety labels, required paths, local links and anchors,
@@ -20,6 +20,7 @@ steps:
       persist-credentials: false
   - uses: mindclade/.github/actions/validate-repository-home@<immutable-release-sha>
     with:
+      adoption-record-path: contracts/policy-bundle/adoption.json
       local-validator-path: scripts/validate-repository-home.py
 ```
 
@@ -27,6 +28,11 @@ The action reads `$GITHUB_WORKSPACE`; it has no outputs, credentials, or write b
 optional `local-validator-path` is relative to that workspace. When supplied, the action fails
 unless the file exists inside the workspace and is byte-identical to the released validator.
 This preserves an offline developer command without letting the mirror drift from CI authority.
+After v5 publication, managed consumers also supply `adoption-record-path`. The record binds the
+action's full commit SHA to the v5 tag, exact policy-manifest digest, bundle version, and released
+validator digest. The action verifies the consumer manifest and optional offline mirror against
+that record before it evaluates repository content. Omitting the record is supported only for
+the canonical repository and staged pre-v5 migration; governed consumer activation requires it.
 
 Composite actions use the full 40-character commit behind the immutable release, not its tag.
 Until a release containing this action is published and qualified, estate repositories continue

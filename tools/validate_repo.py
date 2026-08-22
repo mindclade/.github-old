@@ -46,6 +46,7 @@ REQUIRED = {
     "actions/validate-repository-home/action.yml",
     "actions/validate-repository-home/README.md",
     "actions/validate-repository-home/validate.py",
+    "actions/validate-repository-home/verify_adoption.py",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
@@ -81,19 +82,25 @@ REQUIRED = {
     "tools/validate_drill_report.py",
     "tests/test_drill_report.py",
     "contracts/releases/release-spec.schema.json",
+    "contracts/releases/retired/v4.0.0.json",
     "contracts/releases/v5.0.0.json",
     "tools/validate-release-spec.py",
     "tests/test_release_spec.py",
     "contracts/policy-bundle/acceptance-record.schema.json",
+    "contracts/policy-bundle/adoption-record.schema.json",
     "contracts/policy-bundle/manifest.json",
     "contracts/policy-bundle/policy-bundle.schema.json",
     "contracts/third-party-materials.json",
     "THIRD_PARTY_NOTICES.md",
     "tools/policy_bundle.py",
+    "tools/policy_adoption.py",
+    "tools/validate_pr_policy.py",
     "tools/third_party_notices.py",
     "tools/enrich_spdx_license.py",
     "tests/test_third_party_notices.py",
     "tests/test_spdx_license.py",
+    "tests/test_policy_adoption.py",
+    "tests/test_pr_policy.py",
 }
 
 TEXT_SUFFIXES = {
@@ -143,6 +150,7 @@ def main() -> int:
         fail(errors, f"missing required file: {required}")
 
     forbidden = {
+        "contracts/releases/v4.0.0.json",
         ".github/workflows/reusable-slsa-provenance.yml",
         ".github/workflows/scorecard.yml",
         ".github/workflows/stale.yml",

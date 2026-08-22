@@ -10,6 +10,7 @@ name: Required — repository policy
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review, converted_to_draft]
   merge_group:
   push:
     branches: [main]
@@ -28,6 +29,26 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # Check out only the immutable central workflow source. Do not check out or execute the
+      # consumer pull request in this organization-required policy boundary.
+      - name: Check out central policy validator
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: mindclade/.github
+          ref: ${{ github.workflow_sha }}
+          path: .mindclade-policy-source
+          persist-credentials: false
+
+      - name: Verify pull-request authorization and release provenance
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: >-
+          python3 .mindclade-policy-source/tools/validate_pr_policy.py
+          --event "${GITHUB_EVENT_PATH}"
+          --expected-bundle-version 2026.08.21.4
+          --expected-release-tag v5.0.0
+
       - name: Verify repository metadata and governance properties
         env:
           GH_TOKEN: ${{ github.token }}

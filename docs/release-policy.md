@@ -31,6 +31,12 @@ Before tagging, the release commit must have:
 - a passing `smoke / verdict`; and
 - passing repository-policy checks.
 
+For v5, `contracts/releases/v5.0.0.json` schema 2 declares every reusable workflow and
+contract, both organization-required workflows, the complete repository-home action, policy
+tools, and the policy-manifest directory. Release assembly recursively hashes every tracked
+regular file in those surfaces and rejects missing, duplicate, undeclared, symlink, or
+non-regular entries.
+
 Cloud-dependent workflows additionally require qualification in an intentionally provisioned
 project with the exact released identity boundary. They must not receive broad cloud access
 merely so the generic smoke suite can run.
@@ -40,9 +46,10 @@ merely so the generic smoke suite can run.
 Create an annotated full-semver tag on the reviewed commit:
 
 ```sh
-release_sha="$(python3 -c 'import json,pathlib
-print(json.loads(pathlib.Path("contracts/releases/vX.Y.Z.json").read_text())["source_commit"])')"
+release_sha="<reviewed-merged-commit-sha>"
+test "$(printf '%s' "${release_sha}" | wc -c | tr -d ' ')" -eq 40
 git merge-base --is-ancestor "${release_sha}" origin/main
+git show "${release_sha}:contracts/releases/vX.Y.Z.json" >/dev/null
 git tag -a vX.Y.Z -m "Mindclade shared workflow contract vX.Y.Z" "${release_sha}"
 git push origin vX.Y.Z
 ```
@@ -60,6 +67,9 @@ approval boundaries before organization immutable-release enforcement protects t
 tag.
 
 Never publish from an unreviewed local commit. Never move or reuse an existing release tag.
+The historical v4 source record is retained under `contracts/releases/retired/` with
+`superseded-unpublished` status. It is not a publishable release specification, and no v4 tag
+or release may be created from it.
 
 ## Roll out to consumers
 
@@ -74,6 +84,9 @@ jobs:
 Adoption is a consumer-side pull request with its own CI evidence. Renovate may propose the
 bump; it does not bypass review. Roll out to representative lower-risk consumers before
 control-plane or production-authority repositories when behavior changed materially.
+Managed consumers also receive `contracts/policy-bundle/adoption.json`; it binds the policy
+bundle and local validator to the exact v5 release commit. The repository-home action verifies
+that record before evaluating content.
 
 Composite-action consumers use the full 40-character commit behind that release because the
 organization requires SHA-pinned action references:

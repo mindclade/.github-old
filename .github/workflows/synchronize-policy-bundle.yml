@@ -41,10 +41,35 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: refs/tags/v5.0.0
           path: source
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
+
+      - id: release
+        name: Verify published and attested release source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v5.0.0
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          gh api "/repos/mindclade/.github/releases/tags/${TAG}" > "$work/release.json"
+          jq -e --arg tag "$TAG" \
+            '.tag_name == $tag and .draft == false and .prerelease == false' \
+            "$work/release.json" >/dev/null
+          [ "$(git -C source cat-file -t "$TAG")" = tag ]
+          release_commit="$(git -C source rev-parse --verify "${TAG}^{commit}")"
+          [ "$(git -C source rev-parse --verify 'HEAD^{commit}')" = "$release_commit" ]
+          gh release download "$TAG" --repo mindclade/.github --dir "$work" \
+            --pattern 'attested-release-manifest.json*'
+          (cd "$work" && sha256sum --check attested-release-manifest.json.sha256)
+          python3 source/tools/validate-release-spec.py \
+            "source/contracts/releases/${TAG}.json" \
+            --verify-attestation "$work/attested-release-manifest.json" \
+            --expected-source "$release_commit"
+          echo "commit=$release_commit" >> "$GITHUB_OUTPUT"
 
       - id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
@@ -67,12 +92,20 @@ jobs:
         name: Synchronize exact declared artifacts
         env:
           REPOSITORY: ${{ matrix.repository }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_TAG: v5.0.0
         run: |
           set -euo pipefail
           python3 source/tools/policy_bundle.py \
             --manifest source/contracts/policy-bundle/manifest.json \
             --source-root source \
             sync --repository "$REPOSITORY" --target-root target --write
+          python3 source/tools/policy_adoption.py \
+            --manifest source/contracts/policy-bundle/manifest.json \
+            --validator source/actions/validate-repository-home/validate.py \
+            --release-tag "$RELEASE_TAG" \
+            --release-commit "$RELEASE_COMMIT" \
+            --output target/contracts/policy-bundle/adoption.json
           version="$(python3 -c 'import json; print(json.load(open("source/contracts/policy-bundle/manifest.json"))["version"])')"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [ -n "$(git -C target status --porcelain)" ]; then
@@ -87,6 +120,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ steps.synchronize.outputs.version }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
         run: |
           set -euo pipefail
           branch="automation/policy-bundle-${VERSION}"
@@ -98,11 +132,27 @@ jobs:
           git -C target remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/mindclade/${REPOSITORY}.git"
           git -C target push --force-with-lease origin "HEAD:refs/heads/${branch}"
           existing="$(gh pr list --repo "mindclade/${REPOSITORY}" --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          body_file="$(mktemp)"
+          trap 'rm -f "$body_file"' EXIT
+          cat > "$body_file" <<EOF
+          Synchronizes only artifacts declared by signed policy bundle ${VERSION} from the
+          published and source-attested v5.0.0 release. Legal, Security, and Platform approvals
+          remain mandatory under the legal-policy-paths ruleset.
+
+          <!-- mindclade-policy-bundle: version=${VERSION}; release=v5.0.0; release_commit=${RELEASE_COMMIT}; status=published -->
+
+          ## Contributor authorization
+
+          - [ ] I am authorized under a current written agreement with Mindclade, LLC. to submit every part of this contribution.
+          - [ ] I identified every third-party component, dataset, model, font, media, specification, or generated artifact and preserved its source, license, provenance, and required notices.
+          - [ ] I updated \`LICENSE\`, \`NOTICE\`, the SBOM, or other license evidence when the included or distributed material changed.
+          EOF
           if [ -z "$existing" ]; then
             gh pr create \
               --repo "mindclade/${REPOSITORY}" \
               --head "$branch" \
               --base main \
+              --draft \
               --title "chore(policy): synchronize bundle ${VERSION}" \
-              --body "Synchronizes only artifacts declared by signed policy bundle ${VERSION}. Legal, Security, and Platform approvals remain mandatory under the legal-policy-paths ruleset."
+              --body-file "$body_file"
           fi
