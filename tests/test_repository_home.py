@@ -261,6 +261,22 @@ Do not commit secrets.
         self.assertTrue(any("remote README image" in error for error in errors))
         self.assertTrue(any("Shields" in error for error in errors))
 
+    def test_shields_detection_requires_exact_hostname(self) -> None:
+        self.assertTrue(
+            repository_home.has_remote_shields_reference(
+                "https://IMG.SHIELDS.IO/badge/build-passing"
+            )
+        )
+        for deceptive_url in (
+            "https://img.shields.io.example.com/badge/build-passing",
+            "https://img.shields.io@bad.example/badge/build-passing",
+            "https://bad.example/redirect?to=img.shields.io",
+        ):
+            with self.subTest(url=deceptive_url):
+                self.assertFalse(
+                    repository_home.has_remote_shields_reference(deceptive_url)
+                )
+
     def test_reader_success_path_is_required(self) -> None:
         root = self.fixture()
         readme = root / "README.md"
