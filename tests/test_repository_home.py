@@ -72,6 +72,10 @@ change_model: pull-request
             REPOSITORY_ROOT / "tools" / "third_party_notices.py",
             root / "scripts" / "generate-third-party-notices.py",
         )
+        shutil.copyfile(
+            REPOSITORY_ROOT / "tools" / "enrich_spdx_license.py",
+            root / "scripts" / "enrich-spdx-license.py",
+        )
         (root / "contracts" / "third-party-materials.json").write_text(
             json.dumps(
                 {

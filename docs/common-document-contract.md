@@ -93,7 +93,9 @@ language are invariant.
 11. `contracts/third-party-materials.json` is the reviewed inventory overlay for
     repository-resident third-party material. The policy-bundle generator rejects
     missing or abbreviated license text, missing attribution, absent versions,
-    non-HTTPS sources, stale hashes, and unreviewed release-SBOM packages.
+    non-HTTPS sources, stale hashes, and unreviewed release-SBOM packages. Every
+    shared-workflow SPDX 2.3 SBOM carries the complete extracted proprietary
+    LicenseRef and a digest-bound first-party artifact package before attestation.
 12. The signed `mindclade-policy-bundle` versions the exact license, legal and
     conduct policies, source header, validators, and evidence schemas. A source
     manifest is not published until its protected workflow produces a verifiable

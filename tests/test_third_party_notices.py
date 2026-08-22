@@ -65,6 +65,28 @@ class ThirdPartyNoticesTests(unittest.TestCase):
             ):
                 third_party_notices.validate_spdx_coverage([spdx], [])
 
+    def test_first_party_artifact_packages_do_not_require_third_party_notice(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            spdx = Path(directory) / "sbom.spdx.json"
+            spdx.write_text(
+                json.dumps(
+                    {
+                        "packages": [
+                            {
+                                "SPDXID": "SPDXRef-Mindclade-Artifact",
+                                "name": "mindclade-artifact",
+                            },
+                            {
+                                "SPDXID": "SPDXRef-Mindclade-Release",
+                                "name": "mindclade-release",
+                            },
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            third_party_notices.validate_spdx_coverage([spdx], [])
+
 
 if __name__ == "__main__":
     unittest.main()

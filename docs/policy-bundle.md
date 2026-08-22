@@ -10,8 +10,9 @@
 
 `contracts/policy-bundle/manifest.json` is the sole bundle manifest. It assigns a version and
 SHA-256 digest to the complete proprietary `LICENSE`, `LEGAL.md`, conduct policy, named source
-header template, repository-home validator, and bundle schemas. The manifest deliberately does
-not replace independently licensed third-party material or repository-specific notices.
+header template, repository-home validator, SPDX LicenseRef enricher, third-party notice
+validator, and bundle schemas. The manifest deliberately does not replace independently licensed
+third-party material or repository-specific notices.
 
 `tools/policy_bundle.py verify` fails if a canonical artifact or declared repository copy differs
 by one byte. `sync --write` changes only declared distribution paths. The synchronization
@@ -31,7 +32,7 @@ Verify the source and reproduce the archive locally:
 ```sh
 python3 tools/policy_bundle.py verify
 python3 tools/policy_bundle.py build \
-  --output dist/mindclade-policy-bundle-2026.08.21.1.tar.gz
+  --output dist/mindclade-policy-bundle-2026.08.21.2.tar.gz
 ```
 
 Before relying on a bundle, verify the archive checksum and its GitHub attestation against

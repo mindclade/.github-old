@@ -117,11 +117,19 @@ Never move/reuse an immutable release tag. Publish a new patch release for corre
 For general GitHub container publication, `reusable-oci-build.yml` provides:
 
 - build and push by digest;
-- generate an SPDX JSON SBOM;
+- generate an SPDX 2.3 JSON SBOM with the complete extracted
+  `LicenseRef-Mindclade-Proprietary` and a digest-bound first-party package;
+- fail if any third-party SBOM package lacks reviewed notice metadata;
 - generate GitHub SLSA build provenance with `actions/attest`;
 - generate a GitHub SBOM attestation;
 - push the attestations to the OCI registry;
 - create a GitHub linked-artifact storage record using `artifact-metadata: write`.
+
+Before adopting the workflow release, synchronize policy bundle `2026.08.21.2` into the caller.
+The caller must carry the exact bundle manifest, complete root `LICENSE`, reviewed
+`contracts/third-party-materials.json`, generated `THIRD_PARTY_NOTICES.md`, and both distributed
+SBOM/notice tools. A package that is not first-party and lacks reviewed notice metadata stops the
+build before its SBOM can be uploaded or attested.
 
 Private/internal artifact attestations use GitHub's private Sigstore instance; no public Rekor
 publication path is required. The builder cannot issue a Binary Authorization deployment
