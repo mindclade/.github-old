@@ -65,6 +65,8 @@ def validate_spec(path: Path) -> dict[str, Any]:
         raise SpecError("release specification must declare schema 1 and contract major 5")
     if value["change_class"] != "major" or not TAG.fullmatch(str(value["release_tag"])):
         raise SpecError("release specification must declare one full-semver major release")
+    if value["release_tag"] != "v5.0.0":
+        raise SpecError("release specification must declare the v5.0.0 contract release")
     if path.name != f"{value['release_tag']}.json":
         raise SpecError("release specification filename must match release_tag")
 
@@ -82,6 +84,14 @@ def validate_spec(path: Path) -> dict[str, Any]:
         contract_path = CONTRACTS / workflow.replace(".yml", ".json")
         if not workflow_path.is_file() or not contract_path.is_file():
             raise SpecError(f"workflow or contract snapshot is absent: {workflow}")
+    available_workflows = sorted(path.name for path in WORKFLOWS.glob("reusable-*.yml"))
+    if workflows != available_workflows:
+        missing = sorted(set(available_workflows) - set(workflows))
+        unexpected = sorted(set(workflows) - set(available_workflows))
+        raise SpecError(
+            f"required_workflows must cover every callable workflow; "
+            f"missing={missing}, unexpected={unexpected}"
+        )
 
     qualification = value["qualification"]
     if not isinstance(qualification, dict):
@@ -157,16 +167,18 @@ def verify(spec_path: Path, attestation_path: Path, expected_source: str) -> Non
     if attestation["release_spec_digest"] != sha256(spec_path):
         raise SpecError("release specification digest does not match")
     files = attestation["files"]
+    if not isinstance(files, dict) or not files:
+        raise SpecError("source attestation file map is absent")
     expected_files = {
-        path
+        relative
         for workflow in spec["required_workflows"]
-        for path in (
+        for relative in (
             f".github/workflows/{workflow}",
             f"contracts/workflows/{workflow.removesuffix('.yml')}.json",
         )
     }
-    if not isinstance(files, dict) or set(files) != expected_files:
-        raise SpecError("source attestation file inventory is not exact")
+    if set(files) != expected_files:
+        raise SpecError("source attestation file map is incomplete or contains unexpected paths")
     for relative, expected_digest in files.items():
         path = (ROOT / str(relative)).resolve()
         try:

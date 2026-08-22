@@ -24,6 +24,7 @@ class ReleaseSpecTests(unittest.TestCase):
     def test_v5_spec_is_complete(self) -> None:
         value = release_spec.validate_spec(ROOT / "contracts/releases/v5.0.0.json")
         self.assertEqual(value["publication"]["required_approvals"], 2)
+        self.assertEqual(len(value["required_workflows"]), 22)
 
     def test_attestation_binds_exact_source_and_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -43,7 +44,7 @@ class ReleaseSpecTests(unittest.TestCase):
             with self.assertRaisesRegex(release_spec.SpecError, "annotated tag"):
                 release_spec.verify(spec, output, "b" * 40)
 
-    def test_omitted_or_extra_attested_file_is_rejected(self) -> None:
+    def test_truncated_attestation_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "attestation.json"
             spec = ROOT / "contracts/releases/v5.0.0.json"
@@ -51,7 +52,7 @@ class ReleaseSpecTests(unittest.TestCase):
             value = json.loads(output.read_text(encoding="utf-8"))
             value["files"].pop(next(iter(value["files"])))
             output.write_text(json.dumps(value), encoding="utf-8")
-            with self.assertRaisesRegex(release_spec.SpecError, "inventory"):
+            with self.assertRaisesRegex(release_spec.SpecError, "file map"):
                 release_spec.verify(spec, output, "a" * 40)
 
 

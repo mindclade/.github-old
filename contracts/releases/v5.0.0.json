@@ -24,11 +24,24 @@
     "reusable-arc-oci-qualify.yml",
     "reusable-arc-qualification-attest.yml",
     "reusable-arc-wif-canary.yml",
+    "reusable-artifact-verification.yml",
     "reusable-binauthz-sign.yml",
+    "reusable-codeql.yml",
     "reusable-dr-evidence.yml",
     "reusable-gitops-promote.yml",
+    "reusable-go-ci.yml",
+    "reusable-license-headers.yml",
     "reusable-nix-flake.yml",
-    "reusable-nix-qualification.yml"
+    "reusable-nix-qualification.yml",
+    "reusable-oci-build.yml",
+    "reusable-repo-hygiene.yml",
+    "reusable-rust-ci.yml",
+    "reusable-subtree-mirror.yml",
+    "reusable-terraform-validate.yml",
+    "reusable-terragrunt-plan.yml",
+    "reusable-tf-plan.yml",
+    "reusable-uv-ci.yml",
+    "reusable-wif-auth.yml"
   ],
   "schema_version": 1
 }
