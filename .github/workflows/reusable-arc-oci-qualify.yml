@@ -84,13 +84,15 @@ jobs:
               --output "$result/result.json"
 
       - id: contract
+        env:
+          EXPECTED_IMAGE_REF: ${{ inputs.image-ref }}
         run: |
           set -euo pipefail
           result="$RUNNER_TEMP/release-qualification/result.json"
           tools/dev/nixw develop .#ci --command \
             python3 ci/release/release_request.py validate-qualification \
               --qualification "$result" \
-              --expected-image-ref '${{ inputs.image-ref }}'
+              --expected-image-ref "$EXPECTED_IMAGE_REF"
           artifact="release-qualification-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           evidence_digest="sha256:$(sha256sum "$result" | awk '{print $1}')"
           {

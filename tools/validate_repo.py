@@ -103,6 +103,7 @@ REQUIRED = {
     "tests/test_spdx_license.py",
     "tests/test_policy_adoption.py",
     "tests/test_pr_policy.py",
+    "tests/test_workflow_security.py",
 }
 
 TEXT_SUFFIXES = {

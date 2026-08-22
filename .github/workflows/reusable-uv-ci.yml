@@ -64,7 +64,12 @@ jobs:
       - name: Sync from the lockfile
         # --locked, never --frozen: this fails if uv.lock is stale rather than silently
         # resolving something different from what a developer has locally.
-        run: uv sync --locked ${{ inputs.packages }}
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          read -r -a package_args <<< "${PACKAGES:-}"
+          uv sync --locked "${package_args[@]+"${package_args[@]}"}"
 
       - name: Lint
         run: |
@@ -77,4 +82,12 @@ jobs:
         run: uv run --locked pyright
 
       - name: Test
-        run: uv run --locked ${{ inputs.packages }} python -m pytest ${{ inputs.pytest-args }}
+        env:
+          PACKAGES: ${{ inputs.packages }}
+          PYTEST_ARGS: ${{ inputs.pytest-args }}
+        run: |
+          set -euo pipefail
+          read -r -a package_args <<< "${PACKAGES:-}"
+          read -r -a pytest_args <<< "${PYTEST_ARGS:-}"
+          uv run --locked "${package_args[@]+"${package_args[@]}"}" \
+            python -m pytest "${pytest_args[@]+"${pytest_args[@]}"}"
