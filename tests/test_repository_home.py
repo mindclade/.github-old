@@ -76,7 +76,7 @@ change_model: pull-request
             json.dumps(
                 {
                     "schemaVersion": 1,
-                    "repository": f"mindclade/{root.name}",
+                    "repository": "mindclade/sample",
                     "inventorySources": [],
                     "materials": [],
                 }
