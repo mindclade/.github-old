@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: repository-policy-${{ github.repository_id }}-${{ github.event.pull_request.number || github.ref }}
@@ -43,11 +44,38 @@ jobs:
       - name: Verify pull-request authorization and release provenance
         if: github.event_name == 'pull_request'
         shell: bash
-        run: >-
-          python3 .mindclade-policy-source/tools/validate_pr_policy.py
-          --event "${GITHUB_EVENT_PATH}"
-          --expected-bundle-version 2026.08.21.4
-          --expected-release-tag v5.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          EXPECTED_RELEASE_COMMIT: ${{ github.workflow_sha }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY_SLUG: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          current_files="${RUNNER_TEMP}/mindclade-policy-current-files.txt"
+          changed_files="${RUNNER_TEMP}/mindclade-policy-changed-files.txt"
+          gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST_NUMBER}/files?per_page=100" \
+            --jq '.[].filename' > "$current_files"
+          observed_files="$(wc -l < "$current_files" | tr -d ' ')"
+          if [ "$observed_files" -ne "$EXPECTED_CHANGED_FILES" ]; then
+            echo "::error::pull-request file inventory is incomplete" >&2
+            exit 1
+          fi
+          {
+            cat "$current_files"
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST_NUMBER}/files?per_page=100" \
+              --jq '.[].previous_filename // empty'
+          } | sed '/^$/d' | sort -u > "$changed_files"
+          python3 .mindclade-policy-source/tools/validate_pr_policy.py \
+            --event "${GITHUB_EVENT_PATH}" \
+            --manifest .mindclade-policy-source/contracts/policy-bundle/manifest.json \
+            --changed-files "$changed_files" \
+            --repository "$REPOSITORY_SLUG" \
+            --expected-bundle-version 2026.08.21.4 \
+            --expected-release-tag v5.0.0 \
+            --expected-release-commit "$EXPECTED_RELEASE_COMMIT"
 
       - name: Verify repository metadata and governance properties
         env:
