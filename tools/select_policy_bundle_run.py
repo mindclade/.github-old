@@ -38,6 +38,8 @@ def load_pages(path: Path) -> list[dict[str, Any]]:
         )
     except OSError as error:
         raise SelectionError("workflow_runs_unreadable") from error
+    except UnicodeDecodeError as error:
+        raise SelectionError("workflow_runs_invalid_encoding") from error
     except json.JSONDecodeError as error:
         raise SelectionError("workflow_runs_invalid_json") from error
     if not isinstance(payload, list) or not payload:
