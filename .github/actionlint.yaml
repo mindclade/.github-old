@@ -6,7 +6,6 @@ self-hosted-runner:
     - mindclade-arc-canary
     - mindclade-arc-build-cpu
     - mindclade-arc-qualify-cpu
-    - mindclade-arc-qualify-attest
 
 # Two shellcheck INFO codes are suppressed, and only these two.
 #

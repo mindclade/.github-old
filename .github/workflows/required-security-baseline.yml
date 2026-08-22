@@ -18,7 +18,6 @@ permissions:
 jobs:
   dependency-review:
     name: dependency review
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -26,6 +25,8 @@ jobs:
     steps:
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48  # v4.9.0
         with:
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
           fail-on-severity: high
           comment-summary-in-pr: never
 
@@ -222,17 +223,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require all applicable security jobs
+      - name: Require all security jobs
         env:
           DEPENDENCY_REVIEW: ${{ needs.dependency-review.result }}
           ACTION_PIN_POLICY: ${{ needs.action-pin-policy.result }}
           WORKFLOW_PERMISSION_POLICY: ${{ needs.workflow-permission-policy.result }}
         run: |
           set -euo pipefail
-          case "${DEPENDENCY_REVIEW}" in
-            success|skipped) ;;
-            *) echo "::error::dependency review result: ${DEPENDENCY_REVIEW}"; exit 1 ;;
-          esac
+          if [ "${DEPENDENCY_REVIEW}" != "success" ]; then
+            echo "::error::dependency review result: ${DEPENDENCY_REVIEW}"
+            exit 1
+          fi
           if [ "${ACTION_PIN_POLICY}" != "success" ]; then
             echo "::error::action pin policy result: ${ACTION_PIN_POLICY}"
             exit 1
