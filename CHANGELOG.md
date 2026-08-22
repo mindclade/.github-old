@@ -53,6 +53,8 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - Require every v5 release identity to be a GitHub-verified signed annotated tag that targets
   the exact protected-main source commit. Draft assembly, exact-tag qualification, protected
   publication, and policy synchronization independently repeat this connected check.
+- Remove the subtree mirror's forced-tag path. Every nonempty mirror `tag` input now fails closed
+  before branch rewriting until a separately protected target-release signer is qualified.
 
 ## Unreleased v4.1.0 draft
 

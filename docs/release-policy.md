@@ -79,10 +79,23 @@ each has one exact reviewer team and prevents self-review. This enforces two dis
 approval boundaries before organization immutable-release enforcement protects the release and
 tag.
 
+The already-published historical `v3.0.0` tag is unsigned legacy evidence. Its immutable tag and
+release are preserved, but it may never be moved, republished, or used as precedent for a new
+unsigned release. All v5 and later release paths fail closed on an unverified tag object.
+
 Never publish from an unreviewed local commit. Never move or reuse an existing release tag.
 The historical v4 source record is retained under `contracts/releases/retired/` with
 `superseded-unpublished` status. It is not a publishable release specification, and no v4 tag
 or release may be created from it.
+
+## Subtree target releases
+
+`reusable-subtree-mirror.yml` retains intentional force authority only for the target branch,
+whose history is a replaceable one-way projection. Its App does not hold a signing key, so every
+nonempty `tag` input now fails closed before the mirror branch is rewritten. A separately
+protected target-release workflow must eventually bind the exact source repository, source
+commit, subtree path, split commit, workflow ref, and workflow SHA into a signed annotated tag;
+that design and connected negative tests must qualify before target version creation is enabled.
 
 ## Roll out to consumers
 
