@@ -1,0 +1,132 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Ref janitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Report candidates or execute protected deletion.
+        type: choice
+        options: [report, delete]
+        default: report
+      confirmation:
+        description: Enter DELETE for protected deletion.
+        type: string
+        required: false
+  schedule:
+    - cron: "29 12 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ref-janitor
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: repository-observability
+    steps:
+      - name: Reject untrusted source refs
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REPOSITORY" = mindclade/.github ]
+          [ "$GITHUB_REF" = refs/heads/main ]
+
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
+        id: observer-token
+        with:
+          app-id: ${{ vars.ESTATE_OBSERVER_APP_ID }}
+          private-key: ${{ secrets.ESTATE_OBSERVER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github,.github-private,bootstrap,github-config,gitops,infrastructure-live,mindclade-internal-monorepo
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: source
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: mindclade/github-config
+          ref: main
+          token: ${{ steps.observer-token.outputs.token }}
+          persist-credentials: false
+          path: governance
+
+      - name: Build deletion plan
+        env:
+          GH_TOKEN: ${{ steps.observer-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          python3 source/tools/ref_janitor.py \
+            --config governance/catalog/repository-maintenance.json \
+            --json dist/ref-janitor.json \
+            --markdown dist/ref-janitor.md
+          cat dist/ref-janitor.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: ref-janitor-plan
+          path: dist/ref-janitor.*
+          if-no-files-found: error
+          retention-days: 30
+
+  delete:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'delete'
+    needs: report
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: repository-maintenance
+    steps:
+      - name: Reject untrusted or unconfirmed deletion
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REPOSITORY" = mindclade/.github ]
+          [ "$GITHUB_REF" = refs/heads/main ]
+          [ "$CONFIRMATION" = DELETE ]
+
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
+        id: janitor-token
+        with:
+          app-id: ${{ vars.REF_JANITOR_APP_ID }}
+          private-key: ${{ secrets.REF_JANITOR_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github,.github-private,bootstrap,github-config,gitops,infrastructure-live,mindclade-internal-monorepo
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: source
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: mindclade/github-config
+          ref: main
+          token: ${{ steps.janitor-token.outputs.token }}
+          persist-credentials: false
+          path: governance
+
+      - name: Re-evaluate and delete eligible refs
+        env:
+          GH_TOKEN: ${{ steps.janitor-token.outputs.token }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          python3 source/tools/ref_janitor.py \
+            --config governance/catalog/repository-maintenance.json \
+            --mode delete \
+            --confirmation "$CONFIRMATION" \
+            --json dist/ref-janitor-deleted.json \
+            --markdown dist/ref-janitor-deleted.md
+          cat dist/ref-janitor-deleted.md >> "$GITHUB_STEP_SUMMARY"

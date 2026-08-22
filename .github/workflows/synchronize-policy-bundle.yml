@@ -11,6 +11,8 @@ on:
     - cron: "17 13 * * 1"
 
 permissions:
+  actions: read
+  attestations: read
   contents: read
 
 concurrency:
@@ -41,13 +43,20 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: refs/tags/v5.0.0
+          ref: ${{ github.sha }}
           path: source
-          fetch-depth: 0
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: refs/tags/v5.0.0
+          path: release-source
+          fetch-depth: 1
           persist-credentials: false
 
       - id: release
-        name: Verify published and attested release source
+        name: Verify the immutable adoption-validator release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: v5.0.0
@@ -62,21 +71,68 @@ jobs:
               and .prerelease == false
               and .immutable == true' \
             "$work/release.json" >/dev/null
-          [ "$(git -C source cat-file -t "$TAG")" = tag ]
-          release_commit="$(git -C source rev-parse --verify "${TAG}^{commit}")"
-          [ "$(git -C source rev-parse --verify 'HEAD^{commit}')" = "$release_commit" ]
-          python3 source/tools/verify_release_tag.py \
+          ref="$(gh api "/repos/mindclade/.github/git/ref/tags/${TAG}")"
+          tag_object_sha="$(jq -er '.object | select(.type == "tag") | .sha' <<<"$ref")"
+          tag_object="$(gh api "/repos/mindclade/.github/git/tags/${tag_object_sha}")"
+          release_commit="$(jq -er '.object | select(.type == "commit") | .sha' <<<"$tag_object")"
+          [ "$(git -C release-source rev-parse --verify 'HEAD^{commit}')" = "$release_commit" ]
+          python3 release-source/tools/verify_release_tag.py \
             --repository "$GITHUB_REPOSITORY" \
             --tag "$TAG" \
             --expected-source "$release_commit"
           gh release download "$TAG" --repo mindclade/.github --dir "$work" \
             --pattern 'attested-release-manifest.json*'
           (cd "$work" && sha256sum --check attested-release-manifest.json.sha256)
-          python3 source/tools/validate-release-spec.py \
-            "source/contracts/releases/${TAG}.json" \
+          python3 release-source/tools/validate-release-spec.py \
+            "release-source/contracts/releases/${TAG}.json" \
             --verify-attestation "$work/attested-release-manifest.json" \
             --expected-source "$release_commit"
           echo "commit=$release_commit" >> "$GITHUB_OUTPUT"
+
+      - id: publication
+        name: Verify the signed bundle for the exact main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source_commit="$(git -C source rev-parse --verify 'HEAD^{commit}')"
+          [ "$source_commit" = "$GITHUB_SHA" ]
+          version="$(jq -r .version source/contracts/policy-bundle/manifest.json)"
+          artifact_name="mindclade-policy-bundle-${version}"
+          archive_name="${artifact_name}.tar.gz"
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          python3 source/tools/policy_bundle.py \
+            --manifest source/contracts/policy-bundle/manifest.json \
+            --source-root source verify
+          python3 source/tools/policy_bundle.py \
+            --manifest source/contracts/policy-bundle/manifest.json \
+            --source-root source build --output "$work/expected.tar.gz"
+
+          runs="$work/runs.json"
+          gh api --paginate \
+            "/repos/mindclade/.github/actions/workflows/publish-policy-bundle.yml/runs?branch=main&event=workflow_dispatch&status=success&per_page=100" \
+            --slurp > "$runs"
+          run_id="$(jq -er --arg sha "$source_commit" '[.[][] | select(.head_sha == $sha)] | sort_by(.run_number) | last | .id' "$runs")"
+          gh api "/repos/mindclade/.github/actions/runs/${run_id}/artifacts?per_page=100" > "$work/artifacts.json"
+          artifact_id="$(jq -er --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | select(length == 1) | .[0].id' "$work/artifacts.json")"
+          gh api "/repos/mindclade/.github/actions/artifacts/${artifact_id}/zip" > "$work/artifact.zip"
+          unzip -q "$work/artifact.zip" -d "$work/published"
+          archive="$(find "$work/published" -type f -name "$archive_name" -print)"
+          checksum="$(find "$work/published" -type f -name "${archive_name}.sha256" -print)"
+          [ "$(printf '%s\n' "$archive" | sed '/^$/d' | wc -l | tr -d ' ')" = 1 ]
+          [ "$(printf '%s\n' "$checksum" | sed '/^$/d' | wc -l | tr -d ' ')" = 1 ]
+          (cd "$(dirname "$checksum")" && sha256sum --check "$(basename "$checksum")")
+          cmp "$work/expected.tar.gz" "$archive"
+          gh attestation verify "$archive" \
+            --repo mindclade/.github \
+            --signer-workflow mindclade/.github/.github/workflows/publish-policy-bundle.yml \
+            --source-digest "$source_commit" \
+            --source-ref refs/heads/main \
+            --deny-self-hosted-runners >/dev/null
+          echo "commit=$source_commit" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2
@@ -113,7 +169,7 @@ jobs:
             --release-tag "$RELEASE_TAG" \
             --release-commit "$RELEASE_COMMIT" \
             --output target/contracts/policy-bundle/adoption.json
-          version="$(python3 -c 'import json; print(json.load(open("source/contracts/policy-bundle/manifest.json"))["version"])')"
+          version="${{ steps.publication.outputs.version }}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [ -n "$(git -C target status --porcelain)" ]; then
             echo 'changed=true' >> "$GITHUB_OUTPUT"
@@ -128,6 +184,7 @@ jobs:
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ steps.synchronize.outputs.version }}
           RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          POLICY_COMMIT: ${{ steps.publication.outputs.commit }}
         run: |
           set -euo pipefail
           branch="automation/policy-bundle-${VERSION}"
@@ -142,9 +199,11 @@ jobs:
           body_file="$(mktemp)"
           trap 'rm -f "$body_file"' EXIT
           cat > "$body_file" <<EOF
-          Synchronizes only artifacts declared by signed policy bundle ${VERSION} from the
-          published and source-attested v5.0.0 release. Legal, Security, and Platform approvals
-          remain mandatory under the legal-policy-paths ruleset.
+          Synchronizes only artifacts declared by signed policy bundle ${VERSION} from protected
+          main commit ${POLICY_COMMIT}. The workflow reproduced the archive and verified its
+          GitHub/Sigstore attestation; the adoption validator remains anchored to the immutable,
+          signed v5.0.0 release. Legal, Security, and Platform approvals remain mandatory under
+          the legal-policy-paths ruleset.
 
           <!-- mindclade-policy-bundle: version=${VERSION}; release=v5.0.0; release_commit=${RELEASE_COMMIT}; status=published -->
 

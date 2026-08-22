@@ -73,7 +73,7 @@ jobs:
             --manifest .mindclade-policy-source/contracts/policy-bundle/manifest.json \
             --changed-files "$changed_files" \
             --repository "$REPOSITORY_SLUG" \
-            --expected-bundle-version 2026.08.21.4 \
+            --expected-bundle-version 2026.08.22.1 \
             --expected-release-tag v5.0.0 \
             --expected-release-commit "$EXPECTED_RELEASE_COMMIT"
 

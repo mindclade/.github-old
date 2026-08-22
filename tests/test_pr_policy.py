@@ -30,7 +30,7 @@ class PullRequestPolicyTests(unittest.TestCase):
     def errors(self, body: str, *, title: str = "change", draft: bool = False) -> list[str]:
         event = {"pull_request": {"body": body, "title": title, "draft": draft}}
         return policy.validate_body(
-            event, "2026.08.21.4", "v5.0.0", RELEASE_COMMIT
+            event, "2026.08.22.1", "v5.0.0", RELEASE_COMMIT
         )
 
     def test_checked_authorization_passes(self) -> None:
@@ -65,14 +65,14 @@ class PullRequestPolicyTests(unittest.TestCase):
 
     def test_exact_published_bundle_marker_passes(self) -> None:
         body = CHECKED + """
-<!-- mindclade-policy-bundle: version=2026.08.21.4; release=v5.0.0; release_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; status=published -->
+<!-- mindclade-policy-bundle: version=2026.08.22.1; release=v5.0.0; release_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; status=published -->
 """
         self.assertEqual(self.errors(body), [])
 
     def test_governed_change_requires_exact_release_commit(self) -> None:
         missing = policy.validate_body(
             {"pull_request": {"body": CHECKED, "title": "change", "draft": False}},
-            "2026.08.21.4",
+            "2026.08.22.1",
             "v5.0.0",
             RELEASE_COMMIT,
             True,
@@ -80,11 +80,11 @@ class PullRequestPolicyTests(unittest.TestCase):
         self.assertTrue(any("require exactly one" in error for error in missing))
 
         wrong = CHECKED + """
-<!-- mindclade-policy-bundle: version=2026.08.21.4; release=v5.0.0; release_commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; status=published -->
+<!-- mindclade-policy-bundle: version=2026.08.22.1; release=v5.0.0; release_commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; status=published -->
 """
         errors = policy.validate_body(
             {"pull_request": {"body": wrong, "title": "change", "draft": False}},
-            "2026.08.21.4",
+            "2026.08.22.1",
             "v5.0.0",
             RELEASE_COMMIT,
             True,

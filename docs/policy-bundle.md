@@ -19,13 +19,16 @@ by one byte. `sync --write` changes only declared distribution paths. The synchr
 workflow uses a narrowly scoped GitHub App to open reviewable pull requests; it never pushes to
 the default branch.
 
-Synchronization checks out the immutable `v5.0.0` tag, requires a published GitHub Release,
-verifies the attached source manifest, and only then copies declared artifacts. It never
-distributes policy bytes from mutable `main`. Each synchronization also writes
-`contracts/policy-bundle/adoption.json`, binding the consumer to the exact release commit,
-release tag, bundle version, manifest SHA-256, and repository-home validator SHA-256. The
-released composite action verifies that record and the local validator mirror before evaluating
-repository content.
+Synchronization uses two independent source identities. The immutable, signed `v5.0.0` release
+supplies the adoption validator and verifies its attached source manifest. The exact protected
+`main` commit that started the synchronization run supplies the current policy bytes only after
+the workflow reproduces its archive byte-for-byte and verifies the retained GitHub/Sigstore
+attestation from `publish-policy-bundle.yml` against that commit and `refs/heads/main`. If that
+exact commit has no successful, unexpired protected publication artifact, synchronization fails
+closed. Each synchronization also writes `contracts/policy-bundle/adoption.json`, binding the
+consumer to the validator release commit, release tag, bundle version, manifest SHA-256, and
+repository-home validator SHA-256. The released composite action verifies that record and the
+local validator mirror before evaluating repository content.
 
 ## Signature and publication
 
@@ -40,7 +43,7 @@ Verify the source and reproduce the archive locally:
 ```sh
 python3 tools/policy_bundle.py verify
 python3 tools/policy_bundle.py build \
-  --output dist/mindclade-policy-bundle-2026.08.21.4.tar.gz
+  --output dist/mindclade-policy-bundle-2026.08.22.1.tar.gz
 ```
 
 Before relying on a bundle, verify the archive checksum and its GitHub attestation against
