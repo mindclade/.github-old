@@ -23,8 +23,8 @@ on:
         default: main
       tag:
         description: >-
-          Semver tag to create on the mirror, e.g. v1.4.0. Consumers pin to this. Leave empty
-          to mirror the branch without tagging.
+          Reserved release input. Must remain empty until a protected signer can create and
+          GitHub-verify immutable target tags independently of the mirror App.
         required: false
         type: string
         default: ""
@@ -71,48 +71,80 @@ jobs:
           repositories: ${{ inputs.target-repo }}
 
       - name: Verify the subtree exists
+        env:
+          SUBTREE_PATH: ${{ inputs.subtree-path }}
+          TAG: ${{ inputs.tag }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          TARGET_REPO: ${{ inputs.target-repo }}
         run: |
           set -euo pipefail
-          if [ ! -d "${{ inputs.subtree-path }}" ]; then
-            echo "::error::subtree-path '${{ inputs.subtree-path }}' does not exist in this repo"
+          if [ ! -d "$SUBTREE_PATH" ] || [[ "$SUBTREE_PATH" = /* ]] \
+            || [[ "/$SUBTREE_PATH/" = *"/./"* ]] \
+            || [[ "/$SUBTREE_PATH/" = *"/../"* ]] \
+            || [[ "/$SUBTREE_PATH/" = *"//"* ]]; then
+            echo "::error::subtree-path is absent or not a normalized repository-relative directory"
+            exit 1
+          fi
+          if ! git ls-files -- "$SUBTREE_PATH" | grep -q .; then
+            echo "::error::subtree-path has no tracked source files"
+            exit 1
+          fi
+          [[ "$TARGET_REPO" =~ ^mindclade/[A-Za-z0-9_.-]+$ ]] || {
+            echo "::error::target-repo must be one repository in the mindclade organization"
+            exit 1
+          }
+          git check-ref-format --branch "$TARGET_BRANCH" >/dev/null
+          if [ -n "$TAG" ]; then
+            [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+              echo "::error::tag must be canonical full SemVer vX.Y.Z"
+              exit 1
+            }
+            echo "::error::subtree target tag creation is blocked until a protected GitHub-verified signing authority is qualified"
             exit 1
           fi
 
       - name: Split and push
         env:
+          DRY_RUN: ${{ inputs.dry-run }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SUBTREE_PATH: ${{ inputs.subtree-path }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          TARGET_REPO: ${{ inputs.target-repo }}
         run: |
           set -euo pipefail
           git config user.name  "mindclade-mirror[bot]"
           git config user.email "mindclade-mirror[bot]@users.noreply.github.com"
 
           branch="mirror-$(date -u +%Y%m%d%H%M%S)"
-          git subtree split --prefix="${{ inputs.subtree-path }}" -b "$branch"
+          git subtree split --prefix="$SUBTREE_PATH" -b "$branch"
 
-          remote="https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target-repo }}.git"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git"
 
-          if [ "${{ inputs.dry-run }}" = "true" ]; then
-            echo "Dry run — would force-push $branch to ${{ inputs.target-repo }}:${{ inputs.target-branch }}"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run — would force-push $branch to ${TARGET_REPO}:${TARGET_BRANCH}"
             git log --oneline -10 "$branch"
             exit 0
           fi
 
-          git push --force "$remote" "$branch:${{ inputs.target-branch }}"
-
-          if [ -n "${{ inputs.tag }}" ]; then
-            git tag -f "${{ inputs.tag }}" "$branch"
-            git push --force "$remote" "refs/tags/${{ inputs.tag }}"
-          fi
+          # Branch rewriting is the declared one-way mirror authority. Tag creation is blocked
+          # above until it moves to a separately protected, cryptographically verified signer.
+          git push --force "$remote" "$branch:${TARGET_BRANCH}"
 
       - name: Summary
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+          SUBTREE_PATH: ${{ inputs.subtree-path }}
+          TAG: ${{ inputs.tag || 'none' }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          TARGET_REPO: ${{ inputs.target-repo }}
         run: |
           {
             echo "### Subtree mirror"
             echo
             echo "| Field | Value |"
             echo "|---|---|"
-            echo "| Source | \`${{ inputs.subtree-path }}\` |"
-            echo "| Target | \`${{ inputs.target-repo }}:${{ inputs.target-branch }}\` |"
-            echo "| Tag | \`${{ inputs.tag || 'none' }}\` |"
-            echo "| Dry run | ${{ inputs.dry-run }} |"
+            printf '| Source | `%s` |\n' "$SUBTREE_PATH"
+            printf '| Target | `%s:%s` |\n' "$TARGET_REPO" "$TARGET_BRANCH"
+            printf '| Tag | `%s` |\n' "$TAG"
+            printf '| Dry run | %s |\n' "$DRY_RUN"
           } >> "$GITHUB_STEP_SUMMARY"

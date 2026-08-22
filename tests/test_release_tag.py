@@ -9,9 +9,11 @@ import importlib
 import json
 import subprocess
 import unittest
+from pathlib import Path
 from unittest import mock
 
 
+ROOT = Path(__file__).resolve().parents[1]
 release_tag = importlib.import_module("tools.verify_release_tag")
 SOURCE = "a" * 40
 TAG_OBJECT = "b" * 40
@@ -182,6 +184,19 @@ class ReleaseTagTests(unittest.TestCase):
                 release_tag.verify_connected(
                     "mindclade/.github", "v5.0.0", SOURCE
                 )
+
+    def test_subtree_release_tags_fail_closed_without_a_signer(self) -> None:
+        text = (
+            ROOT / ".github" / "workflows" / "reusable-subtree-mirror.yml"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("git tag -f", text)
+        self.assertNotIn("git mktag", text)
+        self.assertNotIn('refs/tags/${TAG}', text)
+        self.assertIn("subtree target tag creation is blocked", text)
+        self.assertIn("GitHub-verified signing authority", text)
+        self.assertIn('[[ "/$SUBTREE_PATH/" = *"/./"* ]]', text)
+        self.assertIn('[[ "/$SUBTREE_PATH/" = *"//"* ]]', text)
+        self.assertIn('git ls-files -- "$SUBTREE_PATH"', text)
 
 
 if __name__ == "__main__":
