@@ -83,6 +83,32 @@ class WorkflowSecurityTests(unittest.TestCase):
         text = (ROOT / ".github" / "actionlint.yaml").read_text(encoding="utf-8")
         self.assertNotIn("mindclade-arc-qualify-attest", text)
 
+    def test_nix_cache_population_keeps_signing_and_pull_requests_out(self) -> None:
+        text = (WORKFLOWS / "reusable-nix-cache-populate.yml").read_text(
+            encoding="utf-8"
+        )
+        scripts = "\n".join(run_scripts(text))
+
+        self.assertIn("environment: nix-cache-publication", text)
+        self.assertIn("group: nix-cache-population-${{ github.repository }}", text)
+        self.assertIn("cancel-in-progress: false", text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertNotIn("id-token: write", text)
+        self.assertNotIn("pull_request", text)
+        self.assertNotIn("merge_group", text)
+        self.assertNotIn("SIGNING_KEY", text)
+        self.assertNotIn("RS256_SECRET", text)
+        self.assertNotIn("${{ inputs.server-endpoint }}", scripts)
+        self.assertNotIn("${{ inputs.cache-name }}", scripts)
+        self.assertNotIn("${{ inputs.trusted-public-key }}", scripts)
+        self.assertNotIn("cache-write-token:", text)
+        self.assertNotIn("${{ secrets.NIX_CACHE_WRITE_TOKEN }}", scripts)
+        self.assertIn(
+            "ATTIC_CACHE_WRITE_TOKEN: ${{ secrets.NIX_CACHE_WRITE_TOKEN }}", text
+        )
+        self.assertIn('test "${ACTUAL_REF_PROTECTED}" = "true"', scripts)
+        self.assertIn("python3 ci/nix_cache/populate.py --execute", scripts)
+
 
 if __name__ == "__main__":
     unittest.main()

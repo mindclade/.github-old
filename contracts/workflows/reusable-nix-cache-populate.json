@@ -1,0 +1,35 @@
+{
+  "inputs": {
+    "cache-name": {
+      "required": true,
+      "type": "string"
+    },
+    "server-endpoint": {
+      "required": true,
+      "type": "string"
+    },
+    "trusted-public-key": {
+      "required": true,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "authorize": {
+      "contents": "read"
+    },
+    "populate": {
+      "contents": "read"
+    }
+  },
+  "jobs": [
+    "authorize",
+    "populate"
+  ],
+  "outputs": [],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-nix-cache-populate.yml"
+}

@@ -35,6 +35,13 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ## v5.0.0 (planned; not published)
 
+### Added
+
+- Added an activation-blocked Nix cache population workflow for the canonical monorepo. It
+  requires protected main, independent environment approval, an exact immutable checkout, and a
+  cache-scoped write token while explicitly excluding pull requests, cloud authority, server
+  secrets, and client signing keys. No caller is enabled before connected cache qualification.
+
 ### Changed
 
 - Run the two x86_64-linux reproducibility rebuilds on Ubuntu 24.04 and 22.04, record the exact

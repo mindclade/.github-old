@@ -140,10 +140,14 @@ def validate_body(
     for phrase in AUTHORIZATION_PHRASES:
         # The canonical pull-request template wraps long checklist items. Match the
         # prescribed wording while treating Markdown line wrapping as ordinary whitespace.
-        phrase_pattern = r"\s+".join(re.escape(part) for part in phrase.split())
+        # Also strip Markdown inline-code backticks from both the phrase and the body
+        # before matching: `WORD` and WORD are semantically identical here.
+        phrase_normalized = phrase.replace("`", "")
+        body_normalized = body.replace("`", "")
+        phrase_pattern = r"\s+".join(re.escape(part) for part in phrase_normalized.split())
         checked = re.search(
             rf"(?mi)^\s*-\s*\[[xX]\]\s*{phrase_pattern}",
-            body,
+            body_normalized,
         )
         if not checked:
             errors.append(f"contributor authorization remains unchecked: {phrase}")

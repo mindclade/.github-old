@@ -1,0 +1,86 @@
+---
+name: Reusable — Nix cache population
+
+on:
+  workflow_call:
+    inputs:
+      server-endpoint:
+        description: Qualified HTTPS Attic API endpoint without embedded credentials
+        required: true
+        type: string
+      cache-name:
+        description: Existing Attic cache accepting only the reviewed publisher token scope
+        required: true
+        type: string
+      trusted-public-key:
+        description: Public Nix cache verification key distributed to future read-only clients
+        required: true
+        type: string
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-cache-population-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: authorize trusted main
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce immutable caller boundary
+        env:
+          ACTUAL_EVENT: ${{ github.event_name }}
+          ACTUAL_REF: ${{ github.ref }}
+          ACTUAL_REF_PROTECTED: ${{ github.ref_protected }}
+          ACTUAL_REPOSITORY: ${{ github.repository }}
+          ACTUAL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          EXPECTED_WORKFLOW_REF: mindclade/mindclade-internal-monorepo/.github/workflows/nix-cache.yml@refs/heads/main
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_REPOSITORY}" = "mindclade/mindclade-internal-monorepo"
+          test "${ACTUAL_WORKFLOW_REF}" = "${EXPECTED_WORKFLOW_REF}"
+          test "${ACTUAL_REF}" = "refs/heads/main"
+          test "${ACTUAL_REF_PROTECTED}" = "true"
+          case "${ACTUAL_EVENT}" in
+            push|schedule|workflow_dispatch) ;;
+            *)
+              echo "Only protected-main push, schedule, or dispatch may publish." >&2
+              exit 1
+              ;;
+          esac
+
+  populate:
+    name: build and publish
+    needs: authorize
+    environment: nix-cache-publication
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+            sandbox = true
+      - name: Build and publish reviewed closure
+        env:
+          ATTIC_CACHE_NAME: ${{ inputs.cache-name }}
+          ATTIC_CACHE_WRITE_TOKEN: ${{ secrets.NIX_CACHE_WRITE_TOKEN }}
+          ATTIC_SERVER_ENDPOINT: ${{ inputs.server-endpoint }}
+          NIX_CACHE_TRUSTED_PUBLIC_KEY: ${{ inputs.trusted-public-key }}
+          MINDCLADE_NIX_CACHE_ACTIVATED: 'true'
+        run: |
+          set -euo pipefail
+          nix develop --no-update-lock-file .#nix-cache-publisher \
+            --command python3 ci/nix_cache/populate.py --execute
