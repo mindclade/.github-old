@@ -5,7 +5,8 @@
 - The organization default `GITHUB_TOKEN` permission is read-only.
 - Privileged jobs declare only the permissions they need.
 - External actions are pinned to full commit SHAs.
-- Mindclade reusable workflows are consumed through immutable full-semver tags.
+- Mindclade reusable workflows are consumed through GitHub-verified, signed, immutable
+  full-semver tags.
 - Cloud access uses GitHub OIDC and service-account impersonation; no service-account JSON keys.
 - Pull requests from untrusted sources never receive privileged secrets or production identity.
 - Build, qualification, signing, promotion, infrastructure apply, and runtime identities are distinct.
@@ -14,7 +15,7 @@
 ## Workflow release order
 
 1. Merge and qualify `.github`.
-2. Create an immutable full-semver tag.
+2. Create a signed annotated full-semver tag on the reviewed source commit.
 3. Update `github-config` ruleset-workflow references.
 4. Let Renovate update consumers.
 5. Audit stale consumers with `pin-audit.yml`.

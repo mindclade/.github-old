@@ -19,6 +19,7 @@
 - `CHANGELOG.md` describes the final proposed v5 contract.
 - Starter workflows and active WIF policy references still use the published `v3.0.0` contract.
 - `platform` and `security` reviewers have approved the release commit.
+- The Release operator's signing key is registered with GitHub as a signing key.
 
 ## Qualify the release commit
 
@@ -37,7 +38,7 @@ Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same
 ## Create the immutable release
 
 Tag the commit the manifest attests, never whatever `main` happens to point at. A squash or
-rebase merge leaves that commit reachable only from stale branches, so `git tag -a v5.0.0 -m …`
+rebase merge leaves that commit reachable only from stale branches, so `git tag -s v5.0.0 -m …`
 with no commit operand tags a different tree and nothing reports it.
 
 ```sh
@@ -47,15 +48,17 @@ approved_tag=v5.0.0
 approved_release_commit=FULL_PROTECTED_MAIN_SHA_FROM_RELEASE_EVIDENCE
 test "${#approved_release_commit}" -eq 40
 git merge-base --is-ancestor "$approved_release_commit" origin/main
-git tag -a "$approved_tag" -m "Mindclade shared workflow contract v5" "$approved_release_commit"
+git tag -s "$approved_tag" -m "Mindclade shared workflow contract v5" "$approved_release_commit"
+git verify-tag "$approved_tag"
 git push origin "$approved_tag"
 ```
 
-Confirm `release.yml` leaves the release in draft state and attaches a checksum-verified source
-manifest. Run native Linux AMD64/ARM64 and Darwin qualification, both independent Linux rebuilds,
-and the connected WIF/cloud canary against the exact tag. Archive the resulting evidence bundle,
-then dispatch `publish-release.yml` with its digest and protected change ticket. Two independent
-environment approvals are mandatory.
+Confirm `release.yml` reports the signed annotated tag as GitHub-verified, leaves the release in
+draft state, and attaches a checksum-verified source manifest. Run native Linux AMD64/ARM64 and
+Darwin qualification, both independent Linux rebuilds, and the connected WIF/cloud canary
+against the exact tag. Archive the resulting evidence bundle, then dispatch
+`publish-release.yml` with its digest and protected change ticket. Two independent environment
+approvals are mandatory.
 
 Confirm the annotated tag peels back to the same commit before consumers pin it:
 
@@ -89,6 +92,6 @@ tag object ID:
 
 ## Roll back or recover
 
-If validation or publication fails, correct `main` through a pull request and retry with the
-same tag only if GitHub never published or protected it. Once the release is published and
-immutable, do not move or delete it; publish the correction as a new semantic version.
+If validation fails before the tag is pushed, correct `main` through a pull request and recreate
+the local tag. After a tag is pushed, do not move, delete, or reuse it; correct `main` and publish
+the correction as a new semantic version.

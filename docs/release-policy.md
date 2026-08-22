@@ -32,10 +32,10 @@ Before tagging, the release commit must have:
 - passing repository-policy checks.
 
 For v5, `contracts/releases/v5.0.0.json` schema 2 declares every reusable workflow and
-contract, both organization-required workflows, the complete repository-home action, policy
-tools, and the policy-manifest directory. Release assembly recursively hashes every tracked
-regular file in those surfaces and rejects missing, duplicate, undeclared, symlink, or
-non-regular entries.
+contract, both organization-required workflows, the complete repository-home action, release
+tools, policy tools, and the policy-manifest directory. Release assembly recursively hashes
+every tracked regular file in those surfaces and rejects missing, duplicate, undeclared,
+symlink, or non-regular entries.
 
 Cloud-dependent workflows additionally require qualification in an intentionally provisioned
 project with the exact released identity boundary. They must not receive broad cloud access
@@ -45,15 +45,17 @@ merely so the generic smoke suite can run.
 
 First verify that `github-config` has applied both organization tag rules: the no-bypass
 `tag-protection` rule and the separate `release-tag-creation` rule whose only always-bypass
-actor is the Release team. A Release-team operator then creates an annotated full-semver tag on
-the reviewed commit:
+actor is the Release team. The operator's signing key must be registered with GitHub as a
+signing key. A Release-team operator then creates a signed annotated full-semver tag on the
+reviewed commit:
 
 ```sh
 release_sha="<reviewed-merged-commit-sha>"
 test "$(printf '%s' "${release_sha}" | wc -c | tr -d ' ')" -eq 40
 git merge-base --is-ancestor "${release_sha}" origin/main
 git show "${release_sha}:contracts/releases/vX.Y.Z.json" >/dev/null
-git tag -a vX.Y.Z -m "Mindclade shared workflow contract vX.Y.Z" "${release_sha}"
+git tag -s vX.Y.Z -m "Mindclade shared workflow contract vX.Y.Z" "${release_sha}"
+git verify-tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
@@ -65,8 +67,11 @@ non-prerelease, GitHub-immutable release and the exact source attestation.
 The commit operand is not optional. Without it the tag lands on the checkout, which after a
 squash or rebase merge is a different commit than the one that was reviewed and attested.
 
-`release.yml` validates the tag, changelog, and tracked release specification; creates a draft;
-and attaches an exact source/file-digest manifest. It never publishes. After connected
+`release.yml` asks GitHub's read-only Git Data API to confirm that the annotated tag is validly
+signed and targets the expected commit. It then validates the changelog and tracked release
+specification, creates a draft, and attaches an exact source/file-digest manifest. It never
+publishes. Exact-tag qualification, protected publication, and policy synchronization repeat
+the connected signature/target check instead of relying only on the local checkout. After
 qualification of that exact tag, an operator dispatches `publish-release.yml` with the immutable
 evidence digest and protected change ticket. Publication first crosses the
 `workflow-release-platform` environment and then the `workflow-release-security` environment;

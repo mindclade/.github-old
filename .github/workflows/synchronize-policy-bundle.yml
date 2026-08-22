@@ -65,6 +65,10 @@ jobs:
           [ "$(git -C source cat-file -t "$TAG")" = tag ]
           release_commit="$(git -C source rev-parse --verify "${TAG}^{commit}")"
           [ "$(git -C source rev-parse --verify 'HEAD^{commit}')" = "$release_commit" ]
+          python3 source/tools/verify_release_tag.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$TAG" \
+            --expected-source "$release_commit"
           gh release download "$TAG" --repo mindclade/.github --dir "$work" \
             --pattern 'attested-release-manifest.json*'
           (cd "$work" && sha256sum --check attested-release-manifest.json.sha256)

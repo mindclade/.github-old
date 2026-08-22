@@ -48,6 +48,12 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - **Breaking (publish as v5.0.0):** the repository-home action accepts an optional adoption
   record and verifies its full release/provenance chain before repository validation.
 
+### Security
+
+- Require every v5 release identity to be a GitHub-verified signed annotated tag that targets
+  the exact protected-main source commit. Draft assembly, exact-tag qualification, protected
+  publication, and policy synchronization independently repeat this connected check.
+
 ## Unreleased v4.1.0 draft
 
 ### Added
