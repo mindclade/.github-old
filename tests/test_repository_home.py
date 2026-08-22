@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -31,6 +33,7 @@ class RepositoryHomeValidationTest(unittest.TestCase):
         root = Path(temporary.name)
         (root / ".github").mkdir()
         (root / "contracts").mkdir()
+        (root / "scripts").mkdir()
         (root / "docs" / "assets" / "brand").mkdir(parents=True)
         (root / "docs" / "assets" / "badges").mkdir(parents=True)
         (root / "docs" / "README.md").write_text("# Documentation\n", encoding="utf-8")
@@ -65,6 +68,34 @@ change_model: pull-request
             REPOSITORY_ROOT / "CODE_OF_CONDUCT.md", root / "CODE_OF_CONDUCT.md"
         )
         shutil.copyfile(REPOSITORY_ROOT / "LEGAL.md", root / "LEGAL.md")
+        shutil.copyfile(
+            REPOSITORY_ROOT / "tools" / "third_party_notices.py",
+            root / "scripts" / "generate-third-party-notices.py",
+        )
+        (root / "contracts" / "third-party-materials.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "repository": f"mindclade/{root.name}",
+                    "inventorySources": [],
+                    "materials": [],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            [
+                "python3",
+                str(root / "scripts" / "generate-third-party-notices.py"),
+                "--root",
+                str(root),
+                "--write",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         common_documents = {
             "CONTRIBUTING.md": """<!-- mindclade-doc: contributing@1 -->
 
@@ -292,7 +323,7 @@ Do not commit secrets.
     def test_identical_local_validator_mirror_passes(self) -> None:
         root = self.fixture()
         mirror = root / "scripts" / "validate-repository-home.py"
-        mirror.parent.mkdir()
+        mirror.parent.mkdir(exist_ok=True)
         shutil.copyfile(MODULE_PATH, mirror)
         self.assertEqual(
             repository_home.validate_local_validator(
@@ -304,7 +335,7 @@ Do not commit secrets.
     def test_modified_local_validator_mirror_fails(self) -> None:
         root = self.fixture()
         mirror = root / "scripts" / "validate-repository-home.py"
-        mirror.parent.mkdir()
+        mirror.parent.mkdir(exist_ok=True)
         mirror.write_bytes(MODULE_PATH.read_bytes() + b"\n")
         errors = repository_home.validate_local_validator(
             MODULE_PATH, root, "scripts/validate-repository-home.py"
