@@ -31,10 +31,16 @@ required_paths:
   - LEGAL.md
   - LICENSE
   - NOTICE
+  - THIRD_PARTY_NOTICES.md
   - .github/PULL_REQUEST_TEMPLATE.md
   - .github/workflows
   - workflow-templates
   - contracts/workflows
+  - contracts/policy-bundle/manifest.json
+  - contracts/third-party-materials.json
+  - tools/policy_bundle.py
+  - tools/third_party_notices.py
+  - tools/enrich_spdx_license.py
   - .github/CODEOWNERS
 forbidden_paths:
   - .terraform

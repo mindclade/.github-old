@@ -20,6 +20,11 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   rejects a previous release that is not numerically older than the candidate.
   The planned v4 contract remains unpublished; no consumer may adopt this change until an
   explicitly reviewed immutable release is published.
+- **Breaking (publish as v5.0.0):** `reusable-oci-build.yml` now enriches every SPDX 2.3
+  SBOM with the complete proprietary `LicenseRef`, a digest-bound first-party package, and
+  reviewed third-party notice coverage before upload or attestation. Callers must first
+  synchronize policy bundle `2026.08.21.2`, including both SBOM/notice tools and their
+  repository-specific provenance contract.
 
 ## Unreleased v4.1.0 draft
 

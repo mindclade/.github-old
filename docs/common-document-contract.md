@@ -48,6 +48,7 @@ reader to an actionable next step, and satisfy the machine checks below.
 | `LEGAL.md` | `legal-and-reliance@1` | Exact estate policy for authority, precedence, reliance, representations, and counsel review |
 | `LICENSE` | `mindclade-license@2` | Exact estate proprietary terms, protected-disclosure notice, and resolvable custom SPDX identifier |
 | `NOTICE` | `mindclade-notice@1` | Repository identity, first-party notice, third-party precedence, artifact obligations |
+| `THIRD_PARTY_NOTICES.md` | generated notice evidence | Deterministic complete license text, attribution, version, source URL, and provenance for declared third-party material |
 | `AGENTS.md` | repository instructions | Local implementation and safety instructions; never a substitute for legal terms |
 
 Every repository also carries `.github/PULL_REQUEST_TEMPLATE.md`. The template records an
@@ -89,6 +90,16 @@ language are invariant.
     `.github/MINDCLADE_PROPRIETARY_SOURCE_HEADER.txt`; that template identifies
     itself as a header, carries `LicenseRef-Mindclade-Proprietary`, and is not a
     second license.
+11. `contracts/third-party-materials.json` is the reviewed inventory overlay for
+    repository-resident third-party material. The policy-bundle generator rejects
+    missing or abbreviated license text, missing attribution, absent versions,
+    non-HTTPS sources, stale hashes, and unreviewed release-SBOM packages. Every
+    shared-workflow SPDX 2.3 SBOM carries the complete extracted proprietary
+    LicenseRef and a digest-bound first-party artifact package before attestation.
+12. The signed `mindclade-policy-bundle` versions the exact license, legal and
+    conduct policies, source header, validators, and evidence schemas. A source
+    manifest is not published until its protected workflow produces a verifiable
+    artifact attestation.
 
 These controls state repository terms and authorization conditions explicitly;
 they do not guarantee enforceability in every jurisdiction or circumstance.
@@ -114,7 +125,7 @@ transaction, jurisdiction, or workforce involved.
 
 A governed repository passes only when all of the following are true:
 
-- all eleven required root files and the pull-request template exist, are nonempty UTF-8 text, and end in a
+- all twelve required root files and the pull-request template exist, are nonempty UTF-8 text, and end in a
   newline;
 - each versioned file contains exactly one expected document-control marker;
 - the root license matches the canonical `mindclade-license@2` digest;
@@ -123,6 +134,8 @@ A governed repository passes only when all of the following are true:
 - the legal-reliance and conduct policies match their canonical estate digests;
 - the notice names the repository from `contracts/repository.yaml` and states
   third-party precedence and the Contributor Covenant attribution;
+- `THIRD_PARTY_NOTICES.md` exactly matches its reviewed provenance contract and
+  contains complete digest-pinned license text for every declared material;
 - contribution terms contain the authorization, rights, third-party, and
   signed-commit limitations;
 - security and support files route vulnerabilities away from public issues,
@@ -130,6 +143,9 @@ A governed repository passes only when all of the following are true:
   harbor to authorized scope, and do not claim that Mindclade publishes a PGP
   key;
 - all files named by `required_paths` in the repository contract exist;
+- unqualified certification, compliance, guarantee, or response-time claims are
+  absent unless a current annotation identifies scope, owner, evidence, review
+  date, and expiry;
 - the repository-home validator and its negative regression tests pass; and
 - repository-specific validation passes without weakening or skipping another
   production gate.
@@ -141,9 +157,8 @@ rule requires:
 
 1. a pull request in `mindclade/.github` describing the compatibility and legal
    impact;
-2. Engineering, Platform, and Security review, plus qualified legal review for
-   changes to `LICENSE`, contributor rights, trademarks, confidentiality, or
-   protected disclosures;
+2. distinct Legal, Security, and Platform approvals for every protected legal
+   path, with stale-review dismissal and approval of the last push;
 3. a version increment and migration plan for all governed repositories;
 4. synchronized validators and negative tests; and
 5. changelog entries that distinguish adoption from publication.
