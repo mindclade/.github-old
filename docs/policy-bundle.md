@@ -2,7 +2,7 @@
 
 # Signed policy bundle and acceptance evidence
 
-> **Audience:** Legal, Security, Platform, release engineering, and repository owners  
+> **Audience:** Legal, Security, Platform, release engineering, and repository owners
 > **Outcome:** Change, publish, distribute, and reference one versioned policy set without
 > weakening independent review or confusing source text with executed agreements.
 
