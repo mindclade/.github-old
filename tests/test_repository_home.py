@@ -279,6 +279,11 @@ Do not commit secrets.
         )
         self.assertFalse(
             repository_home.has_remote_shields_reference(
+                "![build](https://img.shields.io@bad.example/badge/build-passing.svg)"
+            )
+        )
+        self.assertFalse(
+            repository_home.has_remote_shields_reference(
                 "[redirect](https://example.test/?next=https://img.shields.io/badge/build-passing.svg)"
             )
         )

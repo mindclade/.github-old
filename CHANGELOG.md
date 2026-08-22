@@ -9,6 +9,14 @@ release is published and the consumer updates its `uses:` reference.
 The format follows Keep a Changelog. Semantic versioning applies to reusable workflow inputs,
 outputs, secrets, defaults, job identifiers, permissions, and observable behavior.
 
+## Policy bundle 2026.08.21.3 (candidate; not published)
+
+### Security
+
+- Parse README URLs and require the exact `img.shields.io` hostname when rejecting remote
+  Shields badges; deceptive lookalike hosts, userinfo prefixes, and redirect parameters do not
+  satisfy the hostname check.
+
 ## v5.0.0 (planned; not published)
 
 ### Changed
