@@ -42,9 +42,53 @@ def valid_report() -> dict[str, object]:
     }
 
 
+def valid_v3_report() -> dict[str, object]:
+    report = valid_report()
+    report["schema_version"] = 3
+    report["change_reference"] = "https://github.com/mindclade/bootstrap/pull/52"
+    return report
+
+
 class DrillReportTests(unittest.TestCase):
     def test_valid_pass_report(self) -> None:
         self.assertEqual([], VALIDATOR.validate(valid_report()))
+
+    def test_valid_v3_pass_report(self) -> None:
+        self.assertEqual([], VALIDATOR.validate(valid_v3_report()))
+
+    def test_v2_rejects_v3_change_reference(self) -> None:
+        report = valid_report()
+        report["change_reference"] = "https://github.com/mindclade/bootstrap/pull/52"
+        self.assertIn("unknown: change_reference", VALIDATOR.validate(report))
+
+    def test_v3_requires_change_reference(self) -> None:
+        report = valid_v3_report()
+        del report["change_reference"]
+        self.assertIn("missing: change_reference", VALIDATOR.validate(report))
+
+    def test_v3_rejects_external_change_reference(self) -> None:
+        report = valid_v3_report()
+        report["change_reference"] = "https://github.com/example/bootstrap/pull/52"
+        self.assertIn(
+            "change_reference must identify a Mindclade GitHub pull request or issue",
+            VALIDATOR.validate(report),
+        )
+
+    def test_v3_rejects_unbound_operator_shape(self) -> None:
+        report = valid_v3_report()
+        operators = report["operators"]
+        assert isinstance(operators, list) and isinstance(operators[0], dict)
+        operators[0]["login"] = operators[0].pop("identity")
+        errors = VALIDATOR.validate(report)
+        self.assertIn("missing: operators[0].identity", errors)
+        self.assertIn("unknown: operators[0].login", errors)
+
+    def test_v3_rejects_invalid_source_revision(self) -> None:
+        report = valid_v3_report()
+        report["source_revisions"] = {"mindclade/gitops": "main"}
+        self.assertIn(
+            "source_revisions.mindclade/gitops is invalid", VALIDATOR.validate(report)
+        )
 
     def test_same_operator_is_rejected(self) -> None:
         report = valid_report()

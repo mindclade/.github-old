@@ -92,10 +92,10 @@ jobs:
           set -euo pipefail
           # A release nobody documented is one every consumer's reviewer has to reverse
           # engineer from a diff across the repository estate.
-          if ! grep -qE "^## ${TAG}( |$)" CHANGELOG.md; then
-            echo "::error file=CHANGELOG.md::no '## ${TAG}' section. Move Unreleased under the version before tagging."
-            exit 1
-          fi
+          python3 tools/extract_release_notes.py \
+            --changelog CHANGELOG.md \
+            --tag "${TAG}" \
+            --output notes.md
 
       - name: Validate the release specification
         env:
@@ -104,16 +104,11 @@ jobs:
           set -euo pipefail
           python3 tools/validate-release-spec.py "contracts/releases/${TAG}.json"
 
-      - name: Extract release notes
+      - name: Assemble draft release notes
         env:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          awk -v tag="## ${TAG}" '
-            $0 == tag        { inside = 1; next }
-            inside && /^## /  { exit }
-            inside            { print }
-          ' CHANGELOG.md > notes.md
           {
             echo
             echo "---"

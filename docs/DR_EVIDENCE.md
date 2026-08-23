@@ -16,12 +16,15 @@ overwrite, change retention, or administer the bucket.
 
 The primary operator must be the dispatching GitHub actor. The report must bind that actor as
 `primary`, bind a different login as `observer`, match the protected environment, and include the
-caller's exact commit SHA. Environment approval supplies the independent review boundary.
+caller's exact commit SHA. Environment approval supplies the independent review boundary. New
+reports use schema v3 and must also bind the execution packet to an exact Mindclade GitHub pull
+request or issue URL in `change_reference`.
 
 ## Evidence retention
 
-The workflow validates report v2 before cloud authentication. It then writes the report to a
-content-addressed GCS object using a generation-zero precondition, so a prior object cannot be
+The workflow validates report v2 or v3 before cloud authentication. Schema v2 remains accepted for
+historical reports; create new execution packets with schema v3. The workflow then writes the report
+to a content-addressed GCS object using a generation-zero precondition, so a prior object cannot be
 replaced. The evidence bucket is separately governed with a seven-year retention policy and
 multi-region placement. A 90-day GitHub Actions artifact is retained as a complementary execution
 record; GCS is the durable archive.

@@ -77,6 +77,13 @@ accepts dispatch only from the current protected `main` head. A GitHub API respo
 bypass inventory fails closed; publication does not receive a privileged organization-governance
 token to work around that evidence gap.
 
+`reusable-dr-evidence.yml` preserves its v5 caller interface while accepting report schema v2 or
+v3. Schema v2 remains valid only for historical evidence. New reports use v3, which is a strict v2
+superset requiring `change_reference` to identify an exact Mindclade GitHub pull request or issue;
+both versions retain the protected environment, distinct primary/observer operator, and exact
+caller-repository source revision bindings. The machine workflow snapshot therefore remains
+unchanged: the input names, outputs, jobs, and permissions did not change.
+
 ## Nix qualification releases
 
 `reusable-nix-qualification.yml` keeps the required-check context stable at

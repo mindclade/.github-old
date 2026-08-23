@@ -46,7 +46,10 @@ merely so the generic smoke suite can run.
 First verify that `github-config` has applied both organization tag rules: the no-bypass
 `tag-protection` rule and the separate `release-tag-creation` rule whose only always-bypass
 actor is the Release team. The operator's signing key must be registered with GitHub as a
-signing key. A Release-team operator then creates a signed annotated full-semver tag on the
+signing key. Before creating a tag, dispatch `release-governance-preflight.yml` from protected
+`main`. Its no-write job binds the checkout to the current protected-main head and proves the
+same connected environment, reviewer, Release-team, and tag-rule inventory used by draft and
+publication. A Release-team operator then creates a signed annotated full-semver tag on the
 reviewed commit:
 
 ```sh
@@ -90,6 +93,10 @@ may omit ruleset bypass actors from a response that cannot prove them. An omitte
 is an intentional hard failure, not permission to assume the catalog was applied. Keep publication
 blocked until the connected response exposes the one exact Release-team bypass; do not widen this
 workflow's token merely to turn the check green.
+
+The version heading in `CHANGELOG.md` must be exactly `## vX.Y.Z` and its section must contain
+non-whitespace release notes. Draft assembly rejects a planned-status suffix or empty section so
+the published release cannot silently contain only the standard consumer-pinning footer.
 
 The already-published historical `v3.0.0` tag is unsigned legacy evidence. Its immutable tag and
 release are preserved, but it may never be moved, republished, or used as precedent for a new

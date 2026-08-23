@@ -41,9 +41,16 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 - Synchronize policy artifacts only from the published, source-attested v5 tag rather than from
   mutable `main`.
 
-## v5.0.0 (planned; not published)
+## v5.0.0
+
+This is the reviewed source candidate. It remains unpublished until the signed-tag, connected
+qualification, and protected publication gates in `docs/release-policy.md` pass.
 
 ### Added
+
+- Accept historical disaster-recovery report schema v2 and the new schema v3 in the reusable DR
+  evidence workflow. Schema v3 requires an exact Mindclade pull request or issue change reference
+  while retaining the protected environment, distinct-operator, and caller-source bindings.
 
 - Added `reusable-nixos-gce-image-publish.yml` for protected, manually dispatched publication
   of the canonical monorepo's immutable NixOS workstation image source. The workflow builds

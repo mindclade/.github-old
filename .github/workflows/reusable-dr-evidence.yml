@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       report-path:
-        description: Repository-relative path to a completed DR report v2.
+        description: Repository-relative path to a completed DR report v2 or v3.
         required: true
         type: string
       environment:

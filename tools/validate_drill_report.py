@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-"""Fail-closed semantic validation for Mindclade DR report v2 JSON."""
+"""Fail-closed semantic validation for Mindclade DR report v2 and v3 JSON."""
 from __future__ import annotations
 
 import argparse
@@ -13,13 +13,18 @@ from pathlib import Path
 from typing import Any
 
 DRILLS = {"bootstrap-clean-room", "terraform-state-recovery", "github-idp-outage", "org-policy-rollback", "vpc-sc-lockout", "gke-reconstruction", "argocd-rebootstrap", "cloud-sql-restore", "protected-bucket-restore", "compromised-artifact-revocation"}
-REQUIRED = {"schema_version", "drill_id", "drill_type", "scope", "environment", "operators", "source_revisions", "started_at", "ended_at", "result", "objectives", "recovery_point", "recovery_time_seconds", "success_criteria", "abort_conditions", "evidence", "failures", "corrective_actions", "next_drill_at"}
-ALLOWED = REQUIRED | {"commands"}
+REQUIRED_V2 = {"schema_version", "drill_id", "drill_type", "scope", "environment", "operators", "source_revisions", "started_at", "ended_at", "result", "objectives", "recovery_point", "recovery_time_seconds", "success_criteria", "abort_conditions", "evidence", "failures", "corrective_actions", "next_drill_at"}
+REQUIRED_V3 = REQUIRED_V2 | {"change_reference"}
+ALLOWED_V2 = REQUIRED_V2 | {"commands"}
+ALLOWED_V3 = REQUIRED_V3 | {"commands"}
 RE_DRILL_ID = re.compile(r"^[a-z0-9][a-z0-9-]{2,79}$")
 RE_IDENTITY = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
 RE_SHA = re.compile(r"^[0-9a-f]{40}$")
 RE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 RE_EVIDENCE = re.compile(r"^(?:gs://|https://github[.]com/).+")
+RE_CHANGE_REFERENCE = re.compile(
+    r"^https://github[.]com/mindclade/[A-Za-z0-9_.-]+/(?:pull|issues)/[1-9][0-9]*$"
+)
 
 
 def timestamp(value: Any, name: str, errors: list[str]) -> dt.datetime | None:
@@ -64,10 +69,22 @@ def validate(report: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(report, dict):
         return ["report must be a JSON object"]
-    errors.extend(f"missing: {key}" for key in sorted(REQUIRED - report.keys()))
-    errors.extend(f"unknown: {key}" for key in sorted(report.keys() - ALLOWED))
-    if report.get("schema_version") != 2:
-        errors.append("schema_version must equal 2")
+    schema_version = report.get("schema_version")
+    if schema_version == 2:
+        required, allowed = REQUIRED_V2, ALLOWED_V2
+    elif schema_version == 3:
+        required, allowed = REQUIRED_V3, ALLOWED_V3
+    else:
+        required, allowed = REQUIRED_V2, ALLOWED_V2
+        errors.append("schema_version must equal 2 or 3")
+    errors.extend(f"missing: {key}" for key in sorted(required - report.keys()))
+    errors.extend(f"unknown: {key}" for key in sorted(report.keys() - allowed))
+    if schema_version == 3:
+        change_reference = report.get("change_reference")
+        if not isinstance(change_reference, str) or not RE_CHANGE_REFERENCE.fullmatch(
+            change_reference
+        ):
+            errors.append("change_reference must identify a Mindclade GitHub pull request or issue")
     if not isinstance(report.get("drill_id"), str) or not RE_DRILL_ID.fullmatch(report["drill_id"]):
         errors.append("drill_id is invalid")
     if report.get("drill_type") not in DRILLS:
@@ -191,11 +208,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("report", type=Path)
     args = parser.parse_args()
+    report: Any = None
     try:
-        errors = validate(json.loads(args.report.read_text(encoding="utf-8")))
+        report = json.loads(args.report.read_text(encoding="utf-8"))
+        errors = validate(report)
     except (OSError, json.JSONDecodeError) as exc:
         errors = [f"unable to read report: {exc}"]
-    print(json.dumps({"schema_version": 2, "status": "FAIL" if errors else "PASS", "errors": errors}, indent=2))
+    report_schema_version = report.get("schema_version") if isinstance(report, dict) else None
+    print(json.dumps({"schema_version": report_schema_version, "status": "FAIL" if errors else "PASS", "errors": errors}, indent=2))
     return 1 if errors else 0
 
 
