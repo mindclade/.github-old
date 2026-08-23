@@ -109,6 +109,19 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn('test "${ACTUAL_REF_PROTECTED}" = "true"', scripts)
         self.assertIn("python3 ci/nix_cache/populate.py --execute", scripts)
 
+    def test_nix_native_qualification_retains_cross_platform_evidence(self) -> None:
+        text = (WORKFLOWS / "reusable-nix-qualification.yml").read_text(
+            encoding="utf-8"
+        )
+
+        for system in ("x86_64-linux", "aarch64-linux", "aarch64-darwin"):
+            self.assertIn(f"EXPECTED_SYSTEM: {system}", text)
+        self.assertEqual(text.count("mindclade-nix-native-evidence-v1"), 3)
+        self.assertEqual(text.count("Record native qualification evidence"), 3)
+        self.assertEqual(text.count("path: ${{ runner.temp }}/nix-native-evidence"), 3)
+        self.assertEqual(text.count("retention-days: 30"), 5)
+        self.assertNotIn("continue-on-error: true", text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,12 +2,20 @@
 
 # Changelog
 
-## Policy bundle 2026.08.22.1 (planned with v5.0.0; not published)
+## Policy bundle 2026.08.23.1 (planned with v5.0.0; not published)
+
+### Added
 
 - Add sealed evidence claim, verification, deployment-bundle, exception, eligibility-decision,
   and production-control contracts for synchronized fleet adoption.
 - Define the initial ten-control production-eligibility policy with bounded freshness and
   explicit exception eligibility.
+- Add append-only policy-bundle version history and base-commit immutability enforcement.
+
+### Changed
+
+- Define `.github-private` as the checked-in brand distribution rather than a brand-governance
+  authority.
 
 All notable changes to the versioned reusable-workflow contract are recorded here. Consumers
 pin immutable full-semver releases, so a merged change reaches a consumer only after a new
@@ -37,6 +45,7 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ### Added
 
+- Added retained native Nix qualification evidence for Linux AMD64, Linux ARM64, and Apple Silicon.
 - Added an activation-blocked Nix cache population workflow for the canonical monorepo. It
   requires protected main, independent environment approval, an exact immutable checkout, and a
   cache-scoped write token while explicitly excluding pull requests, cloud authority, server

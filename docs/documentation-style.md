@@ -36,7 +36,7 @@ Vendor the flattened light and dark PNG wordmarks at these repository-relative p
 - `docs/assets/brand/mono-wordmark-1080w.png`; and
 - `docs/assets/brand/mono-wordmark-dark-1080w.png`.
 
-The `.github-private` brand-source repository is the sole exception: its root README links
+The `.github-private` checked-in brand distribution is the sole exception: its root README links
 directly to the canonical files under `mindclade-brand-assets/png/` instead of duplicating
 them.
 

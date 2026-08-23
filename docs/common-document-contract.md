@@ -8,7 +8,7 @@
 | Product owner | Mindclade Platform |
 | Version | 1.0 |
 | Effective | August 21, 2026 |
-| Brand source | `mindclade/.github-private/mindclade-brand-assets` · MONO family |
+| Brand distribution | `mindclade/.github-private/mindclade-brand-assets` · MONO family |
 
 ## Objective
 
@@ -109,7 +109,7 @@ transaction, jurisdiction, or workforce involved.
 ## Editorial and brand rules
 
 - Use `Mindclade` and the legal name `Mindclade, LLC.` consistently.
-- Root README artwork comes only from the canonical MONO brand source and is
+- Root README artwork comes only from the checked-in MONO brand distribution and is
   vendored locally with verified digests.
 - Policy documents use descriptive headings, sentence-case prose, accessible
   tables, meaningful link text, and one level-one heading.

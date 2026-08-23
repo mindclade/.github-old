@@ -14,6 +14,7 @@ import io
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -21,6 +22,7 @@ from typing import Any
 
 DEFAULT_SOURCE_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = DEFAULT_SOURCE_ROOT / "contracts" / "policy-bundle" / "manifest.json"
+DEFAULT_HISTORY = DEFAULT_SOURCE_ROOT / "contracts" / "policy-bundle" / "version-history.json"
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 VERSION_RE = re.compile(r"^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$")
 EXPECTED_TOP_LEVEL = {
@@ -35,6 +37,13 @@ EXPECTED_TOP_LEVEL = {
 }
 EXPECTED_ARTIFACT = {"name", "source", "sha256", "mediaType", "distributions"}
 EXPECTED_DISTRIBUTION = {"repository", "path"}
+EXPECTED_HISTORY = {"schemaVersion", "bundleId", "versions"}
+EXPECTED_HISTORY_VERSION = {
+    "version",
+    "effectiveDate",
+    "manifestSha256",
+    "status",
+}
 MANAGED_REPOSITORIES = {
     ".github",
     ".github-private",
@@ -157,6 +166,95 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
                 )
             targets.add(key)
     return manifest
+
+
+def load_version_history(path: Path = DEFAULT_HISTORY) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PolicyBundleError(f"cannot load version history {path}: {exc}") from exc
+    history = _mapping(value, "version history")
+    _exact_keys(history, EXPECTED_HISTORY, "version history")
+    if history["schemaVersion"] != 1:
+        raise PolicyBundleError("version history schemaVersion must be 1")
+    if history["bundleId"] != "mindclade-policy-bundle":
+        raise PolicyBundleError("version history bundleId is not canonical")
+    versions = history["versions"]
+    if not isinstance(versions, list) or not versions:
+        raise PolicyBundleError("version history must contain at least one version")
+    previous = ""
+    for index, raw_record in enumerate(versions):
+        record = _mapping(raw_record, f"versions[{index}]")
+        _exact_keys(record, EXPECTED_HISTORY_VERSION, f"versions[{index}]")
+        version = record["version"]
+        if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
+            raise PolicyBundleError(f"versions[{index}].version must be YYYY.MM.DD.N")
+        if previous and version <= previous:
+            raise PolicyBundleError("version history must be strictly increasing and unique")
+        previous = version
+        if not isinstance(record["effectiveDate"], str) or not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}", record["effectiveDate"]
+        ):
+            raise PolicyBundleError(f"versions[{index}].effectiveDate is malformed")
+        if not isinstance(record["manifestSha256"], str) or not SHA256_RE.fullmatch(
+            record["manifestSha256"]
+        ):
+            raise PolicyBundleError(f"versions[{index}].manifestSha256 is malformed")
+        if record["status"] not in {"candidate", "published", "superseded-unpublished"}:
+            raise PolicyBundleError(f"versions[{index}].status is invalid")
+    return history
+
+
+def verify_version_history(
+    history: dict[str, Any],
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    baseline_history: dict[str, Any] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    records = history["versions"]
+    matches = [record for record in records if record["version"] == manifest["version"]]
+    if len(matches) != 1:
+        errors.append("current policy version must occur exactly once in version history")
+    else:
+        record = matches[0]
+        actual_digest = sha256(manifest_path)
+        if record["manifestSha256"] != actual_digest:
+            errors.append(
+                "policy manifest changed without a version bump: "
+                f"{actual_digest} != {record['manifestSha256']}"
+            )
+        if record["effectiveDate"] != manifest["effectiveDate"]:
+            errors.append("policy manifest effectiveDate differs from version history")
+    if records[-1]["version"] != manifest["version"]:
+        errors.append("current policy version must be the final history record")
+    if baseline_history is not None:
+        baseline_records = baseline_history.get("versions", [])
+        if records[: len(baseline_records)] != baseline_records:
+            errors.append("policy version history is not append-only")
+    return errors
+
+
+def history_at_git_ref(source_root: Path, ref: str) -> dict[str, Any] | None:
+    if not re.fullmatch(r"[0-9a-f]{40}", ref):
+        raise PolicyBundleError("baseline ref must be a full 40-character commit SHA")
+    try:
+        result = subprocess.run(
+            ["git", "show", f"{ref}:contracts/policy-bundle/version-history.json"],
+            cwd=source_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise PolicyBundleError(f"cannot inspect baseline version history: {exc}") from exc
+    if result.returncode != 0:
+        return None
+    try:
+        value = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise PolicyBundleError(f"baseline version history is invalid: {exc}") from exc
+    return _mapping(value, "baseline version history")
 
 
 def verify_sources(manifest: dict[str, Any], source_root: Path) -> list[str]:
@@ -307,6 +405,7 @@ def main() -> int:
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument("--repository")
     verify_parser.add_argument("--target-root", type=Path)
+    verify_parser.add_argument("--baseline-ref")
 
     sync_parser = subparsers.add_parser("sync")
     sync_parser.add_argument("--repository", required=True)
@@ -323,6 +422,19 @@ def main() -> int:
         if source_errors:
             raise PolicyBundleError("; ".join(source_errors))
         if args.command == "verify":
+            history = load_version_history(
+                args.source_root / "contracts" / "policy-bundle" / "version-history.json"
+            )
+            baseline_history = (
+                history_at_git_ref(args.source_root, args.baseline_ref)
+                if args.baseline_ref
+                else None
+            )
+            history_errors = verify_version_history(
+                history, args.manifest, manifest, baseline_history
+            )
+            if history_errors:
+                raise PolicyBundleError("; ".join(history_errors))
             if bool(args.repository) != bool(args.target_root):
                 raise PolicyBundleError("--repository and --target-root must be supplied together")
             errors = (

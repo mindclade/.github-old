@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "mindclade-policy-bundle",
+  "versions": [
+    {
+      "version": "2026.08.22.1",
+      "effectiveDate": "2026-08-22",
+      "manifestSha256": "c035bf9b0a7d5e1f3a8f4c65a6b626cdf4a6a6f9143c24fc46887c5a7ecedbdb",
+      "status": "superseded-unpublished"
+    },
+    {
+      "version": "2026.08.23.1",
+      "effectiveDate": "2026-08-23",
+      "manifestSha256": "570ae89fbd0b613b8a7cf84e7a48549302ce036d9e6a8f2a00e4645bf3096854",
+      "status": "candidate"
+    }
+  ]
+}
