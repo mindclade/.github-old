@@ -27,7 +27,11 @@ python3 tools/check_workflow_contracts.py
 ```
 
 The checker uses the pinned PyYAML runtime with a GitHub-compatible safe loader and projects only
-the narrow YAML surface above. It rejects duplicate keys and malformed permission contracts.
+the narrow YAML surface above. It rejects duplicate keys, missing explicit top-level permissions,
+broad `read-all` or `write-all` aliases, and top-level write grants. Job-level write access remains
+valid only through an explicit scope mapping, so comments, shell strings, and formatting cannot
+masquerade as a permission contract. The checker also resolves each job's effective permissions
+from its explicit override or the workflow-level mapping before accepting the workflow.
 `tools/validate_repo.py` invokes it too, and `hygiene.yml` runs both commands explicitly.
 
 A mismatch fails with a unified diff between the checked-in contract and the current workflow.

@@ -32,7 +32,6 @@ CONTRACT_DIR = ROOT / "contracts" / "workflows"
 ENTRY_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 CONTRACT_ATTRIBUTES = ("required", "type", "default")
 PERMISSION_LEVELS = frozenset({"read", "write", "none"})
-PERMISSION_SCALARS = frozenset({"read-all", "write-all"})
 PERMISSION_SCOPES = frozenset(
     {
         "actions",
@@ -158,13 +157,12 @@ def _workflow_call_section(
     return dict(sorted(result.items()))
 
 
-def _permissions(value: Any, location: str) -> str | dict[str, str]:
+def _permissions(value: Any, location: str) -> dict[str, str]:
     if isinstance(value, str):
-        if value not in PERMISSION_SCALARS:
-            raise ValueError(
-                f"{location} must be read-all, write-all, or a permission mapping"
-            )
-        return value
+        raise ValueError(
+            f"{location} must be an explicit permission mapping; "
+            f"broad scalar alias {value!r} is forbidden"
+        )
     permissions = _mapping(value, location)
     result: dict[str, str] = {}
     for raw_scope, raw_level in permissions.items():
@@ -176,6 +174,48 @@ def _permissions(value: Any, location: str) -> str | dict[str, str]:
             )
         result[raw_scope] = raw_level
     return dict(sorted(result.items()))
+
+
+def permission_contract(
+    workflow: Mapping[Any, Any],
+) -> tuple[
+    dict[str, str],
+    dict[str, dict[str, str]],
+    dict[str, dict[str, str]],
+]:
+    """Return explicit and effective permissions after enforcing least privilege."""
+    if "permissions" not in workflow:
+        raise ValueError("workflow must declare explicit top-level permissions")
+    top_permissions = _permissions(workflow["permissions"], "permissions")
+    writable_scopes = sorted(
+        scope for scope, level in top_permissions.items() if level == "write"
+    )
+    if writable_scopes:
+        raise ValueError(
+            "top-level permissions must not grant write access; grant writable scopes "
+            f"only to the jobs that require them: {', '.join(writable_scopes)}"
+        )
+
+    raw_jobs = _mapping(workflow.get("jobs"), "jobs")
+    explicit_job_permissions: dict[str, dict[str, str]] = {}
+    effective_job_permissions: dict[str, dict[str, str]] = {}
+    for raw_job, raw_job_contract in raw_jobs.items():
+        job = _entry_name(raw_job, "jobs")
+        job_contract = _mapping(raw_job_contract, f"jobs.{job}")
+        if "permissions" in job_contract:
+            permissions = _permissions(
+                job_contract["permissions"], f"jobs.{job}.permissions"
+            )
+            explicit_job_permissions[job] = permissions
+            effective_job_permissions[job] = permissions
+        else:
+            effective_job_permissions[job] = top_permissions
+
+    return (
+        top_permissions,
+        dict(sorted(explicit_job_permissions.items())),
+        dict(sorted(effective_job_permissions.items())),
+    )
 
 
 def _load_workflow(path: Path) -> Mapping[Any, Any]:
@@ -200,21 +240,13 @@ def extract(path: Path) -> dict[str, Any]:
     secrets = _workflow_call_section(workflow_call, "secrets")
     outputs = sorted(_workflow_call_section(workflow_call, "outputs"))
 
-    top_permissions: str | dict[str, str] = {}
-    if "permissions" in workflow:
-        top_permissions = _permissions(workflow["permissions"], "permissions")
-
     raw_jobs = _mapping(workflow.get("jobs"), "jobs")
     jobs: list[str] = []
-    job_permissions: dict[str, str | dict[str, str]] = {}
     for raw_job, raw_job_contract in raw_jobs.items():
         job = _entry_name(raw_job, "jobs")
-        job_contract = _mapping(raw_job_contract, f"jobs.{job}")
+        _mapping(raw_job_contract, f"jobs.{job}")
         jobs.append(job)
-        if "permissions" in job_contract:
-            job_permissions[job] = _permissions(
-                job_contract["permissions"], f"jobs.{job}.permissions"
-            )
+    top_permissions, job_permissions, _ = permission_contract(workflow)
 
     return {
         "schema_version": 1,
@@ -224,7 +256,7 @@ def extract(path: Path) -> dict[str, Any]:
         "outputs": outputs,
         "jobs": jobs,
         "permissions": top_permissions,
-        "job_permissions": dict(sorted(job_permissions.items())),
+        "job_permissions": job_permissions,
     }
 
 

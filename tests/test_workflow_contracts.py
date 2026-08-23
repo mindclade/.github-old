@@ -29,7 +29,7 @@ class WorkflowContractTests(unittest.TestCase):
             with mock.patch.object(workflow_contracts, "ROOT", root):
                 return workflow_contracts.extract(workflow)
 
-    def test_unquoted_on_and_inline_write_all_are_semantic(self) -> None:
+    def test_unquoted_on_and_inline_permission_mapping_are_semantic(self) -> None:
         contract = self.extract(
             """
             name: Fixture
@@ -48,7 +48,7 @@ class WorkflowContractTests(unittest.TestCase):
                             description: ignored implementation detail
                         alpha:
                             description: ignored implementation detail
-            permissions: write-all
+            permissions: {contents: read}
             jobs:
                 build:
                     runs-on: ubuntu-24.04
@@ -56,7 +56,7 @@ class WorkflowContractTests(unittest.TestCase):
             """
         )
 
-        self.assertEqual(contract["permissions"], "write-all")
+        self.assertEqual(contract["permissions"], {"contents": "read"})
         self.assertEqual(contract["jobs"], ["build"])
         self.assertEqual(contract["outputs"], ["alpha", "zeta"])
         self.assertEqual(
@@ -65,13 +65,13 @@ class WorkflowContractTests(unittest.TestCase):
         )
         self.assertEqual(contract["secrets"], {"token": {"required": True}})
 
-    def test_mapping_and_scalar_job_permissions_are_preserved(self) -> None:
+    def test_mapping_job_permissions_are_preserved(self) -> None:
         contract = self.extract(
             """
             name: Fixture
             on:
               workflow_call:
-            permissions: {id-token: write, contents: read}
+            permissions: {contents: read}
             jobs:
               plan:
                 runs-on: ubuntu-24.04
@@ -80,18 +80,52 @@ class WorkflowContractTests(unittest.TestCase):
                   contents: read
               inspect:
                 runs-on: ubuntu-24.04
-                permissions: read-all
+                permissions: {actions: read, contents: read}
             """
         )
 
-        self.assertEqual(
-            contract["permissions"], {"contents": "read", "id-token": "write"}
-        )
+        self.assertEqual(contract["permissions"], {"contents": "read"})
         self.assertEqual(
             contract["job_permissions"],
             {
-                "inspect": "read-all",
+                "inspect": {"actions": "read", "contents": "read"},
                 "plan": {"contents": "read", "pull-requests": "write"},
+            },
+        )
+
+    def test_effective_permissions_inherit_or_override_top_level(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = Path(temporary) / "workflow.yml"
+            workflow.write_text(
+                textwrap.dedent(
+                    """
+                    name: Fixture
+                    on:
+                      workflow_call:
+                    permissions: {contents: read}
+                    jobs:
+                      inherited:
+                        runs-on: ubuntu-24.04
+                      privileged:
+                        runs-on: ubuntu-24.04
+                        permissions: {contents: read, id-token: write}
+                    """
+                ).lstrip(),
+                encoding="utf-8",
+            )
+            document = workflow_contracts._load_workflow(workflow)
+
+        top, explicit, effective = workflow_contracts.permission_contract(document)
+        self.assertEqual(top, {"contents": "read"})
+        self.assertEqual(
+            explicit,
+            {"privileged": {"contents": "read", "id-token": "write"}},
+        )
+        self.assertEqual(
+            effective,
+            {
+                "inherited": {"contents": "read"},
+                "privileged": {"contents": "read", "id-token": "write"},
             },
         )
 
@@ -113,6 +147,59 @@ class WorkflowContractTests(unittest.TestCase):
         )
 
         self.assertEqual(contract["job_permissions"], {})
+
+    def test_comments_and_scripts_cannot_satisfy_explicit_permissions(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError, "must declare explicit top-level permissions"
+        ):
+            self.extract(
+                """
+                name: Fixture
+                on:
+                  workflow_call:
+                # permissions: {contents: read}
+                jobs:
+                  inspect:
+                    runs-on: ubuntu-24.04
+                    steps:
+                      - run: |
+                          printf '%s\\n' 'permissions: {contents: read}'
+                """
+            )
+
+    def test_broad_or_workflow_level_write_permissions_fail_closed(self) -> None:
+        invalid_permissions = (
+            "permissions: write-all",
+            "permissions: read-all",
+            "permissions: {contents: write}",
+        )
+        for permissions in invalid_permissions:
+            with self.subTest(permissions=permissions):
+                with self.assertRaisesRegex(ValueError, "permissions"):
+                    self.extract(
+                        "name: Fixture\n"
+                        "on:\n"
+                        "  workflow_call:\n"
+                        f"{permissions}\n"
+                        "jobs:\n"
+                        "  inspect:\n"
+                        "    runs-on: ubuntu-24.04\n"
+                    )
+
+    def test_job_level_write_all_fails_closed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "broad scalar alias 'write-all'"):
+            self.extract(
+                """
+                name: Fixture
+                on:
+                  workflow_call:
+                permissions: {contents: read}
+                jobs:
+                  inspect:
+                    runs-on: ubuntu-24.04
+                    permissions: write-all
+                """
+            )
 
     def test_invalid_permission_contracts_fail_closed(self) -> None:
         invalid_permissions = (
@@ -156,7 +243,7 @@ class WorkflowContractTests(unittest.TestCase):
                 name: Fixture
                 on:
                   workflow_call:
-                permissions: read-all
+                permissions: {contents: read}
                 jobs: []
                 """
             )
