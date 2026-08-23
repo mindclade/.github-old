@@ -377,6 +377,7 @@ def verify_connected(
     repository: str,
     expected_release_team_id: int,
     *,
+    require_immutable_releases: bool = True,
     run_id: int | None = None,
     dispatcher: str | None = None,
 ) -> None:
@@ -405,8 +406,9 @@ def verify_connected(
         details[EXPECTED_PROTECTION_RULESET],
         expected_release_team_id,
     )
-    immutable_releases = client.get(f"/repos/{repository}/immutable-releases")[0]
-    validate_immutable_releases(immutable_releases)
+    if require_immutable_releases:
+        immutable_releases = client.get(f"/repos/{repository}/immutable-releases")[0]
+        validate_immutable_releases(immutable_releases)
     if (run_id is None) != (dispatcher is None):
         raise GovernanceError(
             "workflow run ID and dispatcher must be provided together"
@@ -429,6 +431,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     parser.add_argument("--release-team-id", required=True)
+    parser.add_argument(
+        "--phase",
+        choices=("draft", "publication"),
+        default="publication",
+        help="draft omits the Administration-read immutable-release setting",
+    )
     parser.add_argument("--run-id")
     parser.add_argument("--dispatcher")
     parser.add_argument(
@@ -446,6 +454,7 @@ def main() -> int:
             GitHubClient(token=token, api_url=args.api_url),
             args.repository,
             release_team_id,
+            require_immutable_releases=args.phase == "publication",
             run_id=positive_id(args.run_id, "workflow run ID") if args.run_id else None,
             dispatcher=args.dispatcher,
         )

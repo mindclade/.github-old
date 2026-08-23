@@ -72,14 +72,14 @@ non-prerelease, GitHub-immutable release and the exact source attestation.
 The commit operand is not optional. Without it the tag lands on the checkout, which after a
 squash or rebase merge is a different commit than the one that was reviewed and attested.
 
-`release.yml` first uses the read-only repository API to prove both release environments have
+`release.yml` first uses the read-scoped `GITHUB_TOKEN` to prove both release environments have
 their exact distinct reviewer teams, protected-main-only deployment policy, self-review and
 administrator bypass disabled, and that the active organization `release-tag-creation` rule has
 only the Release-team creation bypass while active no-bypass `tag-protection` contains the exact
-update, deletion, non-fast-forward, and stable-SemVer restrictions. It also requires immutable
-releases to be owner-enforced. It then asks GitHub's read-only Git Data API to confirm that the
-annotated tag is validly signed and targets the expected commit, validates the changelog and
-tracked release specification, creates a draft, and attaches an exact source/file-digest manifest.
+update, deletion, non-fast-forward, and stable-SemVer restrictions. It then asks GitHub's read-only
+Git Data API to confirm that the annotated tag is validly signed and targets the expected commit,
+validates the changelog and tracked release specification, creates a draft, and attaches an exact
+source/file-digest manifest.
 It never publishes. Exact-tag qualification, protected publication, and policy synchronization
 repeat the connected signature/target check instead of relying only on the local checkout. After
 qualification of that exact tag, an operator dispatches `publish-release.yml` from protected
@@ -100,6 +100,12 @@ secrets. The App is read-only, has no webhooks, and is selected only to `.github
 monorepo. GitHub may omit ruleset bypass actors or approval membership from a response that cannot
 prove them. An omitted inventory is an intentional hard failure, not permission to assume the
 catalog was applied or widen the publisher's write token.
+
+The tag-triggered draft workflow deliberately never receives the App private key: workflow source
+for a tag event comes from the tagged commit. Its `draft` phase validates the environments and both
+tag rules with `GITHUB_TOKEN` but omits the Administration-read immutable setting. The trusted-main
+preflight must prove that setting before the Release operator creates a tag, and trusted-main
+publication proves it again after both approvals.
 
 The version heading in `CHANGELOG.md` must be exactly `## vX.Y.Z` and its section must contain
 non-whitespace release notes. Draft assembly rejects a planned-status suffix or empty section so

@@ -226,9 +226,9 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn("  governance:\n", text)
         self.assertIn("    needs: governance\n", text)
         self.assertIn("tools/verify_release_governance.py", text)
-        self.assertIn("RELEASE_GOVERNANCE_READER_APP_ID", text)
-        self.assertIn("permission-administration: read", text)
-        self.assertIn("permission-members: read", text)
+        self.assertIn("--phase draft", text)
+        self.assertNotIn("RELEASE_GOVERNANCE_READER_APP_ID", text)
+        self.assertNotIn("RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY", text)
 
     def test_draft_release_notes_require_an_exact_nonempty_version_section(
         self,
