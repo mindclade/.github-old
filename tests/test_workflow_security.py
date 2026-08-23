@@ -164,12 +164,37 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn("origin/main^{commit}", scripts)
         self.assertIn("verify_release_governance.py", scripts)
 
+    def test_release_governance_preflight_is_read_only_and_main_bound(self) -> None:
+        text = (WORKFLOWS / "release-governance-preflight.yml").read_text(
+            encoding="utf-8"
+        )
+        scripts = "\n".join(run_scripts(text))
+
+        self.assertIn("workflow_dispatch:", text)
+        self.assertIn("ACTUAL_REF_PROTECTED: ${{ github.ref_protected }}", text)
+        self.assertIn("ref: ${{ github.sha }}", text)
+        self.assertIn('test "${ACTUAL_REPOSITORY}" = mindclade/.github', scripts)
+        self.assertIn('test "${ACTUAL_EVENT}" = workflow_dispatch', scripts)
+        self.assertIn('test "${ACTUAL_REF}" = refs/heads/main', scripts)
+        self.assertIn('test "${ACTUAL_REF_PROTECTED}" = true', scripts)
+        self.assertIn("origin/main^{commit}", scripts)
+        self.assertIn("tools/verify_release_governance.py", scripts)
+        self.assertNotIn("contents: write", text)
+        self.assertNotIn("id-token: write", text)
+
     def test_draft_assembly_requires_connected_governance(self) -> None:
         text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
 
         self.assertIn("  governance:\n", text)
         self.assertIn("    needs: governance\n", text)
         self.assertIn("tools/verify_release_governance.py", text)
+
+    def test_draft_release_notes_require_an_exact_nonempty_version_section(self) -> None:
+        text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
+        scripts = "\n".join(run_scripts(text))
+
+        self.assertIn("tools/extract_release_notes.py", scripts)
+        self.assertNotIn('grep -qE "^## ${TAG}( |$)"', scripts)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.dev/schemas/drill-report-v3.schema.json",
+  "title": "Mindclade disaster-recovery drill report v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "drill_id", "drill_type", "scope", "environment", "operators", "source_revisions", "change_reference", "started_at", "ended_at", "result", "objectives", "recovery_point", "recovery_time_seconds", "success_criteria", "abort_conditions", "evidence", "failures", "corrective_actions", "next_drill_at"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "drill_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,79}$"},
+    "drill_type": {"type": "string", "enum": ["bootstrap-clean-room", "terraform-state-recovery", "github-idp-outage", "org-policy-rollback", "vpc-sc-lockout", "gke-reconstruction", "argocd-rebootstrap", "cloud-sql-restore", "protected-bucket-restore", "compromised-artifact-revocation"]},
+    "scope": {"type": "string", "minLength": 1},
+    "environment": {"type": "string", "enum": ["scratch", "staging"]},
+    "operators": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["identity", "role"],
+        "properties": {
+          "identity": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"},
+          "role": {"type": "string", "enum": ["primary", "observer", "incident-commander", "service-owner"]}
+        }
+      }
+    },
+    "source_revisions": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{40}$"}},
+    "change_reference": {"type": "string", "pattern": "^https://github[.]com/mindclade/[A-Za-z0-9_.-]+/(pull|issues)/[1-9][0-9]*$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "result": {"type": "string", "enum": ["pass", "partial", "fail"]},
+    "objectives": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rpo_seconds", "rto_seconds"],
+      "properties": {
+        "rpo_seconds": {"type": "integer", "minimum": 0},
+        "rto_seconds": {"type": "integer", "minimum": 1}
+      }
+    },
+    "recovery_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "observed_at", "rpo_seconds"],
+      "properties": {
+        "description": {"type": "string", "minLength": 1},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "rpo_seconds": {"type": "integer", "minimum": 0}
+      }
+    },
+    "recovery_time_seconds": {"type": "integer", "minimum": 0},
+    "success_criteria": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "abort_conditions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "commands": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uri", "sha256", "classification"],
+        "properties": {
+          "uri": {"type": "string", "pattern": "^(gs://|https://github[.]com/).+"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]}
+        }
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "corrective_actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["owner", "action", "due_at", "status"],
+        "properties": {
+          "owner": {"type": "string", "minLength": 1},
+          "action": {"type": "string", "minLength": 1},
+          "due_at": {"type": "string", "format": "date-time"},
+          "status": {"type": "string", "enum": ["open", "complete"]}
+        }
+      }
+    },
+    "next_drill_at": {"type": "string", "format": "date-time"}
+  }
+}

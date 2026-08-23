@@ -35,6 +35,11 @@ reference an intermediate PR commit.
 
 Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same commit.
 
+After github-config's protected apply and connected audit, dispatch
+`release-governance-preflight.yml` from protected `main`. It must pass using only the repository
+`GITHUB_TOKEN` and the source-managed `RELEASE_TEAM_ID`. A missing or API-omitted Release-team
+bypass inventory is a hard blocker; do not substitute a privileged App token.
+
 ## Create the immutable release
 
 Tag the commit the manifest attests, never whatever `main` happens to point at. A squash or
@@ -54,7 +59,8 @@ git push origin "$approved_tag"
 ```
 
 Confirm `release.yml` reports the signed annotated tag as GitHub-verified, leaves the release in
-draft state, and attaches a checksum-verified source manifest. Run native Linux AMD64/ARM64 and
+draft state, extracts the exact nonempty `## v5.0.0` changelog section, and attaches a
+checksum-verified source manifest. Run native Linux AMD64/ARM64 and
 Darwin qualification, both independent Linux rebuilds, and the connected WIF/cloud canary
 against the exact tag. Archive the resulting evidence bundle, then dispatch
 `publish-release.yml` with its digest and protected change ticket. Two independent environment
