@@ -34,9 +34,9 @@ attribute_mapping = {
 ```
 
 `job_workflow_ref` and `job_workflow_sha` exist only for jobs executing a called reusable
-workflow. Map them on the six dedicated ARC release providers, each of which requires one exact
-immutable v4 reusable workflow. Do not map them on direct-workflow providers; doing so can make
-otherwise valid direct-job tokens fail evaluation.
+workflow. Map them on the six capability-scoped ARC release providers, each of which requires
+its exact immutable v5 reusable workflow. Do not map them on direct-workflow providers; doing so
+can make otherwise valid direct-job tokens fail evaluation.
 
 Mindclade does not currently authorize GCP access from repository custom-property claims.
 `github-config` custom properties classify and target governance policy; they are not cloud

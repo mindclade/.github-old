@@ -15,7 +15,7 @@
 | Configure cloud federation | [OIDC and WIF contract](WIF.md) | Bind workflow identity to narrowly scoped Google Cloud access |
 | Publish disaster-recovery evidence | [DR evidence contract](DR_EVIDENCE.md) | Validate a measured report and retain immutable GCS and GitHub copies |
 | Publish or accept central policy | [Signed policy bundle](policy-bundle.md) | Verify exact documents, protected signatures, synchronization, and acceptance evidence |
-| Prepare the deferred ARC contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify a future immutable v4 release without treating source as published |
+| Prepare the deferred ARC contract | [Workflow release bootstrap](workflow-release-bootstrap.md) | Qualify the consolidated immutable v5 release without treating source as published |
 
 ## Getting started
 
@@ -42,8 +42,8 @@
 - [Reusable workflow contracts](WORKFLOW_CONTRACTS.md) — caller-visible compatibility surface.
 - [Shared workflow release policy](release-policy.md) — semantic versioning, qualification,
   publication, and consumer rollout.
-- [Workflow release bootstrap](workflow-release-bootstrap.md) — first immutable production
-  release.
+- [Workflow release bootstrap](workflow-release-bootstrap.md) — next consolidated immutable
+  production release.
 
 ## Authoring standards
 

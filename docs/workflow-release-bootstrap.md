@@ -7,10 +7,10 @@
 > release that downstream repositories may adopt.
 > **Risk:** Critical—downstream CI and cloud trust may bind the released workflow identity.
 
-> **Current status:** Source candidate only. The restored v4 manifest qualifies its historical
-> protected-main source but does not create or authorize a tag. Publish and qualify v4 first for
-> consumers whose WIF contracts require it. `contracts/releases/v5.0.0.json` then defines the
-> consolidated successor; no v5 tag or release exists.
+> **Current status:** Source candidate only. The historical v4 record is retired unpublished at
+> `contracts/releases/retired/v4.0.0.json` and must not be published.
+> `contracts/releases/v5.0.0.json` defines the consolidated source candidate; no v5 tag or release
+> exists.
 
 ## Before you begin
 

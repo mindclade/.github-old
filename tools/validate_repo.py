@@ -56,6 +56,7 @@ REQUIRED = {
     "LICENSE",
     "NOTICE",
     "README.md",
+    "RELEASE_MANIFEST.json",
     "SECURITY.md",
     "SUPPORT.md",
     "tests/test_repository_home.py",
@@ -65,6 +66,7 @@ REQUIRED = {
     "docs/ACTIONS_SECURITY.md",
     "docs/common-document-contract.md",
     "docs/policy-bundle.md",
+    "docs/MINDCLADE_ENTERPRISE_PLATFORM_FOUNDATION_BLUEPRINT.md",
     "profile/README.md",
     "BLUEPRINT.md",
     ".github/workflows/reusable-license-headers.yml",
@@ -215,6 +217,31 @@ def main() -> int:
             json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             fail(errors, f"invalid JSON {rel(path)}: {exc}")
+
+    release_manifest_path = ROOT / "RELEASE_MANIFEST.json"
+    if release_manifest_path.is_file():
+        try:
+            release_manifest = json.loads(
+                release_manifest_path.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError):
+            release_manifest = {}
+        expected_release_manifest = {
+            "schema_version": 1,
+            "repository": ".github",
+            "default_branch": "main",
+            "blueprint": "docs/MINDCLADE_ENTERPRISE_PLATFORM_FOUNDATION_BLUEPRINT.md",
+            "qualification": "source-qualified; connected-system gates required",
+        }
+        for field, expected in expected_release_manifest.items():
+            if release_manifest.get(field) != expected:
+                fail(
+                    errors,
+                    f"release manifest {field} must equal {expected!r}",
+                )
+        blueprint = release_manifest.get("blueprint")
+        if isinstance(blueprint, str) and not (ROOT / blueprint).is_file():
+            fail(errors, f"release manifest blueprint does not exist: {blueprint}")
 
     for path in sorted(ROOT.rglob("*.toml")):
         try:

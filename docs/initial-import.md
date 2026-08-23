@@ -4,7 +4,7 @@
 
 > **Audience:** GitHub Enterprise owners and platform/security maintainers
 > **Outcome:** `mindclade/.github` is imported on protected `main`, its offline and smoke checks
-> pass, and the first immutable production workflow release is ready to publish.
+> pass, and the next consolidated immutable production workflow release is ready to qualify.
 > **Risk:** Critical—this repository supplies organization-wide workflow implementation.
 
 ## Before you begin
@@ -15,7 +15,7 @@
 - Create the `platform` and `security` teams before enabling CODEOWNERS enforcement.
 - Keep consumer repositories pinned to their existing workflow release until qualification is
   complete.
-- Do not create a v4 tag before the coordinated release-evidence review, tag protection, and
+- Do not create a v5 tag before the coordinated release-evidence review, tag protection, and
   immutable-release enforcement are complete.
 
 ## Import and validate
@@ -45,18 +45,18 @@ Roll organization rulesets out in Evaluate mode before Active mode.
 Do not enable cloud-dependent consumer workflows until `bootstrap`, `github-config`, and the
 required WIF negative authorization tests are qualified.
 
-## Publish the first production contract
+## Prepare the next production contract
 
-Continue using the published `v3.0.0` contract. The restored
-`contracts/releases/v5.0.0.json` binds the deferred v4 release to its exact protected-main
-ancestor, but does not authorize a tag or publication. Complete v4 connected qualification
-before the v5 process in [Workflow release bootstrap](workflow-release-bootstrap.md).
+Continue using the published `v3.0.0` contract. The historical v4 source record is retired
+unpublished under `contracts/releases/retired/v4.0.0.json` and is not a publishable release.
+`contracts/releases/v5.0.0.json` defines the consolidated source candidate but does not authorize
+a tag or publication. Follow [Workflow release bootstrap](workflow-release-bootstrap.md).
 
 ## Verify
 
 - `v3.0.0` remains the active immutable consumer contract.
-- The v4 source manifest validates, while the annotated v4 tag and connected release evidence
-  remain absent until protected qualification.
+- The historical v4 record remains retired unpublished, while the v5 source manifest validates
+  and no v5 tag exists before protected connected qualification.
 - Starter workflows reference `@v3.0.0`.
 - `python3 tools/check_workflow_contracts.py` still matches every checked-in snapshot.
 - A representative consumer can call a non-cloud reusable workflow from the release.
