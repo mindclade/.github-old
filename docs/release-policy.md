@@ -67,17 +67,29 @@ non-prerelease, GitHub-immutable release and the exact source attestation.
 The commit operand is not optional. Without it the tag lands on the checkout, which after a
 squash or rebase merge is a different commit than the one that was reviewed and attested.
 
-`release.yml` asks GitHub's read-only Git Data API to confirm that the annotated tag is validly
-signed and targets the expected commit. It then validates the changelog and tracked release
-specification, creates a draft, and attaches an exact source/file-digest manifest. It never
-publishes. Exact-tag qualification, protected publication, and policy synchronization repeat
-the connected signature/target check instead of relying only on the local checkout. After
-qualification of that exact tag, an operator dispatches `publish-release.yml` with the immutable
-evidence digest and protected change ticket. Publication first crosses the
+`release.yml` first uses the read-only repository API to prove both release environments have
+their exact distinct reviewer teams, protected-main-only deployment policy, self-review and
+administrator bypass disabled, and that the active organization `release-tag-creation` rule has
+only the Release-team creation bypass. It then asks GitHub's read-only Git Data API to confirm
+that the annotated tag is validly signed and targets the expected commit, validates the changelog
+and tracked release specification, creates a draft, and attaches an exact source/file-digest
+manifest. It never publishes. Exact-tag qualification, protected publication, and policy
+synchronization repeat the connected signature/target check instead of relying only on the local
+checkout. After qualification of that exact tag, an operator dispatches `publish-release.yml`
+from protected `main` with the immutable evidence digest and protected change ticket. A no-write
+authorization job proves the dispatch workflow, checkout SHA, and current `origin/main` are the
+same commit and repeats the connected governance preflight. Publication then crosses the
 `workflow-release-platform` environment and then the `workflow-release-security` environment;
 each has one exact reviewer team and prevents self-review. This enforces two distinct protected
 approval boundaries before organization immutable-release enforcement protects the release and
 tag.
+
+The preflight uses only the workflow's read-scoped `GITHUB_TOKEN` plus source-managed,
+non-secret `RELEASE_TEAM_ID`; it never receives an organization-administration App token. GitHub
+may omit ruleset bypass actors from a response that cannot prove them. An omitted bypass inventory
+is an intentional hard failure, not permission to assume the catalog was applied. Keep publication
+blocked until the connected response exposes the one exact Release-team bypass; do not widen this
+workflow's token merely to turn the check green.
 
 The already-published historical `v3.0.0` tag is unsigned legacy evidence. Its immutable tag and
 release are preserved, but it may never be moved, republished, or used as precedent for a new

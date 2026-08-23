@@ -33,6 +33,7 @@ class ReleaseSpecTests(unittest.TestCase):
             ".github/workflows/reusable-nixos-gce-image-publish.yml", files
         )
         self.assertIn("tools/validate-release-spec.py", files)
+        self.assertIn("tools/verify_release_governance.py", files)
         self.assertIn("tools/verify_release_tag.py", files)
 
     def test_attestation_binds_exact_source_and_recursive_files(self) -> None:

@@ -1,0 +1,26 @@
+{
+  "can_admins_bypass": false,
+  "deployment_branch_policy": {
+    "custom_branch_policies": false,
+    "protected_branches": true
+  },
+  "name": "workflow-release-platform",
+  "protection_rules": [
+    {
+      "type": "branch_policy"
+    },
+    {
+      "prevent_self_review": true,
+      "reviewers": [
+        {
+          "reviewer": {
+            "id": 101,
+            "slug": "platform"
+          },
+          "type": "Team"
+        }
+      ],
+      "type": "required_reviewers"
+    }
+  ]
+}

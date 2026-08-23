@@ -1,6 +1,6 @@
 ---
-# Publishing is deliberately separate from tag creation and draft assembly. The protected
-# environment supplies the two-person gate after connected qualification of the exact tag.
+# Publishing is deliberately separate from tag creation and draft assembly. A credential-free
+# authorization job and connected governance preflight run before the two protected approvals.
 name: Publish workflow release
 
 on:
@@ -27,7 +27,59 @@ permissions:
   contents: read
 
 jobs:
+  authorize:
+    name: Authorize protected-main publication
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Enforce the immutable dispatch boundary
+        env:
+          ACTUAL_EVENT: ${{ github.event_name }}
+          ACTUAL_REF: ${{ github.ref }}
+          ACTUAL_REF_PROTECTED: ${{ github.ref_protected }}
+          ACTUAL_REPOSITORY: ${{ github.repository }}
+          ACTUAL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          EXPECTED_WORKFLOW_REF: mindclade/.github/.github/workflows/publish-release.yml@refs/heads/main
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_REPOSITORY}" = mindclade/.github
+          test "${ACTUAL_EVENT}" = workflow_dispatch
+          test "${ACTUAL_REF}" = refs/heads/main
+          test "${ACTUAL_REF_PROTECTED}" = true
+          test "${ACTUAL_WORKFLOW_REF}" = "${EXPECTED_WORKFLOW_REF}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Bind checkout to the current protected main head
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
+          test "$(git rev-parse --verify 'origin/main^{commit}')" = "${EXPECTED_SHA}"
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+
+      - name: Verify connected release governance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          python3 tools/verify_release_governance.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}"
+
   platform-approval:
+    needs: authorize
     name: Platform release approval
     runs-on: ubuntu-24.04
     timeout-minutes: 10
