@@ -90,9 +90,15 @@ the branch is rewritten. Target-tag activation remains blocked until a separate 
 authority can bind the exact source, split, subtree, and workflow provenance and pass connected
 positive and negative tests. Existing target tags are never repaired or replaced.
 
-Nix owns host tooling and reproducibility evidence. Bazel remains authoritative for the
-monorepo build/test graph and application container images, and this workflow does not create
-parallel NixOS, nix-darwin, Home Manager, or Nix container-image authority.
+Nix owns host tooling, reproducibility evidence, and the monorepo-defined immutable NixOS
+workstation image. `reusable-nixos-gce-image-publish.yml` accepts only protected manual dispatch
+from the canonical monorepo caller, builds before obtaining cloud credentials, verifies the
+embedded contract binds the exact source SHA, and publishes a digest-named Cloud Storage object
+with a create-only generation precondition. Its `workstation-image-publication` environment and
+WIF identity grant only source-object publication; Compute Image creation and workstation rollout
+remain `infrastructure-live` responsibilities. Bazel remains authoritative for the monorepo
+build/test graph and application container images; no parallel nix-darwin, Home Manager, or Nix
+container-image authority is created.
 
 `reusable-nix-cache-populate.yml` is a separate, activation-blocked publication API. It accepts
 only the canonical monorepo's protected-main `nix-cache.yml` caller and only push, schedule, or

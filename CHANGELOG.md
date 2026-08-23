@@ -45,6 +45,10 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
 
 ### Added
 
+- Added `reusable-nixos-gce-image-publish.yml` for protected, manually dispatched publication
+  of the canonical monorepo's immutable NixOS workstation image source. The workflow builds
+  before cloud authentication, binds the embedded image contract to the exact source SHA, and
+  creates a digest-named Cloud Storage object without granting Compute Image or rollout authority.
 - Added retained native Nix qualification evidence for Linux AMD64, Linux ARM64, and Apple Silicon.
 - Added an activation-blocked Nix cache population workflow for the canonical monorepo. It
   requires protected main, independent environment approval, an exact immutable checkout, and a

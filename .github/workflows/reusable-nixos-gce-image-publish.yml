@@ -1,0 +1,261 @@
+---
+name: Reusable — NixOS GCE image publication
+
+on:
+  workflow_call:
+    inputs:
+      image-installable:
+        description: Exact flake installable producing one Google Compute Engine disk.raw tarball
+        required: false
+        type: string
+        default: .#packages.x86_64-linux.workstation-gce-image
+      contract-installable:
+        description: Exact flake installable producing the image contract embedded in that image
+        required: false
+        type: string
+        default: .#packages.x86_64-linux.workstation-gce-image-contract
+      object-prefix:
+        description: Immutable Cloud Storage object prefix beneath workstation-images
+        required: false
+        type: string
+        default: mindclade-workstation
+    outputs:
+      evidence-artifact:
+        description: GitHub artifact containing the source and Cloud Storage publication contract
+        value: ${{ jobs.publish.outputs.evidence-artifact }}
+      image-contract-sha256:
+        description: SHA-256 of the image-embedded contract
+        value: ${{ jobs.publish.outputs.image-contract-sha256 }}
+      source-object-generation:
+        description: Create-only Cloud Storage object generation
+        value: ${{ jobs.publish.outputs.source-object-generation }}
+      source-sha256:
+        description: SHA-256 of the compressed raw-disk artifact
+        value: ${{ jobs.publish.outputs.source-sha256 }}
+      source-uri:
+        description: HTTPS Cloud Storage URI consumed by the compute_image Terraform module
+        value: ${{ jobs.publish.outputs.source-uri }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nixos-gce-image-publication-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: authorize protected source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce immutable caller boundary
+        env:
+          ACTUAL_EVENT: ${{ github.event_name }}
+          ACTUAL_REF: ${{ github.ref }}
+          ACTUAL_REF_PROTECTED: ${{ github.ref_protected }}
+          ACTUAL_REPOSITORY: ${{ github.repository }}
+          ACTUAL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          EXPECTED_WORKFLOW_REF: mindclade/mindclade-internal-monorepo/.github/workflows/nixos-image.yml@refs/heads/main
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_REPOSITORY}" = mindclade/mindclade-internal-monorepo
+          test "${ACTUAL_WORKFLOW_REF}" = "${EXPECTED_WORKFLOW_REF}"
+          test "${ACTUAL_REF}" = refs/heads/main
+          test "${ACTUAL_REF_PROTECTED}" = true
+          case "${ACTUAL_EVENT}" in
+            workflow_dispatch) ;;
+            *)
+              echo "::error::immutable workstation images require protected manual dispatch"
+              exit 1
+              ;;
+          esac
+
+  publish:
+    name: build and publish immutable image
+    needs: authorize
+    environment: workstation-image-publication
+    runs-on: mindclade-arc-build-cpu
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      evidence-artifact: ${{ steps.contract.outputs.evidence-artifact }}
+      image-contract-sha256: ${{ steps.contract.outputs.image-contract-sha256 }}
+      source-object-generation: ${{ steps.contract.outputs.source-object-generation }}
+      source-sha256: ${{ steps.contract.outputs.source-sha256 }}
+      source-uri: ${{ steps.contract.outputs.source-uri }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          install_options: --no-daemon
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+            sandbox = true
+
+      - name: Validate exact source and build inputs
+        env:
+          CONTRACT_INSTALLABLE: ${{ inputs.contract-installable }}
+          IMAGE_INSTALLABLE: ${{ inputs.image-installable }}
+          OBJECT_PREFIX: ${{ inputs.object-prefix }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${GITHUB_SHA}"
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+          [[ "${IMAGE_INSTALLABLE}" =~ ^\.#[A-Za-z0-9._+-]+$ ]]
+          [[ "${CONTRACT_INSTALLABLE}" =~ ^\.#[A-Za-z0-9._+-]+$ ]]
+          [[ "${OBJECT_PREFIX}" =~ ^[a-z][a-z0-9-]{2,48}$ ]]
+          test -f flake.lock
+
+      - id: build
+        name: Build immutable x86_64-linux image before cloud authentication
+        env:
+          CONTRACT_INSTALLABLE: ${{ inputs.contract-installable }}
+          IMAGE_INSTALLABLE: ${{ inputs.image-installable }}
+          OBJECT_PREFIX: ${{ inputs.object-prefix }}
+        run: |
+          set -euo pipefail
+          image_link="${RUNNER_TEMP}/workstation-image"
+          contract_link="${RUNNER_TEMP}/workstation-image-contract"
+          nix build --no-update-lock-file --out-link "${image_link}" "${IMAGE_INSTALLABLE}"
+          nix build --no-update-lock-file --out-link "${contract_link}" "${CONTRACT_INSTALLABLE}"
+
+          mapfile -t archives < <(find -L "${image_link}" -maxdepth 2 -type f -name '*.tar.gz')
+          test "${#archives[@]}" -eq 1 || {
+            echo "::error::image installable must contain exactly one .tar.gz artifact"
+            exit 1
+          }
+          archive="${archives[0]}"
+          contract="$(readlink -f "${contract_link}")"
+          test -f "${contract}"
+          test "$(tar -tzf "${archive}" | sed 's#^\./##')" = disk.raw
+
+          source_sha256="$(sha256sum "${archive}" | cut -d' ' -f1)"
+          contract_sha256="$(sha256sum "${contract}" | cut -d' ' -f1)"
+          test "$(jq -er '.schema' "${contract}")" = mindclade-workstation-image-v1
+          test "$(jq -er '.source_sha' "${contract}")" = "${GITHUB_SHA}"
+          test "$(jq -er '.runtime_installation' "${contract}")" = false
+          object_name="workstation-images/${OBJECT_PREFIX}-${GITHUB_SHA}-${source_sha256}.tar.gz"
+
+          evidence_dir="${RUNNER_TEMP}/workstation-image-evidence"
+          mkdir -p "${evidence_dir}"
+          install -m 0644 "${contract}" "${evidence_dir}/image-contract.json"
+          {
+            echo "archive=${archive}"
+            echo "contract=${contract}"
+            echo "contract-sha256=${contract_sha256}"
+            echo "evidence-dir=${evidence_dir}"
+            echo "object-name=${object_name}"
+            echo "source-sha256=${source_sha256}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_WORKSTATION_IMAGE }}
+          service_account: ${{ vars.SA_WORKSTATION_IMAGE_BUILDER }}
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
+        with:
+          version: "580.0.0"
+
+      - id: upload
+        name: Publish create-only source artifact
+        env:
+          ARCHIVE: ${{ steps.build.outputs.archive }}
+          CONTRACT_SHA256: ${{ steps.build.outputs.contract-sha256 }}
+          OBJECT_NAME: ${{ steps.build.outputs.object-name }}
+          SOURCE_SHA256: ${{ steps.build.outputs.source-sha256 }}
+          WORKSTATION_IMAGE_BUCKET: ${{ vars.WORKSTATION_IMAGE_BUCKET }}
+        run: |
+          set -euo pipefail
+          [[ "${WORKSTATION_IMAGE_BUCKET}" =~ ^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$ ]]
+          object_uri="gs://${WORKSTATION_IMAGE_BUCKET}/${OBJECT_NAME}"
+          gcloud storage cp "${ARCHIVE}" "${object_uri}" \
+            --if-generation-match=0 \
+            --content-type=application/gzip \
+            --custom-metadata="sha256=${SOURCE_SHA256},source-sha=${GITHUB_SHA},image-contract-sha256=${CONTRACT_SHA256}"
+
+          description="${RUNNER_TEMP}/workstation-image-object.json"
+          gcloud storage objects describe "${object_uri}" --format=json > "${description}"
+          generation="$(jq -er '.generation | tostring' "${description}")"
+          test "$(jq -er '.metadata.sha256' "${description}")" = "${SOURCE_SHA256}"
+          test "$(jq -er '.metadata[\"source-sha\"]' "${description}")" = "${GITHUB_SHA}"
+          test "$(jq -er '.metadata[\"image-contract-sha256\"]' "${description}")" = "${CONTRACT_SHA256}"
+          source_uri="https://storage.googleapis.com/${WORKSTATION_IMAGE_BUCKET}/${OBJECT_NAME}"
+          {
+            echo "generation=${generation}"
+            echo "source-uri=${source_uri}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - id: contract
+        name: Write publication evidence contract
+        env:
+          CONTRACT_SHA256: ${{ steps.build.outputs.contract-sha256 }}
+          EVIDENCE_DIR: ${{ steps.build.outputs.evidence-dir }}
+          OBJECT_GENERATION: ${{ steps.upload.outputs.generation }}
+          SOURCE_SHA256: ${{ steps.build.outputs.source-sha256 }}
+          SOURCE_URI: ${{ steps.upload.outputs.source-uri }}
+        run: |
+          set -euo pipefail
+          artifact="workstation-image-evidence-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          PUBLICATION_PATH="${EVIDENCE_DIR}/publication.json" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schema": "mindclade-workstation-image-publication-v1",
+              "source_sha": os.environ["GITHUB_SHA"],
+              "source_uri": os.environ["SOURCE_URI"],
+              "source_object_generation": os.environ["OBJECT_GENERATION"],
+              "source_sha256": os.environ["SOURCE_SHA256"],
+              "image_contract_sha256": os.environ["CONTRACT_SHA256"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
+          }
+          Path(os.environ["PUBLICATION_PATH"]).write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          {
+            echo "evidence-artifact=${artifact}"
+            echo "image-contract-sha256=${CONTRACT_SHA256}"
+            echo "source-object-generation=${OBJECT_GENERATION}"
+            echo "source-sha256=${SOURCE_SHA256}"
+            echo "source-uri=${SOURCE_URI}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: ${{ steps.contract.outputs.evidence-artifact }}
+          path: ${{ steps.build.outputs.evidence-dir }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          {
+            echo '### Immutable NixOS workstation image'
+            echo
+            echo "- Source: \`${GITHUB_SHA}\`"
+            echo "- Source object: \`${{ steps.contract.outputs.source-uri }}#${{ steps.contract.outputs.source-object-generation }}\`"
+            echo "- Source SHA-256: \`${{ steps.contract.outputs.source-sha256 }}\`"
+            echo "- Image contract SHA-256: \`${{ steps.contract.outputs.image-contract-sha256 }}\`"
+            echo '- Compute Image creation and workstation rollout authority: none'
+          } >> "${GITHUB_STEP_SUMMARY}"

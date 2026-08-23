@@ -29,6 +29,9 @@ class ReleaseSpecTests(unittest.TestCase):
         self.assertIn("actions/validate-repository-home/validate.py", files)
         self.assertIn(".github/workflows/required-repository-policy.yml", files)
         self.assertIn("contracts/policy-bundle/manifest.json", files)
+        self.assertIn(
+            ".github/workflows/reusable-nixos-gce-image-publish.yml", files
+        )
         self.assertIn("tools/validate-release-spec.py", files)
         self.assertIn("tools/verify_release_tag.py", files)
 
