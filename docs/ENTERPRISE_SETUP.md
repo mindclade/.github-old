@@ -221,8 +221,16 @@ When those values are absent, the optional audit skips cleanly.
 Never store a GCP service-account key.
 
 Create runner group `mindclade-arc-artifact-authority` as selected/private, allow only
-`mindclade-internal-monorepo`, and restrict it to
-`mindclade/mindclade-internal-monorepo/.github/workflows/release.yml@refs/heads/main`. Install
+`mindclade-internal-monorepo`, and restrict it to the four workflows that directly define the ARC
+jobs:
+
+- `mindclade/.github/.github/workflows/reusable-arc-wif-canary.yml@v5.0.0`;
+- `mindclade/.github/.github/workflows/reusable-arc-oci-build.yml@v5.0.0`;
+- `mindclade/.github/.github/workflows/reusable-arc-oci-qualify.yml@v5.0.0`; and
+- `mindclade/.github/.github/workflows/reusable-arc-qualification-attest.yml@v5.0.0`.
+
+The caller `release.yml@main` is insufficient because GitHub authorizes the workflow that directly
+defines each runner job. Install
 the `mindclade-arc` GitHub App only on that repository with organization self-hosted-runners
 write and repository Actions/metadata read. Install `mindclade-release-promoter` only on
 `gitops` with contents and pull-requests write plus metadata read. These installations are
@@ -242,7 +250,7 @@ duplicate the profile body in this repository.
 `CODEOWNERS`, rulesets, environments, variables, secrets, repository custom properties, and
 required checks do not inherit from this repository; `github-config` owns them.
 
-## 11. Deferred v4 production release
+## 11. Deferred v5 production release
 
 From a clean checkout:
 
@@ -253,9 +261,10 @@ nix develop .#ci --command actionlint -color
 nix develop .#ci --command yamllint --strict .
 ```
 
-The v4 production contract is not published. Starter workflows and active policy remain pinned
-to `v3.0.0`. A separate coordinated release PR must record evidence for the final protected-main
-commit before an authorized operator creates any v4 tag. Follow
+The historical v4 record is retired unpublished and must not be tagged. Starter workflows and
+active policy remain pinned to `v3.0.0`. The consolidated `v5.0.0` contract is an unpublished
+source candidate. A separate coordinated release PR must record evidence for the final
+protected-main commit before an authorized operator creates the v5 tag. Follow
 [Workflow release bootstrap](workflow-release-bootstrap.md); never use an intermediate branch
 commit as release evidence.
 

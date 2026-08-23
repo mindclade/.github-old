@@ -41,6 +41,10 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   requires protected main, independent environment approval, an exact immutable checkout, and a
   cache-scoped write token while explicitly excluding pull requests, cloud authority, server
   secrets, and client signing keys. No caller is enabled before connected cache qualification.
+- Added `reusable-nix-qualification.yml` with internal change detection, isolated CI-shell
+  validation, and an always-present verdict job.
+- Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
+- Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
 
 ### Changed
 
@@ -52,7 +56,7 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   `previous-subject-digest` lineage pair, and requires the closed-catalog `application` and
   `release-kind` identity required by the GitOps v1beta1 promotion contract. The workflow
   rejects a previous release that is not numerically older than the candidate.
-  The planned v4 contract remains unpublished; no consumer may adopt this change until an
+  The historical v4 contract is retired unpublished; no consumer may adopt this change until an
   explicitly reviewed immutable release is published.
 - **Breaking (publish as v5.0.0):** `reusable-oci-build.yml` now enriches every SPDX 2.3
   SBOM with the complete proprietary `LicenseRef`, a digest-bound first-party package, and
@@ -72,15 +76,6 @@ outputs, secrets, defaults, job identifiers, permissions, and observable behavio
   publication, and policy synchronization independently repeat this connected check.
 - Remove the subtree mirror's forced-tag path. Every nonempty mirror `tag` input now fails closed
   before branch rewriting until a separately protected target-release signer is qualified.
-
-## Unreleased v4.1.0 draft
-
-### Added
-
-- Added `reusable-nix-qualification.yml` with internal change detection, isolated CI-shell
-  validation, and an always-present verdict job.
-- Added native Linux arm64 and Apple Silicon qualification to the reusable Nix contract.
-- Added two-runner `nix build --rebuild` evidence with deterministic output-hash comparison.
 
 ## Retired v4.0.0 draft (superseded; never published)
 
