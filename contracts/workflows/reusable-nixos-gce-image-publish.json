@@ -1,0 +1,45 @@
+{
+  "inputs": {
+    "contract-installable": {
+      "default": ".#packages.x86_64-linux.workstation-gce-image-contract",
+      "required": false,
+      "type": "string"
+    },
+    "image-installable": {
+      "default": ".#packages.x86_64-linux.workstation-gce-image",
+      "required": false,
+      "type": "string"
+    },
+    "object-prefix": {
+      "default": "mindclade-workstation",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "job_permissions": {
+    "authorize": {
+      "contents": "read"
+    },
+    "publish": {
+      "contents": "read",
+      "id-token": "write"
+    }
+  },
+  "jobs": [
+    "authorize",
+    "publish"
+  ],
+  "outputs": [
+    "evidence-artifact",
+    "image-contract-sha256",
+    "source-object-generation",
+    "source-sha256",
+    "source-uri"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "schema_version": 1,
+  "secrets": {},
+  "workflow": ".github/workflows/reusable-nixos-gce-image-publish.yml"
+}

@@ -122,6 +122,33 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertEqual(text.count("retention-days: 30"), 5)
         self.assertNotIn("continue-on-error: true", text)
 
+    def test_nixos_gce_publication_is_create_only_and_caller_bound(self) -> None:
+        text = (WORKFLOWS / "reusable-nixos-gce-image-publish.yml").read_text(
+            encoding="utf-8"
+        )
+        scripts = "\n".join(run_scripts(text))
+
+        self.assertIn("environment: workstation-image-publication", text)
+        self.assertIn("runs-on: mindclade-arc-build-cpu", text)
+        self.assertIn("id-token: write", text)
+        self.assertIn("--if-generation-match=0", scripts)
+        self.assertIn(".source_sha' \"${contract}\")\" = \"${GITHUB_SHA}\"", scripts)
+        self.assertIn("runtime_installation", scripts)
+        self.assertIn("github.ref_protected", text)
+        self.assertIn(
+            "mindclade/mindclade-internal-monorepo/.github/workflows/nixos-image.yml@refs/heads/main",
+            text,
+        )
+        self.assertNotIn("pull_request", text)
+        self.assertNotIn("merge_group", text)
+        self.assertNotIn("gcloud compute images create", scripts)
+        for input_name in (
+            "contract-installable",
+            "image-installable",
+            "object-prefix",
+        ):
+            self.assertNotIn(f"${{{{ inputs.{input_name} }}}}", scripts)
+
 
 if __name__ == "__main__":
     unittest.main()
