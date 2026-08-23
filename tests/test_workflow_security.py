@@ -149,6 +149,28 @@ class WorkflowSecurityTests(unittest.TestCase):
         ):
             self.assertNotIn(f"${{{{ inputs.{input_name} }}}}", scripts)
 
+    def test_release_publication_is_main_bound_before_approval(self) -> None:
+        text = (WORKFLOWS / "publish-release.yml").read_text(encoding="utf-8")
+        scripts = "\n".join(run_scripts(text))
+
+        self.assertIn("  authorize:\n", text)
+        self.assertIn("    needs: authorize\n", text)
+        self.assertIn("ACTUAL_REF_PROTECTED: ${{ github.ref_protected }}", text)
+        self.assertIn("ref: ${{ github.sha }}", text)
+        self.assertIn('test "${ACTUAL_REPOSITORY}" = mindclade/.github', scripts)
+        self.assertIn('test "${ACTUAL_EVENT}" = workflow_dispatch', scripts)
+        self.assertIn('test "${ACTUAL_REF}" = refs/heads/main', scripts)
+        self.assertIn('test "${ACTUAL_REF_PROTECTED}" = true', scripts)
+        self.assertIn("origin/main^{commit}", scripts)
+        self.assertIn("verify_release_governance.py", scripts)
+
+    def test_draft_assembly_requires_connected_governance(self) -> None:
+        text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
+
+        self.assertIn("  governance:\n", text)
+        self.assertIn("    needs: governance\n", text)
+        self.assertIn("tools/verify_release_governance.py", text)
+
 
 if __name__ == "__main__":
     unittest.main()

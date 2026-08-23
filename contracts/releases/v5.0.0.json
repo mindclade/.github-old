@@ -21,6 +21,7 @@
   "release_surfaces": {
     "release_tools": [
       "tools/validate-release-spec.py",
+      "tools/verify_release_governance.py",
       "tools/verify_release_tag.py"
     ],
     "policy_manifest": [

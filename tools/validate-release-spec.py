@@ -37,6 +37,7 @@ REQUIRED_WORKFLOWS = [
 REPOSITORY_HOME_ACTION = ["actions/validate-repository-home"]
 RELEASE_TOOLS = [
     "tools/validate-release-spec.py",
+    "tools/verify_release_governance.py",
     "tools/verify_release_tag.py",
 ]
 POLICY_TOOLS = [

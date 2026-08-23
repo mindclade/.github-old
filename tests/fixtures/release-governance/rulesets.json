@@ -1,0 +1,16 @@
+[
+  {
+    "enforcement": "active",
+    "id": 201,
+    "name": "release-tag-creation",
+    "source_type": "Organization",
+    "target": "tag"
+  },
+  {
+    "enforcement": "active",
+    "id": 202,
+    "name": "tag-protection",
+    "source_type": "Organization",
+    "target": "tag"
+  }
+]

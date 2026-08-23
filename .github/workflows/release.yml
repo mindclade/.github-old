@@ -5,9 +5,9 @@
 # merge to main reaches nobody until a tag exists and each consumer bumps. This workflow does
 # the two things that step needs and a human reliably forgets.
 #
-# It does NOT create or move tags. github-config restricts creation to Release in one ruleset
-# and makes existing `v*` identities immutable with no bypass in a separate ruleset. This only
-# reacts to a tag that an authorized human already pushed.
+# It does NOT create or move tags. Before draft assembly, a connected read-only preflight proves
+# that github-config's release environments and Release-team tag-creation boundary are active.
+# Existing `v*` identities remain immutable through a separate no-bypass ruleset.
 name: Assemble workflow release
 
 on:
@@ -18,7 +18,32 @@ permissions:
   contents: read
 
 jobs:
+  governance:
+    name: Verify connected release governance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Require active environment and tag-creation controls
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          python3 tools/verify_release_governance.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}"
+
   draft:
+    needs: governance
     name: Validate and assemble draft
     runs-on: ubuntu-24.04
     timeout-minutes: 15

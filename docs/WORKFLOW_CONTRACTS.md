@@ -69,6 +69,14 @@ lineage; every later release must provide an exact numerically older `previous-r
 nonzero `previous-subject-digest`. Do not point a caller at v5 until that immutable release exists
 and its corresponding infrastructure WIF identity has been reviewed and applied.
 
+Draft assembly and publication fail before write authority when connected GitHub governance is
+incomplete. Both release environments must have exact distinct reviewer teams, protected-main-only
+policies, no self-review or administrator bypass, and the active organization tag-creation rule
+must grant its only creation bypass to the governed Release team. `publish-release.yml` additionally
+accepts dispatch only from the current protected `main` head. A GitHub API response that omits the
+bypass inventory fails closed; publication does not receive a privileged organization-governance
+token to work around that evidence gap.
+
 ## Nix qualification releases
 
 `reusable-nix-qualification.yml` keeps the required-check context stable at
