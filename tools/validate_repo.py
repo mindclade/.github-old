@@ -104,6 +104,7 @@ REQUIRED = {
     "contracts/policy-bundle/policy-bundle.schema.json",
     "contracts/evidence/common.schema.json",
     "contracts/evidence/deployment-bundle.schema.json",
+    "contracts/evidence/deployment-bundle-v1.schema.json",
     "contracts/evidence/eligibility-decision.schema.json",
     "contracts/evidence/evidence-claim.schema.json",
     "contracts/evidence/evidence-exception.schema.json",

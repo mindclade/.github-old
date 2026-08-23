@@ -14,6 +14,13 @@ header template, repository-home validator, SPDX LicenseRef enricher, third-part
 validator, and bundle schemas. The manifest deliberately does not replace independently licensed
 third-party material or repository-specific notices.
 
+Policy bundle `2026.08.23.2` promotes
+`contracts/evidence/deployment-bundle.schema.json` to the v2 production contract and retains v1 at
+`contracts/evidence/deployment-bundle-v1.schema.json` for historical evidence. New production
+qualification must use v2 and bind exact workflow/module release provenance, bootstrap and applied
+infrastructure evidence, saved-plan lineage, and rollback selection. The historical filename
+prevents v1 evidence from being reinterpreted under the current contract.
+
 `tools/policy_bundle.py verify` fails if a canonical artifact or declared repository copy differs
 by one byte. `sync --write` changes only declared distribution paths. The synchronization
 workflow uses a narrowly scoped GitHub App to open reviewable pull requests; it never pushes to
@@ -48,7 +55,7 @@ Verify the source and reproduce the archive locally:
 ```sh
 python3 tools/policy_bundle.py verify
 python3 tools/policy_bundle.py build \
-  --output dist/mindclade-policy-bundle-2026.08.23.1.tar.gz
+  --output dist/mindclade-policy-bundle-2026.08.23.2.tar.gz
 ```
 
 Before relying on a bundle, verify the archive checksum and its GitHub attestation against

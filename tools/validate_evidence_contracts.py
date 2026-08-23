@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "contracts" / "evidence"
 SCHEMAS = (
     "common.schema.json",
+    "deployment-bundle-v1.schema.json",
     "deployment-bundle.schema.json",
     "eligibility-decision.schema.json",
     "evidence-claim.schema.json",
@@ -34,6 +35,32 @@ REPOSITORIES = [
     "infrastructure-live",
     "mindclade-internal-monorepo",
 ]
+DEPLOYMENT_SCHEMA_VERSIONS = {
+    "deployment-bundle-v1.schema.json": "mindclade.dev/deployment-bundle/v1",
+    "deployment-bundle.schema.json": "mindclade.dev/deployment-bundle/v2",
+}
+DEPLOYMENT_V1_FIELDS = {
+    "schema_version",
+    "bundle_digest",
+    "change_reference",
+    "environment",
+    "repositories",
+    "release_digests",
+    "gitops_render_digest",
+    "deployment_selection_digest",
+    "infrastructure_handoff_digest",
+    "governance_audit_digest",
+    "workflow_release",
+    "policy_bundle_digest",
+}
+DEPLOYMENT_V2_FIELDS = DEPLOYMENT_V1_FIELDS | {
+    "workflow_release_provenance",
+    "module_release",
+    "bootstrap_contract",
+    "saved_plan_digest",
+    "applied_outputs_digest",
+    "rollback",
+}
 
 
 def load(name: str) -> dict[str, Any]:
@@ -75,6 +102,55 @@ def go_duration(nanoseconds: int) -> str:
     if nanoseconds <= 0 or nanoseconds % hour:
         raise ValueError("production control maximum_age must be a positive whole hour")
     return f"{nanoseconds // hour}h0m0s"
+
+
+def validate_deployment_schema(name: str, schema: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    expected_version = DEPLOYMENT_SCHEMA_VERSIONS[name]
+    expected_fields = (
+        DEPLOYMENT_V1_FIELDS
+        if name == "deployment-bundle-v1.schema.json"
+        else DEPLOYMENT_V2_FIELDS
+    )
+    if schema.get("additionalProperties") is not False:
+        errors.append(f"{name} must reject unknown top-level fields")
+    if set(schema.get("required", [])) != expected_fields:
+        errors.append(f"{name} does not require its exact versioned field set")
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return errors + [f"{name} properties must be one object"]
+    if properties.get("schema_version") != {"const": expected_version}:
+        errors.append(f"{name} does not bind {expected_version}")
+    try:
+        repository_enum = properties["repositories"]["items"]["properties"]["repository"][
+            "enum"
+        ]
+    except (KeyError, TypeError):
+        errors.append(f"{name} omits the repository inventory")
+    else:
+        if repository_enum != REPOSITORIES:
+            errors.append(
+                f"{name} repository inventory is not the exact seven-repository estate"
+            )
+    if name == "deployment-bundle.schema.json":
+        if properties.get("release_digests", {}).get("uniqueItems") is not True:
+            errors.append("deployment-bundle.schema.json must reject duplicate release digests")
+        definitions = schema.get("$defs")
+        if not isinstance(definitions, dict) or set(definitions) != {
+            "commit",
+            "releaseProvenance",
+            "moduleReleaseProvenance",
+        }:
+            errors.append(
+                "deployment-bundle.schema.json omits exact release provenance definitions"
+            )
+        else:
+            required = set(definitions["moduleReleaseProvenance"].get("required", []))
+            if "module_manifest_digest" not in required:
+                errors.append(
+                    "deployment-bundle.schema.json does not require module manifest provenance"
+                )
+    return errors
 
 
 def policy_digest(policy: dict[str, Any]) -> str:
@@ -130,10 +206,11 @@ def validate() -> list[str]:
         if policy.get("digest") != actual_digest:
             errors.append(f"production policy digest mismatch: {policy.get('digest')} != {actual_digest}")
 
-    deployment = load("deployment-bundle.schema.json")
-    repository_enum = deployment["properties"]["repositories"]["items"]["properties"]["repository"]["enum"]
-    if repository_enum != REPOSITORIES:
-        errors.append("deployment bundle repository inventory is not the exact seven-repository estate")
+    for name in DEPLOYMENT_SCHEMA_VERSIONS:
+        try:
+            errors.extend(validate_deployment_schema(name, load(name)))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(str(exc))
     return sorted(set(errors))
 
 
