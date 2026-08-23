@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
 import tarfile
 import tempfile
@@ -72,6 +73,41 @@ class PolicyBundleTest(unittest.TestCase):
                 shutil.copyfile(ROOT / artifact["source"], destination)
             errors = policy_bundle.verify_target(manifest, ROOT, "bootstrap", target)
             self.assertTrue(any("does not identify bootstrap" in error for error in errors))
+
+    def test_version_history_rejects_digest_change_without_version_bump(self) -> None:
+        manifest = policy_bundle.load_manifest()
+        history = policy_bundle.load_version_history()
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest_path = Path(temporary) / "manifest.json"
+            manifest_path.write_text(
+                json.dumps({**manifest, "effectiveDate": "2026-08-24"}) + "\n",
+                encoding="utf-8",
+            )
+            errors = policy_bundle.verify_version_history(
+                history, manifest_path, manifest
+            )
+        self.assertTrue(any("without a version bump" in error for error in errors))
+
+    def test_version_history_is_append_only(self) -> None:
+        manifest = policy_bundle.load_manifest()
+        history = policy_bundle.load_version_history()
+        mutated = json.loads(json.dumps(history))
+        mutated["versions"][0]["status"] = "published"
+        errors = policy_bundle.verify_version_history(
+            mutated, policy_bundle.DEFAULT_MANIFEST, manifest, history
+        )
+        self.assertIn("policy version history is not append-only", errors)
+
+    def test_version_history_accepts_unchanged_prefix(self) -> None:
+        manifest = policy_bundle.load_manifest()
+        history = policy_bundle.load_version_history()
+        baseline = {**history, "versions": history["versions"][:-1]}
+        self.assertEqual(
+            policy_bundle.verify_version_history(
+                history, policy_bundle.DEFAULT_MANIFEST, manifest, baseline
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

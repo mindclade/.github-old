@@ -123,6 +123,37 @@ jobs:
             nix develop --no-update-lock-file --ignore-environment .#ci \
               --command bash -euo pipefail -c "${CI_COMMAND}"
           fi
+      - name: Record native qualification evidence
+        env:
+          EXPECTED_SYSTEM: x86_64-linux
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/nix-native-evidence"
+          mkdir -p "${evidence_dir}"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schema": "mindclade-nix-native-evidence-v1",
+              "source_sha": os.environ["GITHUB_SHA"],
+              "system": os.environ["EXPECTED_SYSTEM"],
+              "runner_name": os.environ["RUNNER_NAME"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
+              "outcome": "success",
+          }
+          target = Path(os.environ["RUNNER_TEMP"]) / "nix-native-evidence" / "evidence.json"
+          target.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        with:
+          name: nix-native-x86-64-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nix-native-evidence
+          if-no-files-found: error
+          retention-days: 30
 
   aarch64_linux:
     name: aarch64-linux
@@ -156,6 +187,37 @@ jobs:
             nix develop --no-update-lock-file --ignore-environment .#ci \
               --command bash -euo pipefail -c "${CI_COMMAND}"
           fi
+      - name: Record native qualification evidence
+        env:
+          EXPECTED_SYSTEM: aarch64-linux
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/nix-native-evidence"
+          mkdir -p "${evidence_dir}"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schema": "mindclade-nix-native-evidence-v1",
+              "source_sha": os.environ["GITHUB_SHA"],
+              "system": os.environ["EXPECTED_SYSTEM"],
+              "runner_name": os.environ["RUNNER_NAME"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
+              "outcome": "success",
+          }
+          target = Path(os.environ["RUNNER_TEMP"]) / "nix-native-evidence" / "evidence.json"
+          target.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        with:
+          name: nix-native-aarch64-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nix-native-evidence
+          if-no-files-found: error
+          retention-days: 30
 
   aarch64_darwin:
     name: aarch64-darwin
@@ -189,6 +251,37 @@ jobs:
             nix develop --no-update-lock-file --ignore-environment .#ci \
               --command bash -euo pipefail -c "${CI_COMMAND}"
           fi
+      - name: Record native qualification evidence
+        env:
+          EXPECTED_SYSTEM: aarch64-darwin
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/nix-native-evidence"
+          mkdir -p "${evidence_dir}"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schema": "mindclade-nix-native-evidence-v1",
+              "source_sha": os.environ["GITHUB_SHA"],
+              "system": os.environ["EXPECTED_SYSTEM"],
+              "runner_name": os.environ["RUNNER_NAME"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
+              "outcome": "success",
+          }
+          target = Path(os.environ["RUNNER_TEMP"]) / "nix-native-evidence" / "evidence.json"
+          target.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        with:
+          name: nix-native-aarch64-darwin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nix-native-evidence
+          if-no-files-found: error
+          retention-days: 30
 
   rebuild_a:
     name: rebuild-a

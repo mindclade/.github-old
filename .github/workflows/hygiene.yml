@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
@@ -60,6 +61,17 @@ jobs:
 
       - name: Verify reusable workflow API contracts
         run: python3 tools/check_workflow_contracts.py
+
+      - name: Enforce append-only policy versions
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${BASE_SHA}" ]]; then
+            python3 tools/policy_bundle.py verify --baseline-ref "${BASE_SHA}"
+          else
+            python3 tools/policy_bundle.py verify
+          fi
 
   size:
     uses: ./.github/workflows/reusable-repo-hygiene.yml

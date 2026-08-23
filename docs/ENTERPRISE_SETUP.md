@@ -128,7 +128,7 @@ For general GitHub container publication, `reusable-oci-build.yml` provides:
 - push the attestations to the OCI registry;
 - create a GitHub linked-artifact storage record using `artifact-metadata: write`.
 
-Before adopting the workflow release, synchronize policy bundle `2026.08.22.1` into the caller.
+Before adopting the workflow release, synchronize policy bundle `2026.08.23.1` into the caller.
 The caller must carry the exact bundle manifest, complete root `LICENSE`, reviewed
 `contracts/third-party-materials.json`, generated `THIRD_PARTY_NOTICES.md`, and both distributed
 SBOM/notice tools. A package that is not first-party and lacks reviewed notice metadata stops the

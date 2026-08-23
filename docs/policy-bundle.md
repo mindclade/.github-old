@@ -19,6 +19,11 @@ by one byte. `sync --write` changes only declared distribution paths. The synchr
 workflow uses a narrowly scoped GitHub App to open reviewable pull requests; it never pushes to
 the default branch.
 
+`contracts/policy-bundle/version-history.json` is append-only. Every version binds one exact
+manifest SHA-256. Pull-request validation compares the file with the base commit, rejects any
+changed prior record, and rejects changed artifact digests unless a strictly newer version is
+appended. A version identifier can therefore never name two accepted manifests.
+
 Synchronization uses two independent source identities. The immutable, signed `v5.0.0` release
 supplies the adoption validator and verifies its attached source manifest. The exact protected
 `main` commit that started the synchronization run supplies the current policy bytes only after
@@ -43,7 +48,7 @@ Verify the source and reproduce the archive locally:
 ```sh
 python3 tools/policy_bundle.py verify
 python3 tools/policy_bundle.py build \
-  --output dist/mindclade-policy-bundle-2026.08.22.1.tar.gz
+  --output dist/mindclade-policy-bundle-2026.08.23.1.tar.gz
 ```
 
 Before relying on a bundle, verify the archive checksum and its GitHub attestation against

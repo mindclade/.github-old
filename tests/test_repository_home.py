@@ -160,7 +160,7 @@ Commons Attribution 4.0.
         )
         (root / "README.md").write_text(
             """<!-- mindclade-doc: repository-home@2 -->
-<!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
+<!-- Brand distribution: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/mono-wordmark-dark-1080w.png">
 <source media="(prefers-color-scheme: light)" srcset="docs/assets/brand/mono-wordmark-1080w.png">
