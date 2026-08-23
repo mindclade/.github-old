@@ -49,8 +49,10 @@ actor is the Release team. The operator's signing key must be registered with Gi
 signing key. Before creating a tag, dispatch `release-governance-preflight.yml` from protected
 `main`. Its no-write job binds the checkout to the current protected-main head and proves the
 same connected environment, reviewer, Release-team, and tag-rule inventory used by draft and
-publication. A Release-team operator then creates a signed annotated full-semver tag on the
-reviewed commit:
+publication. It uses the separately installed `mindclade-release-governance-reader` App, whose
+token is restricted to Actions, Administration, Contents, and Metadata read on this repository
+plus organization Members read. A Release-team operator then creates a signed annotated
+full-semver tag on the reviewed commit:
 
 ```sh
 release_sha="<reviewed-merged-commit-sha>"
@@ -73,26 +75,31 @@ squash or rebase merge is a different commit than the one that was reviewed and 
 `release.yml` first uses the read-only repository API to prove both release environments have
 their exact distinct reviewer teams, protected-main-only deployment policy, self-review and
 administrator bypass disabled, and that the active organization `release-tag-creation` rule has
-only the Release-team creation bypass. It then asks GitHub's read-only Git Data API to confirm
-that the annotated tag is validly signed and targets the expected commit, validates the changelog
-and tracked release specification, creates a draft, and attaches an exact source/file-digest
-manifest. It never publishes. Exact-tag qualification, protected publication, and policy
-synchronization repeat the connected signature/target check instead of relying only on the local
-checkout. After qualification of that exact tag, an operator dispatches `publish-release.yml`
-from protected `main` with the immutable evidence digest and protected change ticket. A no-write
-authorization job proves the dispatch workflow, checkout SHA, and current `origin/main` are the
-same commit and repeats the connected governance preflight. Publication then crosses the
+only the Release-team creation bypass while active no-bypass `tag-protection` contains the exact
+update, deletion, non-fast-forward, and stable-SemVer restrictions. It also requires immutable
+releases to be owner-enforced. It then asks GitHub's read-only Git Data API to confirm that the
+annotated tag is validly signed and targets the expected commit, validates the changelog and
+tracked release specification, creates a draft, and attaches an exact source/file-digest manifest.
+It never publishes. Exact-tag qualification, protected publication, and policy synchronization
+repeat the connected signature/target check instead of relying only on the local checkout. After
+qualification of that exact tag, an operator dispatches `publish-release.yml` from protected
+`main` with the immutable evidence digest and protected change ticket. A no-write authorization
+job proves the dispatch workflow, checkout SHA, and live default-head SHA are the same commit and
+repeats the connected governance preflight. Publication then crosses the
 `workflow-release-platform` environment and then the `workflow-release-security` environment;
-each has one exact reviewer team and prevents self-review. This enforces two distinct protected
-approval boundaries before organization immutable-release enforcement protects the release and
-tag.
+each has one exact reviewer team and prevents self-review. Immediately before publication the
+reader verifies the review history contains exactly one approval for each environment, the two
+reviewers are distinct from each other and the dispatcher, and each remains an active member of
+the expected team. This enforces two distinct protected approval boundaries before organization
+immutable-release enforcement protects the release and tag.
 
-The preflight uses only the workflow's read-scoped `GITHUB_TOKEN` plus source-managed,
-non-secret `RELEASE_TEAM_ID`; it never receives an organization-administration App token. GitHub
-may omit ruleset bypass actors from a response that cannot prove them. An omitted bypass inventory
-is an intentional hard failure, not permission to assume the catalog was applied. Keep publication
-blocked until the connected response exposes the one exact Release-team bypass; do not widen this
-workflow's token merely to turn the check green.
+The preflight cannot use `GITHUB_TOKEN` for the immutable-release setting because that endpoint
+requires repository Administration read. Store `RELEASE_GOVERNANCE_READER_APP_ID` as a repository
+variable and its private key only as `RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY` in Actions
+secrets. The App is read-only, has no webhooks, and is selected only to `.github` and the internal
+monorepo. GitHub may omit ruleset bypass actors or approval membership from a response that cannot
+prove them. An omitted inventory is an intentional hard failure, not permission to assume the
+catalog was applied or widen the publisher's write token.
 
 The version heading in `CHANGELOG.md` must be exactly `## vX.Y.Z` and its section must contain
 non-whitespace release notes. Draft assembly rejects a planned-status suffix or empty section so

@@ -26,6 +26,20 @@ jobs:
       actions: read
       contents: read
     steps:
+      - name: Mint read-only release-governance token
+        id: governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
@@ -34,7 +48,7 @@ jobs:
 
       - name: Require active environment and tag-creation controls
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.governance-token.outputs.token }}
           EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
         run: |
           set -euo pipefail
@@ -76,7 +90,8 @@ jobs:
             echo "::error::'${TAG}' is a lightweight tag. Cut releases with 'git tag -s'."
             exit 1
           fi
-          if ! git merge-base --is-ancestor "${TAG}^{}" origin/main; then
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          if ! git merge-base --is-ancestor "${TAG}^{}" "$current_main"; then
             echo "::error::'${TAG}' does not point to a commit reachable from origin/main."
             exit 1
           fi

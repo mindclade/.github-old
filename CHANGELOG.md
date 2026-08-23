@@ -107,6 +107,10 @@ qualification, and protected publication gates in `docs/release-policy.md` pass.
 - Block draft assembly and publication until a read-only connected preflight proves exact,
   independent release-environment reviewers and the active Release-team-only tag-creation rule;
   accept publication dispatch only from the current protected `main` head.
+- Require the separately scoped release-governance reader to prove organization-enforced
+  immutable releases, active no-bypass tag protection, live default-head and tag identity,
+  unexpired qualification, and two distinct current team-member approvals immediately before
+  publication.
 - Remove the subtree mirror's forced-tag path. Every nonempty mirror `tag` input now fails closed
   before branch rewriting until a separately protected target-release signer is qualified.
 

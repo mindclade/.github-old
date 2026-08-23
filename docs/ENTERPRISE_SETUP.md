@@ -268,6 +268,13 @@ protected-main commit before an authorized operator creates the v5 tag. Follow
 [Workflow release bootstrap](workflow-release-bootstrap.md); never use an intermediate branch
 commit as release evidence.
 
+Create `mindclade-release-governance-reader` from the exact `github-config` catalog, install it
+only on `.github` and `mindclade-internal-monorepo`, set
+`RELEASE_GOVERNANCE_READER_APP_ID`, and store its private key only in
+`RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY`. The App has no write permission or webhook; its
+Administration and Members read scopes exist solely to prove immutable-release settings,
+environment/ruleset composition, approval history, and current reviewer-team membership.
+
 ## 12. Operational prerequisites
 
 Before relying on organization defaults, verify monitored aliases route to restricted groups:

@@ -41,17 +41,32 @@ jobs:
       - name: Bind checkout to the current protected main head
         env:
           EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
           test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
-          test "$(git rev-parse --verify 'origin/main^{commit}')" = "${EXPECTED_SHA}"
+          test "$current_main" = "${EXPECTED_SHA}"
           git diff --quiet --no-ext-diff
           git diff --cached --quiet --no-ext-diff
 
+      - name: Mint read-only release-governance token
+        id: governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
       - name: Verify connected release governance
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.governance-token.outputs.token }}
           EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
         run: |
           set -euo pipefail

@@ -1,0 +1,36 @@
+{
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/tags/v*"
+      ]
+    }
+  },
+  "enforcement": "active",
+  "id": 202,
+  "name": "tag-protection",
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "parameters": {
+        "name": "stable-semver-only",
+        "negate": false,
+        "operator": "regex",
+        "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+      },
+      "type": "tag_name_pattern"
+    },
+    {
+      "type": "update"
+    }
+  ],
+  "source_type": "Organization",
+  "target": "tag"
+}

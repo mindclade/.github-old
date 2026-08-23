@@ -10,7 +10,11 @@
 > **Current status:** Source candidate only. The historical v4 record is retired unpublished at
 > `contracts/releases/retired/v4.0.0.json` and must not be published.
 > `contracts/releases/v5.0.0.json` defines the consolidated source candidate; no v5 tag or release
-> exists.
+> exists. Connected read-back on 2026-08-23 reports repository-level immutable releases enabled
+> but not enforced by the organization owner; `workflow-release-platform` is absent;
+> `workflow-release-security` allows administrator bypass and has no protection rules; and the
+> effective ruleset read is rejected by the current GitHub plan. Publication remains blocked until
+> every control passes the read-only preflight.
 
 ## Before you begin
 
@@ -20,6 +24,8 @@
 - Starter workflows and active WIF policy references still use the published `v3.0.0` contract.
 - `platform` and `security` reviewers have approved the release commit.
 - The Release operator's signing key is registered with GitHub as a signing key.
+- The source-qualified `mindclade-release-governance-reader` App is installed with its exact
+  read-only permissions, App ID variable, and protected private-key secret.
 
 ## Qualify the release commit
 
@@ -36,9 +42,12 @@ reference an intermediate PR commit.
 Verify `hygiene`, `smoke`, and `required-repository-policy` passed for that same commit.
 
 After github-config's protected apply and connected audit, dispatch
-`release-governance-preflight.yml` from protected `main`. It must pass using only the repository
-`GITHUB_TOKEN` and the source-managed `RELEASE_TEAM_ID`. A missing or API-omitted Release-team
-bypass inventory is a hard blocker; do not substitute a privileged App token.
+`release-governance-preflight.yml` from protected `main`. It must pass using the repository
+`GITHUB_TOKEN` for checkout identity and the narrowly scoped release-governance reader token for
+Administration and Members read. A missing or API-omitted Release-team bypass, no-bypass
+tag-protection, reviewer membership, or immutable-release inventory is a hard blocker. The
+preflight requires immutable releases to be enabled and enforced by the organization owner, so a
+repository administrator cannot disable the control during publication.
 
 ## Create the immutable release
 
@@ -64,7 +73,12 @@ checksum-verified source manifest. Run native Linux AMD64/ARM64 and
 Darwin qualification, both independent Linux rebuilds, and the connected WIF/cloud canary
 against the exact tag. Archive the resulting evidence bundle, then dispatch
 `publish-release.yml` with its digest and protected change ticket. Two independent environment
-approvals are mandatory.
+approvals are mandatory. Qualification evidence expires after 24 hours. The publisher re-reads
+the protected `main` head, exact tag object and peeled commit, release governance, and immutable
+release enforcement after the approval waits and again immediately before publication. It also
+requires two distinct approved reviewers, neither the dispatcher, and proves each reviewer's
+current membership in the expected Platform or Security team. Any drift or expired evidence
+requires a fresh dispatch and approvals.
 
 Confirm the annotated tag peels back to the same commit before consumers pin it:
 

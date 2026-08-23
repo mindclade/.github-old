@@ -33,10 +33,15 @@ class ReleaseGovernanceTests(unittest.TestCase):
         }
         self.rulesets = load("rulesets.json")
         self.ruleset = load("ruleset.json")
+        self.tag_protection = load("tag-protection.json")
 
     def validate(self) -> None:
         release_governance.validate_snapshot(
-            self.environments, self.rulesets, self.ruleset, 103
+            self.environments,
+            self.rulesets,
+            self.ruleset,
+            self.tag_protection,
+            103,
         )
 
     def test_qualified_snapshot_passes(self) -> None:
@@ -44,7 +49,9 @@ class ReleaseGovernanceTests(unittest.TestCase):
 
     def test_environment_admin_bypass_is_rejected(self) -> None:
         self.environments["workflow-release-platform"]["can_admins_bypass"] = True
-        with self.assertRaisesRegex(release_governance.GovernanceError, "administrator"):
+        with self.assertRaisesRegex(
+            release_governance.GovernanceError, "administrator"
+        ):
             self.validate()
 
     def test_environment_self_review_is_rejected(self) -> None:
@@ -60,7 +67,9 @@ class ReleaseGovernanceTests(unittest.TestCase):
         ]
         policy["protected_branches"] = False
         policy["custom_branch_policies"] = True
-        with self.assertRaisesRegex(release_governance.GovernanceError, "protected-branches"):
+        with self.assertRaisesRegex(
+            release_governance.GovernanceError, "protected-branches"
+        ):
             self.validate()
 
     def test_wrong_or_shared_reviewer_is_rejected(self) -> None:
@@ -87,10 +96,98 @@ class ReleaseGovernanceTests(unittest.TestCase):
         with self.assertRaisesRegex(release_governance.GovernanceError, "Release-team"):
             self.validate()
 
+    def test_tag_protection_rejects_missing_rule_or_bypass(self) -> None:
+        self.tag_protection["rules"] = self.tag_protection["rules"][:-1]
+        with self.assertRaisesRegex(release_governance.GovernanceError, "four"):
+            self.validate()
+
+        self.tag_protection = load("tag-protection.json")
+        self.tag_protection["bypass_actors"] = [
+            {"actor_id": 103, "actor_type": "Team", "bypass_mode": "always"}
+        ]
+        with self.assertRaisesRegex(release_governance.GovernanceError, "no bypass"):
+            self.validate()
+
+    def test_tag_protection_rejects_mutable_pattern(self) -> None:
+        pattern = next(
+            rule
+            for rule in self.tag_protection["rules"]
+            if rule["type"] == "tag_name_pattern"
+        )
+        pattern["parameters"]["pattern"] = "^v.*$"
+        with self.assertRaisesRegex(release_governance.GovernanceError, "SemVer"):
+            self.validate()
+
     def test_snapshot_is_not_mutated(self) -> None:
         before = copy.deepcopy(self.environments)
         self.validate()
         self.assertEqual(self.environments, before)
+
+    def test_immutable_releases_require_organization_enforcement(self) -> None:
+        release_governance.validate_immutable_releases(
+            {"enabled": True, "enforced_by_owner": True}
+        )
+        with self.assertRaisesRegex(release_governance.GovernanceError, "enabled"):
+            release_governance.validate_immutable_releases(
+                {"enabled": False, "enforced_by_owner": False}
+            )
+        with self.assertRaisesRegex(release_governance.GovernanceError, "organization"):
+            release_governance.validate_immutable_releases(
+                {"enabled": True, "enforced_by_owner": False}
+            )
+
+    def test_release_approval_history_requires_distinct_team_members(self) -> None:
+        approvals = [
+            {
+                "state": "approved",
+                "environments": [{"name": "workflow-release-platform"}],
+                "user": {"id": 201, "login": "platform-reviewer"},
+            },
+            {
+                "state": "approved",
+                "environments": [{"name": "workflow-release-security"}],
+                "user": {"id": 202, "login": "security-reviewer"},
+            },
+        ]
+        approved = release_governance.validate_approval_history(
+            approvals, "release-operator"
+        )
+        self.assertEqual(
+            {reviewer["login"] for reviewer in approved.values()},
+            {"platform-reviewer", "security-reviewer"},
+        )
+
+        approvals[1]["user"] = approvals[0]["user"]
+        with self.assertRaisesRegex(release_governance.GovernanceError, "distinct"):
+            release_governance.validate_approval_history(approvals, "release-operator")
+
+    def test_release_approval_history_rejects_dispatcher_or_missing_approval(
+        self,
+    ) -> None:
+        approvals = [
+            {
+                "state": "approved",
+                "environments": [{"name": "workflow-release-platform"}],
+                "user": {"id": 201, "login": "release-operator"},
+            }
+        ]
+        with self.assertRaisesRegex(release_governance.GovernanceError, "dispatcher"):
+            release_governance.validate_approval_history(approvals, "release-operator")
+
+        approvals[0]["user"] = {"id": 201, "login": "platform-reviewer"}
+        with self.assertRaisesRegex(release_governance.GovernanceError, "exactly one"):
+            release_governance.validate_approval_history(approvals, "release-operator")
+
+    def test_release_approval_reviewer_requires_active_team_membership(self) -> None:
+        release_governance.validate_team_membership(
+            {"state": "active", "role": "member"}, "security", "reviewer"
+        )
+        with self.assertRaisesRegex(
+            release_governance.GovernanceError, "active member"
+        ):
+            release_governance.validate_team_membership(
+                {"state": "pending", "role": "member"}, "security", "reviewer"
+            )
 
     def test_pagination_cannot_forward_the_token_to_another_origin(self) -> None:
         client = release_governance.GitHubClient(
