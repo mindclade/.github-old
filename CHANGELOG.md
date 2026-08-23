@@ -91,7 +91,7 @@ qualification, and protected publication gates in `docs/release-policy.md` pass.
 - **Breaking (publish as v5.0.0):** `reusable-oci-build.yml` now enriches every SPDX 2.3
   SBOM with the complete proprietary `LicenseRef`, a digest-bound first-party package, and
   reviewed third-party notice coverage before upload or attestation. Callers must first
-  synchronize policy bundle `2026.08.21.4`, including both SBOM/notice tools and their
+  synchronize policy bundle `2026.08.23.2`, including both SBOM/notice tools and their
   repository-specific provenance contract.
 - **Breaking (publish as v5.0.0):** release attestation schema 2 covers every reusable and
   required workflow, workflow contract, repository-home action file, policy tool, and policy
