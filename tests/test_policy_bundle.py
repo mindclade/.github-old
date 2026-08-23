@@ -41,6 +41,35 @@ class PolicyBundleTest(unittest.TestCase):
             self.assertIn("manifest.json", names)
             self.assertIn("LICENSE", names)
             self.assertIn("actions/validate-repository-home/validate.py", names)
+            self.assertIn(
+                "contracts/evidence/deployment-bundle-v1.schema.json", names
+            )
+            self.assertIn("contracts/evidence/deployment-bundle.schema.json", names)
+
+    def test_current_manifest_records_both_deployment_bundle_versions(self) -> None:
+        manifest = policy_bundle.load_manifest()
+        artifacts = {artifact["name"]: artifact for artifact in manifest["artifacts"]}
+        self.assertEqual(manifest["version"], "2026.08.23.2")
+        self.assertEqual(
+            artifacts["deployment-bundle-v1-schema"]["sha256"],
+            "0c5b161cf9e87451b1ecf41c5b093237701b8f6b707e63d57f1db1c20766af9b",
+        )
+        self.assertEqual(
+            artifacts["deployment-bundle-schema"]["sha256"],
+            "f5f40bfc84e8cb5e775749f7b9be34795a6e50b649fabe5f7efbe2710a30952a",
+        )
+
+    def test_current_manifest_digest_is_the_final_append_only_record(self) -> None:
+        history = policy_bundle.load_version_history()
+        self.assertEqual(
+            history["versions"][-1],
+            {
+                "version": "2026.08.23.2",
+                "effectiveDate": "2026-08-23",
+                "manifestSha256": "ba081406682fc334bf4fdad0afeb2af936a23983a444f245b5fa01401618ce43",
+                "status": "candidate",
+            },
+        )
 
     def test_sync_repairs_only_declared_target_artifacts(self) -> None:
         manifest = policy_bundle.load_manifest()

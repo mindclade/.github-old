@@ -2,6 +2,16 @@
 
 # Changelog
 
+## Policy bundle 2026.08.23.2 (planned with v5.0.0; not published)
+
+### Changed
+
+- Promote deployment bundle v2 as the canonical seven-repository production evidence contract,
+  requiring exact workflow and module release provenance, applied bootstrap and infrastructure
+  evidence, saved-plan lineage, and an explicit rollback target.
+- Preserve deployment bundle v1 under its versioned historical filename while distributing both
+  schemas through the append-only policy inventory.
+
 ## Policy bundle 2026.08.23.1 (planned with v5.0.0; not published)
 
 ### Added
