@@ -40,7 +40,8 @@ jobs:
           set -euo pipefail
           python3 tools/verify_release_governance.py \
             --repository "${GITHUB_REPOSITORY}" \
-            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}"
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}" \
+            --phase draft
 
   draft:
     needs: governance
@@ -76,7 +77,8 @@ jobs:
             echo "::error::'${TAG}' is a lightweight tag. Cut releases with 'git tag -s'."
             exit 1
           fi
-          if ! git merge-base --is-ancestor "${TAG}^{}" origin/main; then
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          if ! git merge-base --is-ancestor "${TAG}^{}" "$current_main"; then
             echo "::error::'${TAG}' does not point to a commit reachable from origin/main."
             exit 1
           fi

@@ -36,6 +36,11 @@ class ReleaseSpecTests(unittest.TestCase):
         self.assertIn("tools/verify_release_governance.py", files)
         self.assertIn("tools/verify_release_tag.py", files)
 
+    def test_v5_changelog_requires_the_current_policy_bundle(self) -> None:
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertIn("synchronize policy bundle `2026.08.23.2`", changelog)
+        self.assertNotIn("synchronize policy bundle `2026.08.21.4`", changelog)
+
     def test_attestation_binds_exact_source_and_recursive_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "attestation.json"

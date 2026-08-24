@@ -60,17 +60,32 @@ jobs:
       - name: Bind checkout to the current protected main head
         env:
           EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
           test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
-          test "$(git rev-parse --verify 'origin/main^{commit}')" = "${EXPECTED_SHA}"
+          test "$current_main" = "${EXPECTED_SHA}"
           git diff --quiet --no-ext-diff
           git diff --cached --quiet --no-ext-diff
 
+      - name: Mint read-only release-governance token
+        id: governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
       - name: Verify connected release governance
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.governance-token.outputs.token }}
           EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
         run: |
           set -euo pipefail
@@ -105,6 +120,37 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Mint read-only release-governance token
+        id: governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: .github
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
+      - name: Revalidate current protected-main publication authority
+        env:
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ steps.governance-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          current_main="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
+          test "$current_main" = "${EXPECTED_SHA}"
+          python3 tools/verify_release_governance.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}"
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
 
       - name: Validate protected publication inputs
         env:
@@ -121,7 +167,10 @@ jobs:
           [[ "$CHANGE_TICKET" =~ ^[A-Z][A-Z0-9]+-[1-9][0-9]*$ ]]
           [ "$EVIDENCE_DIGEST" != "sha256:$(printf '0%.0s' {1..64})" ]
           [ "$(git cat-file -t "$TAG")" = tag ]
-          git merge-base --is-ancestor "${TAG}^{}" origin/main
+          remote_tag_object="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
+            --jq .object.sha)"
+          [ "$remote_tag_object" = "$(git rev-parse --verify "${TAG}^{tag}")" ]
+          git merge-base --is-ancestor "${TAG}^{}" "${GITHUB_SHA}"
           python3 tools/verify_release_tag.py \
             --repository "$GITHUB_REPOSITORY" \
             --tag "$TAG" \
@@ -142,6 +191,12 @@ jobs:
           gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${QUALIFICATION_RUN_ID}" \
             > "$work/run.json"
           run_attempt="$(jq -r .run_attempt "$work/run.json")"
+          completed_at="$(jq -er .updated_at "$work/run.json")"
+          completed_epoch="$(date -u -d "$completed_at" +%s)"
+          now_epoch="$(date -u +%s)"
+          age_seconds="$((now_epoch - completed_epoch))"
+          [ "$age_seconds" -ge 0 ]
+          [ "$age_seconds" -le 86400 ]
           jq -e \
             --arg source "$source_commit" \
             '.event == "workflow_dispatch"
@@ -198,13 +253,51 @@ jobs:
           TAG: ${{ inputs.tag }}
           EVIDENCE_DIGEST: ${{ inputs.qualification-evidence-digest }}
           CHANGE_TICKET: ${{ inputs.change-ticket }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+          EXPECTED_SHA: ${{ github.sha }}
+          GOVERNANCE_TOKEN: ${{ steps.governance-token.outputs.token }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification-run-id }}
         run: |
           set -euo pipefail
           notes="$(mktemp)"
           trap 'rm -f "$notes"' EXIT
+          current_main="$(GH_TOKEN="$GOVERNANCE_TOKEN" gh api \
+            "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
+          test "$current_main" = "${EXPECTED_SHA}"
+          expected_tag_object="$(git rev-parse --verify "${TAG}^{tag}")"
+          expected_source="$(git rev-parse --verify "${TAG}^{commit}")"
+          remote_tag_object="$(GH_TOKEN="$GOVERNANCE_TOKEN" gh api \
+            "/repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq .object.sha)"
+          test "$remote_tag_object" = "$expected_tag_object"
+          python3 tools/verify_release_tag.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$TAG" \
+            --expected-source "$expected_source"
+          GH_TOKEN="$GOVERNANCE_TOKEN" python3 tools/verify_release_governance.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --dispatcher "${GITHUB_ACTOR}"
+          completed_at="$(GH_TOKEN="$GOVERNANCE_TOKEN" gh api \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs/${QUALIFICATION_RUN_ID}" \
+            --jq .updated_at)"
+          completed_epoch="$(date -u -d "$completed_at" +%s)"
+          now_epoch="$(date -u +%s)"
+          age_seconds="$((now_epoch - completed_epoch))"
+          [ "$age_seconds" -ge 0 ]
+          [ "$age_seconds" -le 86400 ]
           gh release view "$TAG" --json body --jq .body > "$notes"
           printf '\n\nConnected qualification: %s\nProtected change: %s\n' \
             "$EVIDENCE_DIGEST" "$CHANGE_TICKET" >> "$notes"
           gh release edit "$TAG" \
             --notes-file "$notes" \
             --draft=false
+          gh release view "$TAG" --json isDraft,isImmutable,isPrerelease,tagName \
+            > release-publication.json
+          jq -e --arg tag "$TAG" '
+            .tagName == $tag
+            and .isDraft == false
+            and .isPrerelease == false
+            and .isImmutable == true
+          ' release-publication.json >/dev/null

@@ -9,6 +9,8 @@ import re
 import unittest
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -39,6 +41,12 @@ def run_scripts(text: str) -> list[str]:
     return scripts
 
 
+def named_step(text: str, job: str, name: str) -> dict[str, object]:
+    workflow = yaml.safe_load(text)
+    steps = workflow["jobs"][job]["steps"]
+    return next(step for step in steps if step.get("name") == name)
+
+
 class WorkflowSecurityTests(unittest.TestCase):
     def test_uv_inputs_are_not_interpolated_into_shell_scripts(self) -> None:
         text = (WORKFLOWS / "reusable-uv-ci.yml").read_text(encoding="utf-8")
@@ -52,9 +60,7 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn('read -r -a pytest_args <<< "${PYTEST_ARGS:-}"', scripts)
 
     def test_qualification_image_ref_is_not_interpolated_into_shell(self) -> None:
-        text = (WORKFLOWS / "reusable-arc-oci-qualify.yml").read_text(
-            encoding="utf-8"
-        )
+        text = (WORKFLOWS / "reusable-arc-oci-qualify.yml").read_text(encoding="utf-8")
         scripts = "\n".join(run_scripts(text))
 
         self.assertNotIn("${{ inputs.image-ref }}", scripts)
@@ -132,7 +138,7 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn("runs-on: mindclade-arc-build-cpu", text)
         self.assertIn("id-token: write", text)
         self.assertIn("--if-generation-match=0", scripts)
-        self.assertIn(".source_sha' \"${contract}\")\" = \"${GITHUB_SHA}\"", scripts)
+        self.assertIn('.source_sha\' "${contract}")" = "${GITHUB_SHA}"', scripts)
         self.assertIn("runtime_installation", scripts)
         self.assertIn("github.ref_protected", text)
         self.assertIn(
@@ -149,7 +155,7 @@ class WorkflowSecurityTests(unittest.TestCase):
         ):
             self.assertNotIn(f"${{{{ inputs.{input_name} }}}}", scripts)
 
-    def test_release_publication_is_main_bound_before_approval(self) -> None:
+    def test_release_publication_is_main_bound_before_and_after_approval(self) -> None:
         text = (WORKFLOWS / "publish-release.yml").read_text(encoding="utf-8")
         scripts = "\n".join(run_scripts(text))
 
@@ -161,8 +167,37 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn('test "${ACTUAL_EVENT}" = workflow_dispatch', scripts)
         self.assertIn('test "${ACTUAL_REF}" = refs/heads/main', scripts)
         self.assertIn('test "${ACTUAL_REF_PROTECTED}" = true', scripts)
-        self.assertIn("origin/main^{commit}", scripts)
+        self.assertIn("/git/ref/heads/main", scripts)
         self.assertIn("verify_release_governance.py", scripts)
+        self.assertEqual(text.count("verify_release_governance.py"), 3)
+        self.assertGreaterEqual(text.count("/git/ref/heads/main"), 2)
+        self.assertIn("age_seconds", scripts)
+        self.assertIn('"$age_seconds" -le 86400', scripts)
+        self.assertIn("/git/ref/tags/${TAG}", scripts)
+        self.assertIn('--run-id "${GITHUB_RUN_ID}"', scripts)
+        self.assertIn('--dispatcher "${GITHUB_ACTOR}"', scripts)
+        self.assertIn(".isImmutable == true", scripts)
+        self.assertEqual(text.count("RELEASE_GOVERNANCE_READER_APP_ID"), 2)
+        self.assertEqual(text.count("permission-administration: read"), 2)
+        self.assertEqual(text.count("permission-members: read"), 2)
+
+        revalidate = named_step(
+            text, "publish", "Revalidate current protected-main publication authority"
+        )
+        self.assertEqual(
+            revalidate["env"]["GH_TOKEN"],
+            "${{ steps.governance-token.outputs.token }}",
+        )
+        self.assertIn("/git/ref/heads/main", revalidate["run"])
+        final = named_step(text, "publish", "Publish immutable release")
+        self.assertIn('--run-id "${GITHUB_RUN_ID}"', final["run"])
+        self.assertIn('--dispatcher "${GITHUB_ACTOR}"', final["run"])
+        self.assertEqual(
+            final["env"]["GOVERNANCE_TOKEN"],
+            "${{ steps.governance-token.outputs.token }}",
+        )
+        self.assertIn('"$age_seconds" -le 86400', final["run"])
+        self.assertIn(".isImmutable == true", final["run"])
 
     def test_release_governance_preflight_is_read_only_and_main_bound(self) -> None:
         text = (WORKFLOWS / "release-governance-preflight.yml").read_text(
@@ -177,8 +212,11 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn('test "${ACTUAL_EVENT}" = workflow_dispatch', scripts)
         self.assertIn('test "${ACTUAL_REF}" = refs/heads/main', scripts)
         self.assertIn('test "${ACTUAL_REF_PROTECTED}" = true', scripts)
-        self.assertIn("origin/main^{commit}", scripts)
+        self.assertIn("/git/ref/heads/main", scripts)
         self.assertIn("tools/verify_release_governance.py", scripts)
+        self.assertIn("RELEASE_GOVERNANCE_READER_APP_ID", text)
+        self.assertIn("permission-administration: read", text)
+        self.assertIn("permission-members: read", text)
         self.assertNotIn("contents: write", text)
         self.assertNotIn("id-token: write", text)
 
@@ -188,8 +226,13 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn("  governance:\n", text)
         self.assertIn("    needs: governance\n", text)
         self.assertIn("tools/verify_release_governance.py", text)
+        self.assertIn("--phase draft", text)
+        self.assertNotIn("RELEASE_GOVERNANCE_READER_APP_ID", text)
+        self.assertNotIn("RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY", text)
 
-    def test_draft_release_notes_require_an_exact_nonempty_version_section(self) -> None:
+    def test_draft_release_notes_require_an_exact_nonempty_version_section(
+        self,
+    ) -> None:
         text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
         scripts = "\n".join(run_scripts(text))
 
